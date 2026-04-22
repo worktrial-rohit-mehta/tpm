@@ -257,6 +257,7 @@ class SimulationEngine:
                 new_beliefs.extend(beliefs)
                 new_facts.extend(facts)
         duration = self.action_costs.get("read_thread", 2)
+        target_actor_id = self._thread_primary_target(thread, explicit_target=thread_or_actor_id)
         action_id = self.store.log_action(
             to_iso(self.now()),
             "tpm",
@@ -265,7 +266,10 @@ class SimulationEngine:
             {"thread_id": thread["id"]},
             "",
             duration,
-            {"thread_id": thread["id"]},
+            {
+                "thread_id": thread["id"],
+                **({"target_actor_id": target_actor_id} if target_actor_id else {}),
+            },
         )
         self._advance_internal(duration, reason="read.thread", log_action=False)
         self.store.log_event(
@@ -396,6 +400,7 @@ class SimulationEngine:
             raise ValueError(f"{act_id} is not valid on chat.")
         action_time = to_iso(self.now())
         target_actor_id = self._thread_primary_target(thread, explicit_target=target)
+        cost_key, cost_minutes = self._chat_action_cost(thread, target_actor_id, act_id)
         logged_slots = {**slots}
         if target_actor_id and "target_actor_id" not in logged_slots:
             logged_slots["target_actor_id"] = target_actor_id
@@ -419,8 +424,13 @@ class SimulationEngine:
             act_id,
             logged_slots,
             body,
-            self.action_costs.get("send_chat", 1),
-            {"thread_id": thread["id"], "target_actor_id": target_actor_id},
+            cost_minutes,
+            {
+                "thread_id": thread["id"],
+                "target_actor_id": target_actor_id,
+                "cost_key": cost_key,
+                "cost_minutes": cost_minutes,
+            },
         )
         self.store.log_event(
             action_time,
@@ -433,11 +443,77 @@ class SimulationEngine:
         )
         self._apply_outgoing_message_side_effects(thread, act_id, logged_slots, body)
         self._schedule_npc_response(thread, act_id, logged_slots, body)
-        notifications = self._spend_time(self.action_costs.get("send_chat", 1), "send_chat")
+        notifications = self._spend_time(cost_minutes, f"chat.send:{cost_key}")
         lines = [f"Sent {act_id} in {thread['id']}."]
         if notifications:
             lines.extend(["", *notifications])
         return "\n".join(lines)
+
+    def _chat_action_cost(self, thread, target_actor_id: str | None, act_id: str) -> tuple[str, int]:
+        cost_key = self._chat_action_cost_key(thread, target_actor_id, act_id)
+        return cost_key, int(self.action_costs.get(cost_key, self.action_costs.get("send_chat", 1)))
+
+    def _chat_action_cost_key(self, thread, target_actor_id: str | None, act_id: str) -> str:
+        if target_actor_id and self._pending_npc_response_event(target_actor_id, thread["id"]) is not None:
+            return "status_push_without_new_information"
+        if self._is_repeated_unanswered_outbound(thread["id"], act_id):
+            return "status_push_without_new_information"
+        if act_id in {
+            "request.clarification",
+            "request.feasibility",
+            "request.scope_tradeoff",
+            "request.eta",
+            "request.ownership",
+        }:
+            return "ask_discovery_question"
+        if act_id in {
+            "request.approval",
+            "request.review",
+            "commit.propose",
+            "commit.confirm",
+            "commit.revise",
+            "commit.retract",
+            "negotiate.scope",
+            "negotiate.timeline",
+            "negotiate.ownership",
+            "inform.decision",
+            "escalate.to_manager",
+            "escalate.to_sponsor",
+        }:
+            return "follow_up_on_commitment"
+        if act_id in {
+            "inform.blocker",
+            "inform.risk",
+            "inform.status_update",
+            "inform.availability",
+            "ack.received",
+            "ack.deferred",
+        }:
+            return "send_message"
+        return "send_chat"
+
+    def _is_repeated_unanswered_outbound(self, thread_id: str, act_id: str) -> bool:
+        messages = list(reversed(self.store.thread_messages(thread_id, limit=50)))
+        latest_inbound = next((row for row in messages if row["sender_id"] != "tpm"), None)
+        latest_outbound = next((row for row in messages if row["sender_id"] == "tpm"), None)
+        if latest_outbound is None:
+            return False
+        if latest_outbound["act_id"] != act_id:
+            return False
+        if latest_inbound is None:
+            return True
+        return latest_outbound["created_at"] > latest_inbound["created_at"]
+
+    def _pending_npc_response_event(self, actor_id: str, thread_id: str):
+        for event in self.store.pending_events():
+            if event["type"] != "npc.respond_message":
+                continue
+            if event["actor_id"] != actor_id:
+                continue
+            payload = self.deserialize(event["payload_json"], {})
+            if payload.get("thread_id") == thread_id:
+                return event
+        return None
 
     def write_doc(self, doc_type: str, title: str, body: str) -> str:
         doc_id = self._next_document_id(doc_type)
@@ -561,9 +637,10 @@ class SimulationEngine:
         self._spend_time(self.action_costs.get("task_edit", 3), "task.set_target")
         return f"Set visible target date for {task_id}."
 
-    def write_private_note(self, title: str, body: str) -> str:
+    def write_private_note(self, title: str, body: str, *, refs: Iterable[str] | None = None) -> str:
         note_id = self._next_document_id("note")
         now_iso = to_iso(self.now())
+        note_refs = [str(ref) for ref in refs or []]
         self.store.add_document(
             {
                 "id": note_id,
@@ -574,7 +651,7 @@ class SimulationEngine:
                 "updated_at": now_iso,
                 "visibility": "private",
                 "content": body,
-                "metadata": {},
+                "metadata": {"refs": note_refs} if note_refs else {},
             }
         )
         self.store.log_action(
@@ -585,7 +662,7 @@ class SimulationEngine:
             {"doc_id": note_id},
             body,
             self.action_costs.get("write_note", 1),
-            {},
+            {"doc_id": note_id, "refs": note_refs},
         )
         self._spend_time(self.action_costs.get("write_note", 1), "note.write")
         return f"Wrote private note {note_id}."
@@ -842,7 +919,7 @@ class SimulationEngine:
             return False
         if act_id not in {"inform.decision", "commit.propose", "commit.confirm", "commit.revise"}:
             return False
-        required_milestones = self.policy.get("external_commitment_requirements", ["scope_aligned", "security_slot_secured"])
+        required_milestones = self._external_commitment_requirement_milestones()
         for milestone_id in required_milestones:
             if self.milestone_state(milestone_id).get("status") != "done":
                 return True
@@ -880,10 +957,31 @@ class SimulationEngine:
                 continue
             if current < workday_start:
                 current = workday_start
-            if current > workday_end:
+            if current >= workday_end:
                 current = (current + timedelta(days=1)).replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
                 continue
             return current
+
+    def _advance_actor_work_minutes(self, actor_id: str, start_at: datetime, minutes: int) -> datetime:
+        if minutes <= 0:
+            return start_at
+        current = self._next_actor_available_time(actor_id, start_at)
+        remaining = minutes
+        while remaining > 0:
+            traits = self.actor_traits(actor_id)
+            start_hour, start_minute = self._parse_clock(traits.get("workday_start", "09:00"))
+            end_hour, end_minute = self._parse_clock(traits.get("workday_end", "17:00"))
+            workday_end = current.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
+            minutes_left_today = max(0, int((workday_end - current).total_seconds() // 60))
+            if minutes_left_today <= 0:
+                current = self._next_actor_available_time(actor_id, current + timedelta(minutes=1))
+                continue
+            spend = min(remaining, minutes_left_today)
+            current += timedelta(minutes=spend)
+            remaining -= spend
+            if remaining > 0:
+                current = self._next_actor_available_time(actor_id, current)
+        return current
 
     def _parse_clock(self, raw: str) -> tuple[int, int]:
         hour, minute = raw.split(":")
@@ -1175,19 +1273,41 @@ class SimulationEngine:
             return
         actor_id = [actor for actor in participants if actor != "tpm"][0]
         due = self._response_due_time(actor_id, thread["surface"], act_id, slots)
-        self.store.queue_event(
-            to_iso(due),
-            PHASE_PRIORITY["interaction_start"],
-            "npc.respond_message",
-            actor_id,
-            {"thread_id": thread["id"], "incoming_act_id": act_id, "incoming_slots": slots, "incoming_body": body},
+        payload = {
+            "thread_id": thread["id"],
+            "incoming_act_id": act_id,
+            "incoming_slots": slots,
+            "incoming_body": body,
+            "batched_message_count": 1,
+        }
+        existing = self._pending_npc_response_event(actor_id, thread["id"])
+        if existing is None:
+            self.store.queue_event(
+                to_iso(due),
+                PHASE_PRIORITY["interaction_start"],
+                "npc.respond_message",
+                actor_id,
+                payload,
+            )
+            return
+        existing_payload = self.deserialize(existing["payload_json"], {})
+        payload["batched_message_count"] = int(existing_payload.get("batched_message_count", 1)) + 1
+        existing_due = from_iso(existing["due_at"])
+        coalesced_due = max(existing_due, due)
+        self.store.update_pending_event(
+            int(existing["id"]),
+            due_at=to_iso(coalesced_due),
+            payload_json=as_json(payload),
         )
 
     def _advance_internal(self, minutes: int, *, reason: str, log_wait_action: bool = False, log_action: bool = True) -> list[str]:
         if minutes < 0:
             raise ValueError("Cannot advance time by a negative duration.")
         current = self.now()
-        end_time = min(current + timedelta(minutes=minutes), from_iso(self.store.get_meta("simulation_end")))
+        end_time = min(
+            self._advance_actor_work_minutes("tpm", current, minutes),
+            from_iso(self.store.get_meta("simulation_end")),
+        )
         notes: list[str] = []
         if log_wait_action:
             self.store.log_action(to_iso(current), "tpm", "system", "wait", {"minutes": minutes}, "", minutes, {"reason": reason})
@@ -1236,6 +1356,7 @@ class SimulationEngine:
         match = self._select_context_family(context)
         envelope = self._select_response_envelope(match["family"], actor_id, payload["incoming_act_id"], payload.get("incoming_slots", {}), event["id"])
         body = self._render_text(envelope["renderer_id"], actor_id, envelope, context)
+        batched_message_count = int(payload.get("batched_message_count", 1))
         message_id = self.store.add_message(
             {
                 "thread_id": thread["id"],
@@ -1250,6 +1371,7 @@ class SimulationEngine:
                     "belief_signals": envelope.get("belief_signals", []),
                     "surface_facts": envelope.get("surface_facts", []),
                     "envelope_id": envelope["id"],
+                    "batched_message_count": batched_message_count,
                 },
             }
         )
@@ -1260,7 +1382,12 @@ class SimulationEngine:
             actor_id=actor_id,
             visibility="both",
             summary=f"{actor_id} sent {envelope['outgoing_act_id']}",
-            payload={"message_id": message_id, "thread_id": thread["id"], "envelope_id": envelope["id"]},
+            payload={
+                "message_id": message_id,
+                "thread_id": thread["id"],
+                "envelope_id": envelope["id"],
+                "batched_message_count": batched_message_count,
+            },
         )
         self._apply_effects(envelope.get("effects", []), source_ref=f"message:{message_id}")
         return [f"New message from {self.actor_name(actor_id)} in {thread['id']}."]
@@ -1918,7 +2045,9 @@ class SimulationEngine:
                 )
                 self._try_surface_fact(effect["fact_id"], effect.get("observer_id", "tpm"), f"event:{event_id}")
             elif kind == "create_or_update_commitment":
-                commitment_id = effect["id"]
+                commitment_id = effect.get("id", effect.get("commitment_id"))
+                if not isinstance(commitment_id, str) or not commitment_id:
+                    raise ValueError("create_or_update_commitment effect missing id")
                 if self._commitment_exists(commitment_id):
                     row = self.commitment_state(commitment_id)
                     metadata = row["metadata"]
@@ -1997,6 +2126,22 @@ class SimulationEngine:
             return True
         except KeyError:
             return False
+
+    def _external_commitment_requirement_milestones(self) -> list[str]:
+        raw = self.policy.get("external_commitment_requirements", ["scope_aligned", "security_slot_secured"])
+        resolved: list[str] = []
+        if isinstance(raw, list):
+            for item in raw:
+                if isinstance(item, str) and item:
+                    resolved.append(item)
+                elif isinstance(item, dict):
+                    milestone_id = item.get("milestone_id")
+                    if isinstance(milestone_id, str) and milestone_id:
+                        resolved.append(milestone_id)
+                    milestone_ids = item.get("milestone_ids")
+                    if isinstance(milestone_ids, list):
+                        resolved.extend(str(value) for value in milestone_ids if isinstance(value, str) and value)
+        return resolved or ["scope_aligned", "security_slot_secured"]
 
     def _task_exists(self, task_id: str) -> bool:
         try:

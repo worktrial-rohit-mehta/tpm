@@ -6,12 +6,16 @@
         {
           "belief_signals": [],
           "effects": [],
-          "id": "calendar.accept.available",
+          "id": "calendar_accept_confirm",
           "outgoing_act_id": "meeting.accept",
-          "outgoing_slots": {},
+          "outgoing_slots": {
+            "status": "accepted"
+          },
           "renderer_id": "calendar.accept.available",
           "renderer_variants": [
-            "I can make that time."
+            "Accepted. That time works for me.",
+            "I can make that meeting.",
+            "That slot works \u2014 accepted."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -24,14 +28,17 @@
         {
           "belief_signals": [],
           "effects": [],
-          "id": "calendar.decline.unavailable",
+          "id": "calendar_decline_conflict",
           "outgoing_act_id": "meeting.decline",
           "outgoing_slots": {
-            "reason": "conflict"
+            "reason": "unavailable",
+            "status": "declined"
           },
           "renderer_id": "calendar.decline.unavailable",
           "renderer_variants": [
-            "I can't make that slot."
+            "I can't make that time.",
+            "I'm unavailable for that slot.",
+            "That time doesn't work for me."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -39,252 +46,168 @@
       ]
     },
     {
-      "cell_id": "leo.feasibility.high",
+      "cell_id": "dana.clarification.generic",
       "response_envelopes": [
         {
           "belief_signals": [
             {
-              "belief_key": "task.config_rollout.true_risk",
-              "belief_value": "high",
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            },
-            {
               "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
               "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
+              "confidence": 0.5,
+              "freshness_window_min": 480,
               "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
               }
             }
           ],
           "effects": [
             {
-              "actor_id": "leo",
-              "delta": 0.05,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "leo.feasibility.high",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "full_scope_not_credible",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.feasibility.high",
-          "renderer_variants": [
-            "Full rollout by Wednesday is not credible. I am still buried this morning and we also need approval on the staged path."
-          ],
-          "surface_facts": [
-            "leo_overloaded_until_tue_1100",
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.feasibility.low",
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.proposed_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.7,
-              "freshness_window_min": 240
-            }
-          ],
-          "effects": [],
-          "id": "leo.feasibility.low",
-          "outgoing_act_id": "negotiate.scope",
-          "outgoing_slots": {
-            "proposed_scope": "staged_rollout",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.feasibility.low",
-          "renderer_variants": [
-            "If we switch to the staged rollout, I can make the path work once approval is in."
-          ],
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.scope_tradeoff",
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.proposed_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.85,
-              "freshness_window_min": 240
-            }
-          ],
-          "effects": [],
-          "id": "leo.scope_tradeoff",
-          "outgoing_act_id": "negotiate.scope",
-          "outgoing_slots": {
-            "proposed_scope": "staged_rollout",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.scope_tradeoff",
-          "renderer_variants": [
-            "The real tradeoff is staged rollout versus slipping everything. If you want something credible this week, stage it and get approval moving."
-          ],
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.negotiate.scope",
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.proposed_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.85,
-              "freshness_window_min": 240
-            }
-          ],
-          "effects": [],
-          "id": "leo.negotiate.scope",
-          "outgoing_act_id": "negotiate.scope",
-          "outgoing_slots": {
-            "proposed_scope": "staged_rollout",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.negotiate.scope",
-          "renderer_variants": [
-            "The real scope move is staged rollout versus slipping everything. If you want something credible this week, cut to staged and get approval moving."
-          ],
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.inform.blocker",
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "leo.inform.blocker",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "blocker_noted"
-          },
-          "renderer_id": "leo.inform.blocker",
-          "renderer_variants": [
-            "Understood. If that blocker stands, we should stay on the staged path."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.inform.decision",
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "leo.inform.decision",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "decision_noted"
-          },
-          "renderer_id": "leo.inform.decision",
-          "renderer_variants": [
-            "Got it. If that decision holds, I can work from the staged path."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.inform.status_update",
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "leo.inform.status_update",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "status_noted"
-          },
-          "renderer_id": "leo.inform.status_update",
-          "renderer_variants": [
-            "Thanks for the update. I am still working from the staged-path assumptions."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.inform.availability",
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "leo.inform.availability",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "availability_noted"
-          },
-          "renderer_id": "leo.inform.availability",
-          "renderer_variants": [
-            "Noted. Keep me posted if the availability changes the rollout decision."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.inform_risk",
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [
-            {
-              "actor_id": "leo",
+              "actor_id": "dana",
               "delta": 0.01,
               "target_actor_id": "tpm",
               "type": "relationship_delta"
             }
           ],
-          "id": "leo.inform_risk",
-          "outgoing_act_id": "ack.received",
+          "id": "dana_clarification_direct",
+          "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "risk_acknowledged"
+            "blocker": "needs_realistic_scope_story"
           },
-          "renderer_id": "leo.inform_risk",
+          "renderer_id": "dana.clarification.generic",
           "renderer_variants": [
-            "Agreed. The risk is real, and it does not get better without cutting to the staged rollout."
+            "I need the real rollout story. If full isn't real, say that and bring me the staged option early.",
+            "I'm asking for a credible plan, not a green status update.",
+            "Clarify what's actually deliverable in this window and what tradeoff you want me to support."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "dana.escalate_to_sponsor.early.gap1",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.prefers_direct_tradeoff_over_self_escalation",
+              "belief_value": true,
+              "confidence": 0.98,
+              "freshness_window_min": 480
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.6,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": -0.02,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "dana_escalate_to_sponsor_redirect_early",
+          "outgoing_act_id": "request.scope_tradeoff",
+          "outgoing_slots": {
+            "topic": "credible_rollout_tradeoff",
+            "urgency": "now"
+          },
+          "renderer_id": "dana.escalate_to_sponsor.early.gap1",
+          "renderer_variants": [
+            "You don't need to escalate to me as if I'm a distant sponsor \u2014 just give me the real tradeoff now. If full rollout is blocked, say it clearly and bring the staged plan.",
+            "I'm already the sponsor here. Don't escalate around the problem; tell me whether full scope is real and what staged rollout you want me to back.",
+            "If you're escalating, make it useful: what's the actual feasibility gap, and what narrower rollout should we commit to before the window closes?"
           ],
           "surface_facts": [
-            "full_rollout_infeasible"
+            "dana_accepts_staged_if_early"
           ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "dana.inform_blocker",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.needs_actionable_summary",
+              "belief_value": true,
+              "confidence": 0.85,
+              "freshness_window_min": 180
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "dana_blocker_ack",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "blocker_implication"
+          },
+          "renderer_id": "dana.inform_blocker",
+          "renderer_variants": [
+            "I understand there's a blocker. What does that mean for the rollout plan?",
+            "Okay, but what's the concrete implication?",
+            "Noted. Tell me what decision that blocker forces."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "dana.inform_decision",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.requires_decision_rationale",
+              "belief_value": true,
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "dana_decision_probe",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "decision_basis"
+          },
+          "renderer_id": "dana.inform_decision",
+          "renderer_variants": [
+            "What's that decision based on, and is it actually credible?",
+            "Okay \u2014 walk me through why that's the right call.",
+            "I need the reasoning, not just the headline decision."
+          ],
+          "surface_facts": [],
           "weight": 1.0
         }
       ]
@@ -295,17 +218,19 @@
         {
           "belief_signals": [
             {
-              "belief_key": "project.sponsor_needs_tradeoff",
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.wants_real_rollout_story",
               "belief_value": true,
-              "confidence": 0.9,
+              "confidence": 0.95,
               "freshness_window_min": 240
             },
             {
               "accumulate": true,
+              "actor_id": "tpm",
               "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
               "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
+              "confidence": 0.45,
+              "freshness_window_min": 480,
               "metadata": {
                 "private_driver_fact_id": "dana_accepts_staged_if_early"
               }
@@ -319,14 +244,16 @@
               "type": "relationship_delta"
             }
           ],
-          "id": "dana.inform_risk",
-          "outgoing_act_id": "ack.received",
+          "id": "dana_risk_wants_real_story",
+          "outgoing_act_id": "request.scope_tradeoff",
           "outgoing_slots": {
-            "reason": "need_tradeoff"
+            "topic": "credible_rollout_plan"
           },
           "renderer_id": "dana.inform_risk",
           "renderer_variants": [
-            "Thanks for surfacing it early. If full rollout is not real, come back with the staged tradeoff."
+            "Then give me the real tradeoff, not a softened risk statement.",
+            "If that's the risk, I want the credible rollout plan spelled out clearly.",
+            "Okay \u2014 translate that into the actual scope decision I need to make."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -334,22 +261,68 @@
       ]
     },
     {
-      "cell_id": "dana.inform_blocker",
+      "cell_id": "dana.inform_status_update",
       "response_envelopes": [
         {
           "belief_signals": [
             {
-              "belief_key": "project.sponsor_needs_tradeoff",
+              "actor_id": "tpm",
+              "belief_key": "project.sponsor_needs_clarity",
               "belief_value": true,
-              "confidence": 0.9,
+              "confidence": 0.8,
+              "freshness_window_min": 180
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.needs_actionable_summary",
+              "belief_value": true,
+              "confidence": 0.82,
+              "freshness_window_min": 180
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "dana_status_update_needs_next_step",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "next_decision_needed"
+          },
+          "renderer_id": "dana.inform_status_update",
+          "renderer_variants": [
+            "Thanks for the update. What's the concrete next decision or blocker I should be tracking?",
+            "I appreciate the status, but tell me what still needs to happen and where you need my support.",
+            "Status is useful only if it points to the next choice. What's unresolved and what do you want from me?"
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "dana.negotiate_scope",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.wants_real_rollout_story",
+              "belief_value": true,
+              "confidence": 0.92,
               "freshness_window_min": 240
             },
             {
               "accumulate": true,
+              "actor_id": "tpm",
               "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
               "belief_value": true,
               "confidence": 0.55,
-              "freshness_window_min": 240,
+              "freshness_window_min": 480,
               "metadata": {
                 "private_driver_fact_id": "dana_accepts_staged_if_early"
               }
@@ -363,102 +336,16 @@
               "type": "relationship_delta"
             }
           ],
-          "id": "dana.inform_blocker",
-          "outgoing_act_id": "ack.received",
+          "id": "dana_negotiate_scope_requires_tradeoff",
+          "outgoing_act_id": "request.scope_tradeoff",
           "outgoing_slots": {
-            "reason": "need_tradeoff"
+            "topic": "credible_rollout_tradeoff"
           },
-          "renderer_id": "dana.inform_blocker",
+          "renderer_id": "dana.negotiate_scope",
           "renderer_variants": [
-            "Understood. If this blocker means full rollout is not credible, bring me the staged tradeoff and I will back it."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "dana.inform_decision",
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "project.sponsor_needs_tradeoff",
-              "belief_value": true,
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
-              "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "dana_accepts_staged_if_early"
-              }
-            }
-          ],
-          "effects": [
-            {
-              "actor_id": "dana",
-              "delta": 0.01,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "dana.inform_decision",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "need_tradeoff"
-          },
-          "renderer_id": "dana.inform_decision",
-          "renderer_variants": [
-            "I hear the direction, but I still need the concrete tradeoff. If full rollout is not real, bring me the staged plan clearly and I will back it."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "dana.clarification.generic",
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "project.sponsor_needs_tradeoff",
-              "belief_value": true,
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
-              "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "dana_accepts_staged_if_early"
-              }
-            }
-          ],
-          "effects": [
-            {
-              "actor_id": "dana",
-              "delta": 0.01,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "dana.clarification.generic",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "need_tradeoff"
-          },
-          "renderer_id": "dana.clarification.generic",
-          "renderer_variants": [
-            "Bring me the concrete tradeoff. If full rollout is not real, recommend the staged path clearly and I will back it."
+            "If we're negotiating scope, make the tradeoff explicit. Tell me what staged rollout buys us and what we're cutting.",
+            "Don't negotiate in the abstract. Give me the real rollout tradeoff so I can back the right path.",
+            "If full scope is slipping, say that plainly and bring me the concrete staged option you want supported."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -471,20 +358,11 @@
         {
           "belief_signals": [
             {
-              "belief_key": "project.sponsor_needs_tradeoff",
-              "belief_value": true,
+              "actor_id": "tpm",
+              "belief_key": "project.approval_owner",
+              "belief_value": "ivy",
               "confidence": 0.95,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
-              "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "dana_accepts_staged_if_early"
-              }
+              "freshness_window_min": 480
             }
           ],
           "effects": [
@@ -495,55 +373,19 @@
               "type": "relationship_delta"
             }
           ],
-          "id": "dana.request.approval",
-          "outgoing_act_id": "approve.defer",
+          "id": "dana_redirect_to_owner",
+          "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "need_tradeoff"
+            "blocker": "approval_owned_by_ivy",
+            "task_id": "approval_review"
           },
           "renderer_id": "dana.request.approval",
           "renderer_variants": [
-            "I am not approving a vague plan. If full rollout is not credible, bring me the staged tradeoff clearly and I will back that path."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.clarification.blocked",
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.true_risk",
-              "belief_value": "high",
-              "confidence": 0.85,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
-              "belief_value": true,
-              "confidence": 0.45,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
-              }
-            }
-          ],
-          "effects": [],
-          "id": "leo.clarification.blocked",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "need_scope_and_approval",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.clarification.blocked",
-          "renderer_variants": [
-            "The blocker is the same: full rollout is not credible, and I still need the staged scope plus approval before I can give you a real plan."
+            "I can support the direction, but the actual approval needs to go through Ivy.",
+            "You're asking the wrong person for formal approval. Ivy owns that review path.",
+            "I can back the plan, but security approval still has to come from Ivy before the cutoff."
           ],
           "surface_facts": [
-            "full_rollout_infeasible",
             "approval_required"
           ],
           "weight": 1.0
@@ -551,63 +393,55 @@
       ]
     },
     {
-      "cell_id": "leo.clarification.generic",
+      "cell_id": "dana.request_ownership.staged_rollout.gap1",
       "response_envelopes": [
         {
+          "id": "dana.request_ownership.staged_rollout",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "decision": "ownership_split_confirmed",
+            "owner": "leo",
+            "approval_owner": "ivy",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [],
           "belief_signals": [
             {
-              "belief_key": "task.config_rollout.true_risk",
-              "belief_value": "high",
-              "confidence": 0.85,
-              "freshness_window_min": 240
+              "actor_id": "tpm",
+              "belief_key": "project.engineering_owner",
+              "belief_value": "leo",
+              "confidence": 0.95,
+              "freshness_window_min": 480
             },
             {
-              "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "actor_id": "tpm",
+              "belief_key": "project.approval_owner",
+              "belief_value": "ivy",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.ownership_split",
+              "belief_value": "ivy_review_leo_delivery",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.supports_staged_rollout",
               "belief_value": true,
-              "confidence": 0.45,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
-              }
+              "confidence": 0.7,
+              "freshness_window_min": 480
             }
           ],
           "effects": [],
-          "id": "leo.clarification.generic",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "need_scope_and_approval",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.clarification.blocked",
+          "renderer_id": "dana.request_ownership.staged_rollout.gap1",
           "renderer_variants": [
-            "The blocker is the same: full rollout is not credible, and I still need the staged scope plus approval before I can give you a real plan."
-          ],
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "dana.scope_tradeoff.unsupported",
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "dana.scope_tradeoff.unsupported",
-          "outgoing_act_id": "ack.deferred",
-          "outgoing_slots": {
-            "reason": "need_feasibility_first"
-          },
-          "renderer_id": "dana.scope_tradeoff.unsupported",
-          "renderer_variants": [
-            "I need the engineering reality first before I call the scope tradeoff."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
+            "I back the staged path, but Leo owns delivery and Ivy owns approval. Keep me on the decision, not the execution handoff.",
+            "Ownership is split here: Leo drives rollout execution, Ivy owns the approval queue, and I sponsor the staged tradeoff."
+          ]
         }
       ]
     },
@@ -617,20 +451,29 @@
         {
           "belief_signals": [
             {
-              "belief_key": "project.launch_scope",
-              "belief_value": "staged_rollout",
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.supports_staged_rollout",
+              "belief_value": true,
               "confidence": 0.9,
               "freshness_window_min": 480
             },
             {
               "accumulate": true,
+              "actor_id": "tpm",
               "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
               "belief_value": true,
-              "confidence": 0.55,
+              "confidence": 0.7,
               "freshness_window_min": 480,
               "metadata": {
                 "private_driver_fact_id": "dana_accepts_staged_if_early"
               }
+            },
+            {
+              "actor_id": "dana",
+              "belief_key": "project.launch_scope",
+              "belief_value": "staged_rollout",
+              "confidence": 0.9,
+              "freshness_window_min": 480
             }
           ],
           "effects": [
@@ -641,28 +484,12 @@
               "type": "project_state_patch"
             },
             {
-              "actor_id": "dana",
-              "belief_key": "project.launch_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.95,
-              "freshness_window_min": 480,
-              "type": "belief_signal"
-            },
-            {
-              "actor_id": "leo",
-              "belief_key": "project.launch_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.85,
-              "freshness_window_min": 480,
-              "type": "belief_signal"
-            },
-            {
               "audience_ids": [
                 "tpm",
                 "leo",
                 "mia"
               ],
-              "confidence": 0.9,
+              "confidence": 0.88,
               "id": "staged_rollout_plan",
               "metadata": {
                 "milestone_ids": [
@@ -678,15 +505,17 @@
               "type": "create_or_update_commitment"
             }
           ],
-          "id": "dana.scope_tradeoff.ready",
-          "outgoing_act_id": "inform.decision",
+          "id": "dana_scope_tradeoff_support_stage",
+          "outgoing_act_id": "negotiate.scope",
           "outgoing_slots": {
-            "decision_key": "project.launch_scope",
-            "launch_scope": "staged_rollout"
+            "approved_scope": "staged_rollout",
+            "rejected_scope": "full_rollout"
           },
           "renderer_id": "dana.scope_tradeoff.ready",
           "renderer_variants": [
-            "Call it a staged rollout. I would rather commit to the smaller credible plan than fake full scope."
+            "If full rollout isn't credible, then let's stop pretending. I support the staged rollout path \u2014 move on it now.",
+            "Okay. Bring the staged plan forward and align the team on that path.",
+            "That's the right tradeoff. Commit to staged rollout and make sure approval happens before the queue closes."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -694,130 +523,75 @@
       ]
     },
     {
-      "cell_id": "leo.eta.high",
+      "cell_id": "dana.scope_tradeoff.unsupported",
       "response_envelopes": [
         {
           "belief_signals": [
             {
-              "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.needs_explicit_feasibility_gap",
               "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
-              }
-            }
-          ],
-          "effects": [],
-          "id": "leo.eta.high",
-          "outgoing_act_id": "ack.deferred",
-          "outgoing_slots": {
-            "reason": "still_overloaded"
-          },
-          "renderer_id": "leo.eta.high",
-          "renderer_variants": [
-            "I am not giving you a real ETA while I am still underwater this morning."
-          ],
-          "surface_facts": [
-            "leo_overloaded_until_tue_1100"
-          ],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.eta.blocked",
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
-              "belief_value": true,
-              "confidence": 0.45,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
-              }
-            }
-          ],
-          "effects": [],
-          "id": "leo.eta.blocked",
-          "outgoing_act_id": "ack.deferred",
-          "outgoing_slots": {
-            "reason": "need_scope_and_approval"
-          },
-          "renderer_id": "leo.eta.blocked",
-          "renderer_variants": [
-            "I need the staged scope and approval settled before I can give you a credible ETA."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "leo.eta.ready",
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.eta",
-              "belief_value": "2026-05-06T15:00:00",
-              "confidence": 0.85,
+              "confidence": 0.95,
               "freshness_window_min": 240
             },
             {
               "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
               "belief_value": true,
-              "confidence": 0.45,
-              "freshness_window_min": 240,
+              "confidence": 0.4,
+              "freshness_window_min": 480,
               "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
               }
             }
           ],
-          "effects": [
-            {
-              "audience_ids": [
-                "tpm",
-                "dana"
-              ],
-              "confidence": 0.8,
-              "due_at": "2026-05-06T15:00:00",
-              "id": "config_rollout_eta",
-              "metadata": {
-                "milestone_ids": [
-                  "rollout_ready"
-                ],
-                "task_ids": [
-                  "config_rollout"
-                ]
-              },
-              "owner_id": "leo",
-              "scope": {
-                "eta": "2026-05-06T15:00:00",
-                "task_id": "config_rollout"
-              },
-              "status": "tentative",
-              "subject": "task_eta",
-              "type": "create_or_update_commitment"
-            }
-          ],
-          "id": "leo.eta.ready",
-          "outgoing_act_id": "commit.propose",
+          "effects": [],
+          "id": "dana_scope_tradeoff_needs_evidence",
+          "outgoing_act_id": "request.clarification",
           "outgoing_slots": {
-            "commitment_id": "config_rollout_eta",
-            "task_id": "config_rollout",
-            "tentative_eta": "2026-05-06T15:00:00"
+            "topic": "why_not_full_rollout"
           },
-          "renderer_id": "leo.eta.ready",
+          "renderer_id": "dana.scope_tradeoff.unsupported",
           "renderer_variants": [
-            "With staged scope and approval in place, I can tentatively target Wednesday at 3:00 PM."
+            "Before we talk tradeoff, tell me plainly why full rollout is not real.",
+            "Don't jump to scope reduction without showing me the actual feasibility gap.",
+            "If you want me to consider staged rollout, first make the case that full scope is not credible."
           ],
           "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "ivy.approval.defer",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_status",
+              "belief_value": "cannot_approve_current_state",
+              "confidence": 0.98,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [],
+          "id": "ivy_approval_defer",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "approval_cannot_be_granted_now",
+            "task_id": "approval_review"
+          },
+          "renderer_id": "ivy.approval.defer",
+          "renderer_variants": [
+            "I can't approve this in the current state.",
+            "Approval has to wait \u2014 either the window has closed or the staged scope isn't actually defined.",
+            "This isn't approvable yet from my side."
+          ],
+          "surface_facts": [
+            "approval_required"
+          ],
           "weight": 1.0
         }
       ]
@@ -828,44 +602,49 @@
         {
           "belief_signals": [
             {
-              "belief_key": "task.approval_review.status",
-              "belief_value": "done",
-              "confidence": 0.9,
-              "freshness_window_min": 240
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_status",
+              "belief_value": "approved",
+              "confidence": 0.95,
+              "freshness_window_min": 480
             }
           ],
           "effects": [
             {
-              "task_id": "approval_review",
-              "tracker_patch": {
-                "blocker": "",
-                "notes": "Approval granted.",
-                "status": "done"
+              "audience_ids": [
+                "tpm",
+                "project"
+              ],
+              "confidence": 0.95,
+              "id": "ivy_approval_commitment",
+              "metadata": {
+                "task_id": "approval_review",
+                "validity_basis": "complete_submission_before_cutoff"
               },
-              "true_patch": {
-                "checkpoint": "done"
+              "owner_id": "ivy",
+              "scope": {
+                "before_cutoff": true,
+                "launch_scope": "staged_rollout"
               },
-              "type": "task_state_patch"
-            },
-            {
-              "actor_id": "ivy",
-              "delta": 0.03,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
+              "status": "committed",
+              "subject": "approval_review",
+              "type": "create_or_update_commitment"
             }
           ],
-          "id": "ivy.approval.ready",
-          "outgoing_act_id": "approve.grant",
+          "id": "ivy_approval_ready_accept",
+          "outgoing_act_id": "inform.decision",
           "outgoing_slots": {
+            "before_cutoff": true,
+            "decision": "approval_granted",
             "task_id": "approval_review"
           },
           "renderer_id": "ivy.approval.ready",
           "renderer_variants": [
-            "Approved for the staged rollout. You have the slot."
+            "This is complete and in the right window. Approved from my side.",
+            "I have what I need for the staged rollout review. Approval is good before the cutoff.",
+            "Submission looks complete and timely. You have approval."
           ],
-          "surface_facts": [
-            "approval_required"
-          ],
+          "surface_facts": [],
           "weight": 1.0
         }
       ]
@@ -874,23 +653,35 @@
       "cell_id": "ivy.escalate.to_manager",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.prefers_complete_intake_over_escalation",
+              "belief_value": true,
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            }
+          ],
           "effects": [
             {
               "actor_id": "ivy",
-              "delta": -0.02,
+              "delta": -0.03,
+              "field": "trust",
               "target_actor_id": "tpm",
               "type": "relationship_delta"
             }
           ],
-          "id": "ivy.escalate.to_manager",
-          "outgoing_act_id": "approve.defer",
+          "id": "ivy_escalate_manager_resist",
+          "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff"
+            "blocker": "escalation_not_needed_without_complete_intake",
+            "task_id": "approval_review"
           },
           "renderer_id": "ivy.escalate.to_manager",
           "renderer_variants": [
-            "Escalation does not change the requirement. I still need the staged scope and a proper approval request before I can move."
+            "Escalating to my manager won't replace a complete intake.",
+            "Please don't route around the process when what I need is a complete submission.",
+            "My manager can't approve an incomplete request faster than I can review a complete one."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -901,23 +692,35 @@
       "cell_id": "ivy.escalate.to_sponsor",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_integrity",
+              "belief_value": "process_based",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            }
+          ],
           "effects": [
             {
               "actor_id": "ivy",
-              "delta": -0.02,
+              "delta": -0.04,
+              "field": "trust",
               "target_actor_id": "tpm",
               "type": "relationship_delta"
             }
           ],
-          "id": "ivy.escalate.to_sponsor",
-          "outgoing_act_id": "approve.defer",
+          "id": "ivy_escalate_sponsor_resist",
+          "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff"
+            "blocker": "sponsor_escalation_does_not_replace_review",
+            "task_id": "approval_review"
           },
           "renderer_id": "ivy.escalate.to_sponsor",
           "renderer_variants": [
-            "Looping in a sponsor does not change the requirement. I still need the staged scope and a proper approval request before I can move."
+            "A sponsor escalation doesn't change the review requirements.",
+            "Dana can't waive the need for a complete review packet.",
+            "If the ask is approval, the fastest path is still a proper submission, not escalation."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -928,16 +731,26 @@
       "cell_id": "ivy.inform.availability",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.queue_cutoff",
+              "belief_value": "before_noon",
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            }
+          ],
           "effects": [],
-          "id": "ivy.inform.availability",
-          "outgoing_act_id": "ack.received",
+          "id": "ivy_availability_share",
+          "outgoing_act_id": "inform.availability",
           "outgoing_slots": {
-            "reason": "availability_noted"
+            "availability": "before_noon_if_complete"
           },
           "renderer_id": "ivy.inform.availability",
           "renderer_variants": [
-            "Noted. Keep me posted when the staged scope and approval request are ready."
+            "I'm available to review before noon if the intake is complete.",
+            "I can look today, but only if it's submitted cleanly before the queue cutoff.",
+            "My availability is tied to getting a complete request in before noon."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -950,34 +763,17 @@
         {
           "belief_signals": [],
           "effects": [],
-          "id": "ivy.inform.decision",
-          "outgoing_act_id": "ack.received",
+          "id": "ivy_decision_ack",
+          "outgoing_act_id": "inform.status_update",
           "outgoing_slots": {
-            "reason": "decision_noted"
+            "status": "decision_received",
+            "task_id": "approval_review"
           },
           "renderer_id": "ivy.inform.decision",
           "renderer_variants": [
-            "Understood. Send the concrete staged request through the normal approval path and I will review it."
-          ],
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "ivy.inform.status_update",
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.inform.status_update",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "status_noted"
-          },
-          "renderer_id": "ivy.inform.status_update",
-          "renderer_variants": [
-            "Thanks for the update. I still need the staged scope and the formal request before I can move."
+            "Got it. That helps frame the review.",
+            "Understood. I'll evaluate against that decision.",
+            "Thanks, that gives me the right context."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -988,16 +784,52 @@
       "cell_id": "ivy.inform.risk",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.approval_dependency",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
           "effects": [],
-          "id": "ivy.inform.risk",
-          "outgoing_act_id": "ack.received",
+          "id": "ivy_risk_to_requirement",
+          "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "risk_noted"
+            "blocker": "risk_requires_complete_review",
+            "task_id": "approval_review"
           },
           "renderer_id": "ivy.inform.risk",
           "renderer_variants": [
-            "Understood. If the risk is real, lock the staged scope and send the formal request before the cutoff."
+            "If that's the risk posture, then yes, this needs formal review before you treat it as committed.",
+            "That level of risk means I need a proper intake, not an informal heads-up.",
+            "Then the dependency is explicit: get me the complete review package before cutoff."
+          ],
+          "surface_facts": [
+            "approval_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "ivy.inform.status_update",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "ivy_status_ack",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "acknowledged",
+            "task_id": "approval_review"
+          },
+          "renderer_id": "ivy.inform.status_update",
+          "renderer_variants": [
+            "Thanks for the update.",
+            "Understood.",
+            "Got it."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -1008,7 +840,15 @@
       "cell_id": "ivy.inform_blocker",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.requires_complete_intake",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
           "effects": [
             {
               "actor_id": "ivy",
@@ -1017,14 +857,16 @@
               "type": "relationship_delta"
             }
           ],
-          "id": "ivy.inform_blocker",
-          "outgoing_act_id": "ack.received",
+          "id": "ivy_blocker_ack_requirements",
+          "outgoing_act_id": "request.clarification",
           "outgoing_slots": {
-            "reason": "blocker_noted"
+            "topic": "submission_completeness"
           },
           "renderer_id": "ivy.inform_blocker",
           "renderer_variants": [
-            "Noted. When the staged scope is locked, send the actual approval request and I will look at it."
+            "Okay \u2014 what's missing from the submission?",
+            "If there's a blocker, I need to know whether the intake is complete.",
+            "Tell me what remains before I can review it."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -1032,19 +874,92 @@
       ]
     },
     {
-      "cell_id": "ivy.request.eta",
+      "cell_id": "ivy.negotiate.ownership",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.ownership_split",
+              "belief_value": "ivy_review_leo_delivery",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
           "effects": [],
-          "id": "ivy.request.eta",
-          "outgoing_act_id": "ack.deferred",
+          "id": "ivy_negotiate_ownership_boundary",
+          "outgoing_act_id": "inform.decision",
           "outgoing_slots": {
-            "reason": "security_does_not_commit_eta"
+            "owner": "ivy_for_review",
+            "owner_dependency": "leo_for_delivery"
           },
-          "renderer_id": "ivy.request.eta",
+          "renderer_id": "ivy.negotiate.ownership",
           "renderer_variants": [
-            "I do not give the delivery ETA here. Get the staged scope locked and send the approval request before the cutoff."
+            "I can own the review, but not the rollout delivery itself.",
+            "Ownership is split: I own approval review, Leo owns execution.",
+            "Happy to own the approval leg; engineering still owns rollout readiness."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "ivy.negotiate.scope",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.scope_requirement",
+              "belief_value": "specific_staged_scope",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "ivy_negotiate_scope_guardrail",
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "decision": "scope_must_be_specific_for_review",
+            "task_id": "approval_review"
+          },
+          "renderer_id": "ivy.negotiate.scope",
+          "renderer_variants": [
+            "I'm fine with a narrower rollout, but the scope has to be specific enough to review.",
+            "If you're negotiating scope, land on a concrete staged plan I can evaluate.",
+            "Broad intent isn't enough \u2014 I need the actual staged scope definition."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "ivy.negotiate.timeline",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.timeline_constraint",
+              "belief_value": "queue_cutoff_before_noon",
+              "confidence": 1,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "ivy_negotiate_timeline_queue",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "timeline_limited_by_review_queue",
+            "task_id": "approval_review"
+          },
+          "renderer_id": "ivy.negotiate.timeline",
+          "renderer_variants": [
+            "The only timeline flexibility I have is within today's queue. After noon, it's effectively too late for this path.",
+            "Timeline here is mostly dictated by the queue cutoff.",
+            "If you want today's review, the negotiation is really about getting complete intake in before noon."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -1055,17 +970,27 @@
       "cell_id": "ivy.request.clarification",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_requirement",
+              "belief_value": "complete_intake_before_noon",
+              "confidence": 1,
+              "freshness_window_min": 480
+            }
+          ],
           "effects": [],
-          "id": "ivy.request.clarification",
+          "id": "ivy_clarification_direct",
           "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff",
+            "blocker": "need_complete_intake_before_noon",
             "task_id": "approval_review"
           },
           "renderer_id": "ivy.request.clarification",
           "renderer_variants": [
-            "The blocker is the same: I need the staged scope locked and a real approval request in before the cutoff."
+            "The clarification is simple: if this needs review, send a complete intake before noon.",
+            "I need the full staged-rollout request in the queue before the cutoff if you want today's review.",
+            "What matters is submission completeness and timing, not a partial heads-up."
           ],
           "surface_facts": [
             "approval_required"
@@ -1075,23 +1000,63 @@
       ]
     },
     {
-      "cell_id": "ivy.scope_tradeoff.clear",
+      "cell_id": "ivy.request.eta",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.cannot_commit_engineering_eta",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
           "effects": [],
-          "id": "ivy.scope_tradeoff.clear",
-          "outgoing_act_id": "ack.received",
+          "id": "ivy_no_eta_owner",
+          "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "scope_already_staged_send_request"
+            "blocker": "eta_owned_by_engineering_after_review",
+            "task_id": "approval_review"
           },
-          "renderer_id": "ivy.scope_tradeoff.clear",
+          "renderer_id": "ivy.request.eta",
           "renderer_variants": [
-            "Scope is already staged on my side. I do not decide product tradeoffs, so just send the concrete approval request if you still need review."
+            "I can tell you review timing, not engineering rollout ETA.",
+            "ETA for the rollout isn't mine to commit; I only own the review step.",
+            "From my side I can speak to approval timing, not delivery timing."
           ],
-          "surface_facts": [
-            "approval_required"
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "ivy.request.feasibility",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.role_boundary",
+              "belief_value": "review_owner_not_delivery_owner",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
           ],
+          "effects": [],
+          "id": "ivy_feasibility_boundary",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "can_review_compliance_not_delivery_feasibility",
+            "task_id": "approval_review"
+          },
+          "renderer_id": "ivy.request.feasibility",
+          "renderer_variants": [
+            "I can tell you whether the staged plan is reviewable, not whether engineering can deliver it.",
+            "Feasibility of delivery is Leo's call; my part is whether the review can clear.",
+            "From my side, the question is completeness and risk, not engineering capacity."
+          ],
+          "surface_facts": [],
           "weight": 1.0
         }
       ]
@@ -1100,21 +1065,60 @@
       "cell_id": "ivy.request.ownership",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.approval_owner",
+              "belief_value": "ivy",
+              "confidence": 1,
+              "freshness_window_min": 480
+            }
+          ],
           "effects": [],
-          "id": "ivy.request.ownership",
-          "outgoing_act_id": "inform.blocker",
+          "id": "ivy_ownership_confirm",
+          "outgoing_act_id": "inform.decision",
           "outgoing_slots": {
-            "reason": "security_review_needs_staged_scope",
+            "owner": "ivy",
             "task_id": "approval_review"
           },
           "renderer_id": "ivy.request.ownership",
           "renderer_variants": [
-            "I own the approval review, but I still need the staged scope locked and the actual request in before I can move."
+            "I own the approval review step.",
+            "Yes, approval review is with me.",
+            "I'm the owner for this review queue."
           ],
-          "surface_facts": [
-            "approval_required"
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "ivy.request.review.defer",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_status",
+              "belief_value": "deferred",
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            }
           ],
+          "effects": [],
+          "id": "ivy_review_defer",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "review_not_actionable_now",
+            "task_id": "approval_review"
+          },
+          "renderer_id": "ivy.request.review.defer",
+          "renderer_variants": [
+            "I can't take this review as-is right now.",
+            "This isn't actionable for review in the current state or timing.",
+            "You'll need either the staged scope clarified or a still-open window before I can review it."
+          ],
+          "surface_facts": [],
           "weight": 1.0
         }
       ]
@@ -1125,8 +1129,9 @@
         {
           "belief_signals": [
             {
-              "belief_key": "task.approval_review.status",
-              "belief_value": "done",
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_status",
+              "belief_value": "in_progress",
               "confidence": 0.9,
               "freshness_window_min": 240
             }
@@ -1151,36 +1156,18 @@
               "type": "relationship_delta"
             }
           ],
-          "id": "ivy.request.review.ready",
-          "outgoing_act_id": "approve.grant",
+          "id": "ivy_review_ready_accept",
+          "outgoing_act_id": "inform.decision",
           "outgoing_slots": {
+            "before_cutoff": true,
+            "decision": "review_started",
             "task_id": "approval_review"
           },
           "renderer_id": "ivy.request.review.ready",
           "renderer_variants": [
-            "Send me the staged review request and I can approve it now."
-          ],
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ]
-    },
-    {
-      "cell_id": "ivy.request.review.defer",
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.request.review.defer",
-          "outgoing_act_id": "approve.defer",
-          "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff"
-          },
-          "renderer_id": "ivy.request.review.defer",
-          "renderer_variants": [
-            "I still need the staged scope locked and the actual review request in before I can move."
+            "This is in time and the staged scope is clear. I'll review it now.",
+            "I can take this review in the current queue.",
+            "Looks review-ready. I'll process it in today's window."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -1188,20 +1175,30 @@
       ]
     },
     {
-      "cell_id": "ivy.request.feasibility",
+      "cell_id": "ivy.scope_tradeoff.clear",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.scope_position",
+              "belief_value": "staged_scope_reviewable",
+              "confidence": 0.9,
+              "freshness_window_min": 480
+            }
+          ],
           "effects": [],
-          "id": "ivy.request.feasibility",
-          "outgoing_act_id": "inform.blocker",
+          "id": "ivy_scope_tradeoff_clearance",
+          "outgoing_act_id": "inform.decision",
           "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff",
+            "decision": "staged_scope_reviewable",
             "task_id": "approval_review"
           },
-          "renderer_id": "ivy.request.feasibility",
+          "renderer_id": "ivy.scope_tradeoff.clear",
           "renderer_variants": [
-            "Review is feasible only on the staged path, and only if the actual request lands before the cutoff."
+            "If the plan is staged rollout, that's a reviewable scope from my side.",
+            "Staged scope is clear enough to evaluate, assuming the intake is complete.",
+            "I can work with the narrowed staged plan; just get it in before the queue closes."
           ],
           "surface_facts": [
             "approval_required"
@@ -1211,20 +1208,41 @@
       ]
     },
     {
-      "cell_id": "ivy.negotiate.scope",
+      "cell_id": "leo.clarification.blocked",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.engineering_blocker",
+              "belief_value": "scope_and_approval_unresolved",
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
           "effects": [],
-          "id": "ivy.negotiate.scope",
+          "id": "leo_clarification_blocked_specific",
           "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "security_review_needs_staged_scope",
-            "task_id": "approval_review"
+            "blocker": "scope_and_approval_unresolved",
+            "task_id": "config_rollout"
           },
-          "renderer_id": "ivy.negotiate.scope",
+          "renderer_id": "leo.clarification.blocked",
           "renderer_variants": [
-            "I do not set product scope. If you want review to move, lock the staged scope and send the actual request."
+            "The blockage is straightforward: I need staged scope locked and approval actually in hand before I can stand behind the rollout.",
+            "What's blocking me is unresolved scope plus whether approval is real.",
+            "I'm blocked on two things: narrowing the rollout and confirming the review path is complete."
           ],
           "surface_facts": [
             "approval_required"
@@ -1234,19 +1252,41 @@
       ]
     },
     {
-      "cell_id": "ivy.negotiate.timeline",
+      "cell_id": "leo.clarification.generic",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.prefers_scope_before_eta",
+              "belief_value": true,
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.45,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
           "effects": [],
-          "id": "ivy.negotiate.timeline",
-          "outgoing_act_id": "approve.defer",
+          "id": "leo_clarification_generic",
+          "outgoing_act_id": "inform.status_update",
           "outgoing_slots": {
-            "reason": "security_does_not_commit_eta"
+            "status": "needs_scope_then_eta",
+            "task_id": "config_rollout"
           },
-          "renderer_id": "ivy.negotiate.timeline",
+          "renderer_id": "leo.clarification.blocked",
           "renderer_variants": [
-            "I am not negotiating the timeline here. Lock the staged scope and get the request in before the cutoff."
+            "I can clarify the work, but I don't want to skip straight to dates before scope is real.",
+            "The main clarification is that the answer changes a lot once we stop assuming full rollout.",
+            "Happy to be specific \u2014 I just need us to ground scope first."
           ],
           "surface_facts": [],
           "weight": 1.0
@@ -1254,20 +1294,41 @@
       ]
     },
     {
-      "cell_id": "ivy.negotiate.ownership",
+      "cell_id": "leo.eta.blocked",
       "response_envelopes": [
         {
-          "belief_signals": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.eta_prereqs_missing",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
           "effects": [],
-          "id": "ivy.negotiate.ownership",
+          "id": "leo_eta_blocked_until_prereqs",
           "outgoing_act_id": "inform.blocker",
           "outgoing_slots": {
-            "reason": "security_review_needs_staged_scope",
-            "task_id": "approval_review"
+            "blocker": "eta_depends_on_scope_and_approval",
+            "task_id": "config_rollout"
           },
-          "renderer_id": "ivy.negotiate.ownership",
+          "renderer_id": "leo.eta.blocked",
           "renderer_variants": [
-            "I own the approval review, but ownership does not remove the staged-scope and cutoff requirements."
+            "I can't give you a credible ETA yet. It still depends on staged scope being locked and approval being done.",
+            "ETA is blocked until scope alignment and approval are both real.",
+            "The answer is still no on a real ETA until those prerequisites are cleared."
           ],
           "surface_facts": [
             "approval_required"
@@ -1277,21 +1338,531 @@
       ]
     },
     {
-      "cell_id": "ivy.approval.defer",
+      "cell_id": "leo.eta.high",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.eta_confidence",
+              "belief_value": "low",
+              "confidence": 0.95,
+              "freshness_window_min": 180
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.65,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "leo",
+              "delta": -0.05,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "leo_eta_high_refuse_fake_date",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "eta_not_credible_under_pressure",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.eta.high",
+          "renderer_variants": [
+            "I'm not giving you a made-up ETA just because the pressure is high. Lock scope and approval first.",
+            "No credible ETA from me under this setup. I'd rather be accurate than perform confidence.",
+            "If you want a real date, don't ask me to invent one before the staged path and approval are real."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.eta.ready",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.eta_confidence",
+              "belief_value": "moderate",
+              "confidence": 0.85,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.4,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "audience_ids": [
+                "tpm",
+                "project"
+              ],
+              "confidence": 0.78,
+              "id": "config_rollout_eta",
+              "metadata": {
+                "task_id": "config_rollout",
+                "validity_basis": "staged_scope_and_approval_done"
+              },
+              "owner_id": "leo",
+              "scope": {
+                "approval_required": true,
+                "launch_scope": "staged_rollout"
+              },
+              "status": "tentative",
+              "subject": "rollout_eta",
+              "type": "create_or_update_commitment"
+            }
+          ],
+          "id": "leo_eta_ready_tentative",
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "eta_state": "tentative",
+            "eta_window": "by_wednesday_afternoon",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.eta.ready",
+          "renderer_variants": [
+            "Now that staged scope is aligned and approval is in, I can tentatively target Wednesday afternoon for the rollout.",
+            "With the prerequisites settled, I can give you a real working ETA: staged rollout by Wednesday afternoon.",
+            "Okay \u2014 on staged scope with approval secured, Wednesday afternoon is a credible target."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.feasibility.high",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.capacity.overloaded",
+              "belief_value": true,
+              "confidence": 0.9,
+              "freshness_window_min": 180
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "leo",
+              "delta": -0.04,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "leo_feasibility_high_pushback",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "cannot_commit_full_rollout_feasibility",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.feasibility.high",
+          "renderer_variants": [
+            "I'm still underwater, so I'm not going to pretend full rollout is credible. If you want a real answer, we need to talk staged scope first.",
+            "High-pressure ask or not, I can't give you a believable full-rollout read. The honest blocker is scope realism.",
+            "I don't have a credible yes for full rollout. Right now the real answer is that full scope is not realistic."
+          ],
+          "surface_facts": [
+            "full_rollout_infeasible"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.feasibility.low",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.capacity.overloaded",
+              "belief_value": true,
+              "confidence": 0.8,
+              "freshness_window_min": 180
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.45,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "leo",
+              "delta": 0.02,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "leo_feasibility_low_honest",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "full_scope_not_credible",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.feasibility.low",
+          "renderer_variants": [
+            "Honestly, full rollout doesn't look credible in this window. A staged path is the realistic one.",
+            "If you're asking for the real feasibility answer, it's that full scope is not believable this week.",
+            "I can support a narrower staged rollout, but I wouldn't call full rollout feasible here."
+          ],
+          "surface_facts": [
+            "full_rollout_infeasible"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.inform.availability",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.capacity.overloaded",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 180
+            }
+          ],
+          "effects": [],
+          "id": "leo_availability_ack",
+          "outgoing_act_id": "inform.availability",
+          "outgoing_slots": {
+            "availability": "limited_until_1100"
+          },
+          "renderer_id": "leo.inform.availability",
+          "renderer_variants": [
+            "I'm still pretty constrained until late morning.",
+            "I'm available in a limited way before 11.",
+            "I'm overloaded for the next bit, then I should have more room."
+          ],
+          "surface_facts": [
+            "leo_overloaded_until_tue_1100"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.inform.blocker",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.shared_blocker_context",
+              "belief_value": true,
+              "confidence": 0.8,
+              "freshness_window_min": 120
+            }
+          ],
+          "effects": [],
+          "id": "leo_ack_blocker",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "blocker_acknowledged",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.inform.blocker",
+          "renderer_variants": [
+            "Yeah, that tracks with what I'm seeing on the rollout work.",
+            "Understood. That's consistent with the current constraint from my side.",
+            "Makes sense. That blocker is part of why I haven't wanted to overstate readiness."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.inform.decision",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "leo",
+              "belief_key": "project.launch_scope",
+              "belief_value": "staged_rollout",
+              "confidence": 0.85,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "leo_receive_decision_stage",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "decision_received",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.inform.decision",
+          "renderer_variants": [
+            "Got it. If the decision is staged rollout, I can plan against that.",
+            "Thanks. A real scope decision helps a lot.",
+            "Understood. Once the scope is explicit, I can stop hedging around the work."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.inform.status_update",
       "response_envelopes": [
         {
           "belief_signals": [],
           "effects": [],
-          "id": "ivy.approval.defer",
-          "outgoing_act_id": "approve.defer",
+          "id": "leo_status_ack",
+          "outgoing_act_id": "inform.status_update",
           "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff"
+            "status": "acknowledged",
+            "task_id": "config_rollout"
           },
-          "renderer_id": "ivy.approval.defer",
+          "renderer_id": "leo.inform.status_update",
           "renderer_variants": [
-            "I can't grant that yet. I either need the staged scope locked or you missed the useful queue window."
+            "Thanks for the update.",
+            "Got it, thanks.",
+            "Understood."
           ],
           "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.inform_risk",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.delivery_risk",
+              "belief_value": "high_without_scope_and_approval",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.5,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "leo",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "leo_risk_response",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "risk_confirmed_scope_and_approval",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.inform_risk",
+          "renderer_variants": [
+            "Yes, that's the risk: without locked scope and approval, any rollout date I give you is theater.",
+            "Agreed. The risk isn't just delay \u2014 it's pretending we have a real plan before scope and approval are settled.",
+            "That's the core issue from my side too. Scope and approval have to get grounded first."
+          ],
+          "surface_facts": [
+            "full_rollout_infeasible",
+            "approval_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.negotiate.scope",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.aligned_on_scope",
+              "belief_value": "staged_rollout",
+              "confidence": 0.85,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "leo",
+              "belief_key": "project.launch_scope",
+              "belief_value": "staged_rollout",
+              "confidence": 0.9,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "patch": {
+                "launch_scope": "staged_rollout"
+              },
+              "type": "project_state_patch"
+            }
+          ],
+          "id": "leo_negotiate_scope_accept_stage",
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "decision": "support_staged_rollout",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.negotiate.scope",
+          "renderer_variants": [
+            "If we're committing to staged rollout, yes, that's the path I can support.",
+            "I can work to a staged rollout plan. That's a real scope, unlike full launch right now.",
+            "Staged rollout is the credible path from engineering's side."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.request_ownership.blocked_short.gap1",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.engineering_owner",
+              "belief_value": "leo",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.engineering_blocker",
+              "belief_value": "scope_and_approval_unresolved",
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "leo_ownership_blocked_until_scope_and_approval",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "scope_and_approval_unresolved",
+            "owner": "leo",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.request_ownership.blocked_short.gap1",
+          "renderer_variants": [
+            "I own the engineering execution, but that doesn't unblock anything until staged scope is real and approval is actually in place.",
+            "Yes, I'm the engineering owner here. The blocker is still unresolved scope plus whether approval is real.",
+            "Ownership on my side isn't the missing piece. I need the staged path locked and the approval path made real before I can move this cleanly."
+          ],
+          "surface_facts": [
+            "approval_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "leo.scope_tradeoff",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.launch_scope_candidate",
+              "belief_value": "staged_rollout",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.5,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "leo_scope_tradeoff_recommend_stage",
+          "outgoing_act_id": "negotiate.scope",
+          "outgoing_slots": {
+            "dropped_scope": "full_rollout",
+            "proposed_scope": "staged_rollout",
+            "task_id": "config_rollout"
+          },
+          "renderer_id": "leo.scope_tradeoff",
+          "renderer_variants": [
+            "The real tradeoff is staged rollout versus pretending full scope still fits. I recommend staged, and we still need approval lined up.",
+            "If we're being honest, we should narrow to a staged rollout and stop carrying full scope. That only works if approval is real.",
+            "My recommendation is to cut to the staged path now. Full rollout isn't credible, and I need approval in hand before giving anything firmer."
+          ],
+          "surface_facts": [
+            "full_rollout_infeasible",
+            "approval_required"
+          ],
           "weight": 1.0
         }
       ]
@@ -1300,18 +1871,99 @@
       "cell_id": "mia.request.feasibility",
       "response_envelopes": [
         {
-          "belief_signals": [],
-          "effects": [],
-          "id": "mia.request.feasibility",
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.mia.ops_support",
+              "belief_value": "available_for_bounded_staged_path",
+              "confidence": 0.9,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "audience_ids": [
+                "tpm"
+              ],
+              "confidence": 0.82,
+              "id": "runbook_cleanup_commitment",
+              "metadata": {
+                "task_id": "runbook_readiness",
+                "validity_basis": "bounded_noncritical_ask"
+              },
+              "owner_id": "mia",
+              "scope": {
+                "bounded": true,
+                "non_gating": true
+              },
+              "status": "tentative",
+              "subject": "runbook_cleanup",
+              "type": "create_or_update_commitment"
+            }
+          ],
+          "id": "mia_feasibility_supportable",
           "outgoing_act_id": "inform.decision",
           "outgoing_slots": {
-            "reason": "ops_supports_staged_if_locked"
+            "decision": "ops_supportable_if_bounded",
+            "task_id": "runbook_readiness"
           },
           "renderer_id": "mia.request.feasibility",
           "renderer_variants": [
-            "From ops, the staged rollout is feasible. If you lock that path, I can support the runbook and launch prep quickly."
+            "Yes \u2014 if the rollout is staged and the ask stays bounded, I can support the runbook side.",
+            "Operationally, the narrowed path is fine. I already have the checklist and rollback notes.",
+            "The staged rollout looks supportable from ops, especially if you keep my workstream clearly non-gating."
           ],
-          "surface_facts": [],
+          "surface_facts": [
+            "ops_checklist_available"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "mia.request_clarification.early.gap1",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.mia.ops_ready_for_small_help",
+              "belief_value": true,
+              "confidence": 0.92,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.runbook_is_non_gating",
+              "belief_value": true,
+              "confidence": 0.88,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "mia",
+              "delta": 0.02,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "mia_clarification_early_noncritical_help",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "runbook_help_is_available_but_not_main_path",
+            "task_id": "runbook_readiness"
+          },
+          "renderer_id": "mia.request_clarification.early.gap1",
+          "renderer_variants": [
+            "Sure \u2014 on my side the clarification is that the runbook work is easy help, not the thing blocking launch. Once scope settles, I can tidy the checklist quickly.",
+            "Happy to clarify: ops isn't your critical path here. I already have most of the checklist and rollback notes, so this is a small cleanup once the staged scope is decided.",
+            "From ops, the main point is don't over-rotate on me. I can polish the runbook fast after the rollout path is clear, but approval and scope are the real gating items."
+          ],
+          "surface_facts": [
+            "ops_checklist_available"
+          ],
           "weight": 1.0
         }
       ]

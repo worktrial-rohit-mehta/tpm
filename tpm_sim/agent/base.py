@@ -28,6 +28,8 @@ class AgentRunRecord:
     prompt_pack_version: str
     max_turns: int
     turns_taken: int
+    termination_reason: str
+    simulated_end_time: str
     protocol_failure: bool
     protocol_failure_reason: Optional[str]
     score: float

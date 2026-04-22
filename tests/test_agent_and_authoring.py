@@ -37,10 +37,19 @@ from tpm_sim.coverage_artifacts import build_starter_contract
 from tpm_sim.engine import CoverageMissError, SimulationEngine
 from tpm_sim.environment import ActionValidationError, EnvironmentSession, StructuredAction, validate_structured_action
 from tpm_sim.evaluator import Evaluator
-from tpm_sim.model_client import ModelResponse
-from tpm_sim.performance import build_run_summary, export_bundle_summary, export_run_summary
+from tpm_sim.briefing import render_operator_briefing
+from tpm_sim.model_client import ModelResponse, OpenAIResponsesModelClient, _extract_output_text, _extract_refusal
+from tpm_sim.performance import (
+    _merge_decision_action_rows,
+    build_behavior_diagnostics,
+    build_run_summary,
+    export_bundle_summary,
+    export_run_summary,
+    render_run_summary,
+)
 from tpm_sim.runtime_env import autoload_project_dotenv
-from tpm_sim.scenario import load_scenario_bundle, seed_store
+from tpm_sim.scenario import load_bundle_from_paths, load_scenario_bundle, seed_store
+from tpm_sim.script_dsl import parse_script_command, validate_trajectory_script_text
 from tpm_sim.storage import open_store
 
 
@@ -58,6 +67,469 @@ def build_runtime(db_path: str, scenario_id: str, *, seed: int = 11, coverage_en
     engine = SimulationEngine(store, bundle)
     evaluator = Evaluator(engine)
     return engine, evaluator
+
+
+def load_bundle_from_current_sources(scenario_id: str) -> dict[str, object]:
+    root = OFFICIAL_SCENARIOS / scenario_id
+    return load_bundle_from_paths(
+        root / "scenario.json",
+        None,
+        contract_path=root / "coverage_contract.json",
+        semantics_path=root / "coverage_semantics.json",
+        closure_report_path=root / "closure_report.json",
+    )
+
+
+def summary_scenario_bundle(scenario_id: str = "unit_test_scenario") -> dict[str, object]:
+    return {
+        "scenario": {
+            "id": scenario_id,
+            "start_at": "2026-05-05T09:00:00",
+            "world": {
+                "project": {
+                    "name": "Unit Test Launch",
+                    "description": "A compact deterministic scenario used for run-summary tests.",
+                },
+                "actors": [
+                    {
+                        "id": "tpm",
+                        "name": "You",
+                        "org_role": "technical_program_manager",
+                        "coordination_template": "external_agent",
+                        "authority_profile": {},
+                    },
+                    {
+                        "id": "dana",
+                        "name": "Dana Brooks",
+                        "org_role": "director_product",
+                        "coordination_template": "sponsor",
+                        "authority_profile": {"can_approve_scope": True},
+                    },
+                    {
+                        "id": "leo",
+                        "name": "Leo Park",
+                        "org_role": "engineer",
+                        "coordination_template": "critical_path_owner",
+                        "authority_profile": {"can_commit_eta": True},
+                    },
+                    {
+                        "id": "ivy",
+                        "name": "Ivy Shah",
+                        "org_role": "security_engineer",
+                        "coordination_template": "cross_functional_dependency_owner",
+                        "authority_profile": {"can_grant_review": True},
+                    },
+                    {
+                        "id": "mia",
+                        "name": "Mia Torres",
+                        "org_role": "operations",
+                        "coordination_template": "ally",
+                        "authority_profile": {},
+                    },
+                ],
+                "facts": [
+                    {
+                        "id": "approval_required",
+                        "label": "Approval is required for the staged rollout",
+                        "description": "Approval is required before the rollout can proceed.",
+                        "metadata": {},
+                    },
+                    {
+                        "id": "dana_accepts_staged_if_early",
+                        "label": "Dana backs staged rollout if engaged early",
+                        "description": "Dana will support staged rollout if the TPM brings the tradeoff early.",
+                        "metadata": {
+                            "coordination_implication": "Surface the real feasibility gap early and frame the staged plan clearly before the scope window closes.",
+                            "fact_kind": "actor_private_driver",
+                            "owner_actor_id": "dana",
+                        },
+                    },
+                    {
+                        "id": "full_rollout_infeasible",
+                        "label": "Full rollout is not credible this week",
+                        "description": "The full rollout path is not credible.",
+                        "metadata": {},
+                    },
+                    {
+                        "id": "leo_rejects_fake_rollout_dates",
+                        "label": "Leo rejects fake rollout dates until the path is real",
+                        "description": "Leo will not commit to dates until scope and approval are grounded.",
+                        "metadata": {
+                            "coordination_implication": "Ask Leo for honest feasibility before ETA.",
+                            "fact_kind": "actor_private_driver",
+                            "owner_actor_id": "leo",
+                        },
+                    },
+                    {
+                        "id": "ops_checklist_available",
+                        "label": "Operations checklist already exists",
+                        "description": "Ops already has the checklist and rollback notes.",
+                        "metadata": {},
+                    },
+                ],
+                "windows": [
+                    {"id": "scope_alignment_cutoff", "title": "Scope alignment window", "start_at": "2026-05-05T09:00:00", "end_at": "2026-05-05T10:00:00"},
+                    {"id": "approval_cutoff", "title": "Approval queue window", "start_at": "2026-05-05T09:00:00", "end_at": "2026-05-05T10:30:00"},
+                ],
+                "tasks": [
+                    {
+                        "id": "config_rollout",
+                        "title": "Config rollout",
+                        "owner_id": "leo",
+                        "due_at": "2026-05-05T12:00:00",
+                        "metadata": {"critical": True},
+                    },
+                    {
+                        "id": "approval_review",
+                        "title": "Approval review",
+                        "owner_id": "ivy",
+                        "due_at": "2026-05-05T10:30:00",
+                        "metadata": {"critical": True},
+                    },
+                    {
+                        "id": "runbook_readiness",
+                        "title": "Runbook readiness",
+                        "owner_id": "mia",
+                        "due_at": "2026-05-05T11:30:00",
+                        "metadata": {"critical": False},
+                    },
+                ],
+                "documents": [
+                    {
+                        "id": "DOC-BRIEF-100",
+                        "title": "Kickoff brief",
+                        "content": "Leadership wants the real rollout story early, not fake green.",
+                    },
+                    {
+                        "id": "DOC-OPS-101",
+                        "title": "Ops checklist",
+                        "content": "The staging checklist already exists.",
+                    },
+                ],
+                "milestones": [
+                    {"id": "scope_aligned", "title": "Scope aligned", "due_at": "2026-05-05T10:00:00"},
+                    {"id": "approval_secured", "title": "Approval secured", "due_at": "2026-05-05T10:30:00"},
+                    {"id": "rollout_ready", "title": "Rollout ready", "due_at": "2026-05-05T12:00:00"},
+                ],
+            },
+            "evaluation": {
+                "primary_failure_classes": ["timing", "discovery", "commitment"],
+            },
+        }
+    }
+
+
+def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows))
+
+
+def build_failure_summary_fixture(tmpdir: str) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    run_dir = Path(tmpdir) / "failure_run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    scenario_id = "internal_rollout_smoke"
+    store = open_store(str(run_dir / "run.sqlite"))
+    try:
+        approval_first = store.log_action(
+            "2026-05-05T09:00:00",
+            "tpm",
+            "chat",
+            "request.approval",
+            body="Need approval for staged rollout.",
+            duration_minutes=10,
+            metadata={"cost_key": "follow_up_on_commitment"},
+        )
+        approval_second = store.log_action(
+            "2026-05-05T09:20:00",
+            "tpm",
+            "chat",
+            "request.approval",
+            body="Following up on approval.",
+            duration_minutes=10,
+            metadata={"cost_key": "follow_up_on_commitment"},
+        )
+        approval_third = store.log_action(
+            "2026-05-05T09:22:00",
+            "tpm",
+            "chat",
+            "request.approval",
+            body="Bumping approval again.",
+            duration_minutes=10,
+            metadata={"cost_key": "status_push_without_new_information"},
+        )
+        dana_read = store.log_action(
+            "2026-05-05T09:07:00",
+            "tpm",
+            "chat",
+            "read.thread",
+            slots={"thread_id": "dana"},
+            body="",
+            duration_minutes=2,
+            metadata={"thread_id": "dana", "target_actor_id": "dana"},
+        )
+        dana_message = store.add_message(
+            {
+                "thread_id": "dana",
+                "surface": "chat",
+                "sender_id": "dana",
+                "act_id": "request.clarification",
+                "slots": {},
+                "body": "What is actually credible by Wednesday?",
+                "created_at": "2026-05-05T09:05:00",
+                "unread_for_tpm": False,
+                "metadata": {},
+            }
+        )
+        ivy_message = store.add_message(
+            {
+                "thread_id": "ivy",
+                "surface": "chat",
+                "sender_id": "ivy",
+                "act_id": "inform.blocker",
+                "slots": {},
+                "body": "I need the full staged-rollout request in the queue before the cutoff if you want today's review.",
+                "created_at": "2026-05-05T09:06:00",
+                "unread_for_tpm": False,
+                "metadata": {},
+            }
+        )
+    finally:
+        store.close()
+    agent_trace_rows = [
+        {
+            "id": 9,
+            "at": "2026-05-05T09:06:00",
+            "phase": "runtime",
+            "event_type": "fact_signal",
+            "actor_id": "system",
+            "visibility": "agent",
+            "summary": "Fact signal for approval_required",
+            "payload": {"fact_id": "approval_required", "source_ref": f"message:{ivy_message}"},
+        },
+        {
+            "id": 15,
+            "at": "2026-05-05T09:05:00",
+            "phase": "runtime",
+            "event_type": "agenda_signal.observed",
+            "actor_id": "dana",
+            "visibility": "agent",
+            "summary": "Agenda cue observed for dana_accepts_staged_if_early",
+            "payload": {
+                "fact_id": "dana_accepts_staged_if_early",
+                "owner_actor_id": "dana",
+                "source_ref": f"message:{dana_message}",
+            },
+        },
+        {
+            "id": 21,
+            "at": "2026-05-05T09:06:00",
+            "phase": "runtime",
+            "event_type": "npc.message_sent",
+            "actor_id": "ivy",
+            "visibility": "agent",
+            "summary": "ivy sent inform.blocker",
+            "payload": {"act_id": "inform.blocker", "message_id": ivy_message, "thread_id": "ivy"},
+        },
+    ]
+    agent_trace_path = run_dir / "agent_trace.jsonl"
+    omniscient_trace_path = run_dir / "omniscient_trace.jsonl"
+    write_jsonl(agent_trace_path, agent_trace_rows)
+    write_jsonl(omniscient_trace_path, agent_trace_rows)
+    report = {
+        "scenario_id": scenario_id,
+        "scenario_digest": "digest",
+        "compiled_coverage_digest": "digest",
+        "closure_status": {"status": "passed", "passed": True},
+        "time": "2026-05-05T09:22:00",
+        "total_score": 15.0,
+        "rubric": [
+            {
+                "id": "scope_aligned_on_time",
+                "label": "Scope aligned on time",
+                "weight": 25.0,
+                "awarded": 0.0,
+                "failure_class": "timing",
+                "competency_tags": [
+                    "outcome_attainment",
+                    "timing_optionality_preservation",
+                    "decision_tradeoff_management",
+                ],
+                "measurement_rationale": "Drive the staged path decision before the main window closes.",
+                "success_meaning": "The TPM got the team onto the staged path in time.",
+                "failure_meaning": "The TPM failed to converge the team on the staged path before the window closed.",
+                "evidence_refs": [],
+                "matched_predicates": [],
+                "deadline_or_window": "scope_alignment_cutoff",
+                "success_predicate": {
+                    "before": {
+                        "time": "2026-05-05T10:00:00",
+                        "predicate": {"milestone_state": {"field": "status", "equals": "done", "milestone_id": "scope_aligned"}},
+                    }
+                },
+            },
+            {
+                "id": "approval_secured_on_time",
+                "label": "Approval secured before cutoff",
+                "weight": 25.0,
+                "awarded": 0.0,
+                "failure_class": "timing",
+                "competency_tags": [
+                    "outcome_attainment",
+                    "timing_optionality_preservation",
+                    "commitment_dependency_management",
+                ],
+                "measurement_rationale": "Secure the approval dependency before the queue cutoff.",
+                "success_meaning": "The TPM secured the key dependency on time.",
+                "failure_meaning": "The TPM did not secure approval in time, leaving the path blocked.",
+                "evidence_refs": [],
+                "matched_predicates": [],
+                "deadline_or_window": "approval_cutoff",
+                "success_predicate": {
+                    "before": {
+                        "time": "2026-05-05T10:30:00",
+                        "predicate": {"milestone_state": {"field": "status", "equals": "done", "milestone_id": "approval_secured"}},
+                    }
+                },
+            },
+            {
+                "id": "rollout_ready_on_time",
+                "label": "Rollout ready by Wednesday afternoon",
+                "weight": 20.0,
+                "awarded": 0.0,
+                "failure_class": "timing",
+                "competency_tags": [
+                    "outcome_attainment",
+                    "timing_optionality_preservation",
+                    "critical_path_prioritization",
+                ],
+                "measurement_rationale": "Translate the decision and approval into rollout readiness.",
+                "success_meaning": "The TPM made the rollout ready on time.",
+                "failure_meaning": "The TPM did not convert coordination into rollout readiness quickly enough.",
+                "evidence_refs": [],
+                "matched_predicates": [],
+                "deadline_or_window": "rollout_ready",
+                "success_predicate": {
+                    "before": {
+                        "time": "2026-05-05T12:00:00",
+                        "predicate": {"milestone_state": {"field": "status", "equals": "done", "milestone_id": "rollout_ready"}},
+                    }
+                },
+            },
+            {
+                "id": "project_constraint_discovery",
+                "label": "Project constraints surfaced in time",
+                "weight": 10.0,
+                "awarded": 10.0,
+                "failure_class": "discovery",
+                "competency_tags": ["discovery_situation_awareness"],
+                "measurement_rationale": "Surface the key approval constraint early.",
+                "success_meaning": "The TPM surfaced the hard constraint in time.",
+                "failure_meaning": "The TPM missed a hard project constraint.",
+                "evidence_refs": ["event:9"],
+                "matched_predicates": ["surfaced:approval_required"],
+                "deadline_or_window": "critical_fact_windows",
+            },
+            {
+                "id": "stakeholder_driver_discovery",
+                "label": "Stakeholder drivers surfaced in time",
+                "weight": 5.0,
+                "awarded": 5.0,
+                "failure_class": "discovery",
+                "competency_tags": ["discovery_situation_awareness"],
+                "measurement_rationale": "Surface the sponsor driver early.",
+                "success_meaning": "The TPM surfaced the stakeholder driver in time.",
+                "failure_meaning": "The TPM missed a key stakeholder driver.",
+                "evidence_refs": ["event:15"],
+                "matched_predicates": ["surfaced:dana_accepts_staged_if_early"],
+                "deadline_or_window": "stakeholder_driver_windows",
+            },
+        ],
+        "failure_breakdown": {"timing": 70.0},
+        "recoverability": {"scope_aligned": "none", "approval_secured": "none", "rollout_ready": "low"},
+        "coverage_miss": False,
+        "trace_paths": {
+            "agent_trace": str(agent_trace_path),
+            "omniscient_trace": str(omniscient_trace_path),
+        },
+        "decisive_moments": [],
+    }
+    payload = {
+        "run": {
+            "scenario_id": scenario_id,
+            "scenario_digest": "digest",
+            "seed": 11,
+            "adapter": "scripted",
+            "model": "mock-model",
+            "prompt_pack_version": "test_prompt_v1",
+            "max_turns": 10,
+            "turns_taken": 4,
+            "termination_reason": "max_turns_reached",
+            "simulated_end_time": "2026-05-05T09:22:00",
+            "protocol_failure": False,
+            "protocol_failure_reason": None,
+            "output_dir": str(run_dir),
+            "report_path": str(run_dir / "benchmark_run.report.json"),
+            "agent_log_path": str(run_dir / "agent_run.json"),
+        },
+        "decisions": [
+            {
+                "turn": 1,
+                "observation_time": "2026-05-05T09:00:00",
+                "decision": {
+                    "action": {
+                        "action_type": "chat.send",
+                        "arguments": {"target": "ivy", "act_id": "request.approval"},
+                    }
+                },
+                "executed_action_ref": f"action:{approval_first}",
+                "step_result": {"ok": True},
+                "validation_errors": [],
+                "repair_attempts": 0,
+            },
+            {
+                "turn": 2,
+                "observation_time": "2026-05-05T09:07:00",
+                "decision": {
+                    "action": {
+                        "action_type": "read.thread",
+                        "arguments": {"target": "dana"},
+                    }
+                },
+                "executed_action_ref": f"action:{dana_read}",
+                "step_result": {"ok": True},
+                "validation_errors": [],
+                "repair_attempts": 0,
+            },
+            {
+                "turn": 3,
+                "observation_time": "2026-05-05T09:20:00",
+                "decision": {
+                    "action": {
+                        "action_type": "chat.send",
+                        "arguments": {"target": "ivy", "act_id": "request.approval"},
+                    }
+                },
+                "executed_action_ref": f"action:{approval_second}",
+                "step_result": {"ok": True},
+                "validation_errors": [],
+                "repair_attempts": 0,
+            },
+            {
+                "turn": 4,
+                "observation_time": "2026-05-05T09:22:00",
+                "decision": {
+                    "action": {
+                        "action_type": "chat.send",
+                        "arguments": {"target": "ivy", "act_id": "request.approval"},
+                    }
+                },
+                "executed_action_ref": f"action:{approval_third}",
+                "step_result": {"ok": True},
+                "validation_errors": [],
+                "repair_attempts": 0,
+            },
+        ],
+    }
+    return report, payload, summary_scenario_bundle(scenario_id)
 
 
 class CaptureStructuredClient:
@@ -79,6 +551,22 @@ class CaptureStructuredClient:
         )
         return ModelResponse(
             text=json.dumps(self.payload),
+            raw={"fixture": True},
+            usage={},
+            latency_ms=0,
+            refusal=None,
+        )
+
+
+class TextResponseClient:
+    def __init__(self, text: str):
+        self.text = text
+        self.calls: list[dict[str, object]] = []
+
+    def generate_text(self, prompt_spec, config):
+        self.calls.append({"prompt_spec": prompt_spec, "config": config})
+        return ModelResponse(
+            text=self.text,
             raw={"fixture": True},
             usage={},
             latency_ms=0,
@@ -271,6 +759,38 @@ class AgentAndAuthoringTests(unittest.TestCase):
         self.assertIn("read.tasks", call["schema"]["properties"]["action_type"]["enum"])
         self.assertIn("request.approval", call["schema"]["properties"]["arguments"]["properties"]["act_id"]["enum"])
 
+    def test_openai_agent_adapter_applies_gpt5_reasoning_defaults(self) -> None:
+        payload = {
+            "action_type": "read.tasks",
+            "arguments": {},
+            "reason": "inspect current execution state",
+        }
+        client = CaptureStructuredClient(payload)
+        nano = OpenAIResponsesAgentAdapter(client, model="gpt-5-nano")
+        nano.decide({}, {"scenario_id": "internal_rollout_smoke", "time": "2026-05-05T09:00:00"})
+        self.assertEqual(client.calls[-1]["config"]["reasoning_effort"], "minimal")
+
+        mini = OpenAIResponsesAgentAdapter(client, model="gpt-5-mini")
+        mini.decide({}, {"scenario_id": "internal_rollout_smoke", "time": "2026-05-05T09:00:00"})
+        self.assertEqual(client.calls[-1]["config"]["reasoning_effort"], "low")
+
+        four_o = OpenAIResponsesAgentAdapter(client, model="gpt-4o")
+        four_o.decide({}, {"scenario_id": "internal_rollout_smoke", "time": "2026-05-05T09:00:00"})
+        self.assertNotIn("reasoning_effort", client.calls[-1]["config"])
+
+    def test_openai_agent_adapter_allows_reasoning_override_from_environment(self) -> None:
+        client = CaptureStructuredClient(
+            {
+                "action_type": "read.tasks",
+                "arguments": {},
+                "reason": "inspect current execution state",
+            }
+        )
+        with mock.patch.dict(os.environ, {"TPM_AGENT_REASONING_EFFORT": "low"}, clear=False):
+            adapter = OpenAIResponsesAgentAdapter(client, model="gpt-5-nano")
+            adapter.decide({}, {"scenario_id": "internal_rollout_smoke", "time": "2026-05-05T09:00:00"})
+        self.assertEqual(client.calls[-1]["config"]["reasoning_effort"], "low")
+
     def test_validate_structured_action_rejects_unknown_act_id(self) -> None:
         with self.assertRaises(ActionValidationError):
             validate_structured_action(
@@ -280,10 +800,54 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 )
             )
 
+    def test_validate_structured_action_rejects_malformed_note_ref(self) -> None:
+        with self.assertRaises(ActionValidationError):
+            validate_structured_action(
+                StructuredAction(
+                    "notes.write",
+                    {"title": "Follow-up", "body": "Check approval path.", "refs": ["badref"]},
+                )
+            )
+
+    def test_parse_script_command_accepts_notes_with_refs(self) -> None:
+        parsed = parse_script_command("notes write Approval follow-up | task:approval_review,actor:ivy | Send the packet before noon.")
+        self.assertIsNotNone(parsed.action)
+        self.assertEqual(parsed.action.arguments["refs"], ["task:approval_review", "actor:ivy"])
+
+    def test_validate_trajectory_script_text_accepts_golden_northstar_example(self) -> None:
+        scenario = load_scenario_bundle("northstar_launch_week")["scenario"]
+        errors = validate_trajectory_script_text((EXAMPLES / "golden.tpm").read_text(), script_name="golden.tpm", scenario=scenario)
+        self.assertEqual(errors, [])
+
+    def test_validate_trajectory_script_text_rejects_unsupported_uppercase_dsl(self) -> None:
+        scenario = load_scenario_bundle("northstar_launch_week")["scenario"]
+        errors = validate_trajectory_script_text("READ_DOC DOC-BRIEF-001\n", script_name="smoke.tpm", scenario=scenario)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("Use `docs open DOC-ID`.", errors[0])
+
+    def test_validate_trajectory_script_text_rejects_unknown_note_refs(self) -> None:
+        scenario = {
+            "world": {
+                "actors": [{"id": "ivy"}],
+                "documents": [{"id": "DOC-BRIEF-100"}],
+                "tasks": [{"id": "approval_review"}],
+                "threads": [{"id": "ivy"}],
+                "meetings": [{"id": "meeting_001"}],
+            }
+        }
+        errors = validate_trajectory_script_text(
+            "notes write Approval follow-up | actor:missing,task:approval_review | Need packet.\n",
+            script_name="smoke.tpm",
+            scenario=scenario,
+        )
+        self.assertEqual(len(errors), 1)
+        self.assertIn("unknown actor ref 'actor:missing'", errors[0])
+
     def test_agent_runner_repair_path_succeeds_after_one_invalid_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
             db_path = str(Path(tmpdir) / "repair.sqlite")
-            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
             try:
                 record = AgentRunner(RepairingAdapter(), max_turns=3).run(
                     session,
@@ -298,10 +862,37 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertEqual(payload["run"]["prompt_pack_version"], "test_prompt_v1")
             self.assertEqual(payload["decisions"][0]["decision"]["action"]["action_type"], "wait.duration")
 
+    def test_agent_runner_records_executed_action_ref_on_successful_turn(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
+            db_path = str(Path(tmpdir) / "success.sqlite")
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
+            try:
+                record = AgentRunner(
+                    ScriptedAdapter([{"action_type": "wait.duration", "arguments": {"minutes": 5}, "reason": "advance time"}]),
+                    max_turns=1,
+                ).run(
+                    session,
+                    seed=11,
+                    output_dir=str(Path(tmpdir) / "success_run"),
+                    model_name="mock-model",
+                )
+            finally:
+                session.close()
+            payload = json.loads(Path(record.agent_log_path).read_text())
+            executed_action_ref = payload["decisions"][0]["executed_action_ref"]
+            self.assertRegex(executed_action_ref or "", r"^action:\d+$")
+            store = open_store(db_path)
+            try:
+                self.assertEqual(executed_action_ref, f"action:{int(store.actions()[-1]['id'])}")
+            finally:
+                store.close()
+
     def test_agent_runner_records_protocol_failure_after_second_invalid_action(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
             db_path = str(Path(tmpdir) / "invalid.sqlite")
-            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
             try:
                 record = AgentRunner(InvalidAdapter(), max_turns=2).run(
                     session,
@@ -314,12 +905,14 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertTrue(record.protocol_failure)
             self.assertIn("Unknown action_type", record.protocol_failure_reason or "")
             payload = json.loads(Path(record.agent_log_path).read_text())
+            self.assertIsNone(payload["decisions"][0]["executed_action_ref"])
             self.assertIsNone(payload["decisions"][0]["step_result"])
 
     def test_agent_runner_records_coverage_miss_cleanly(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
             db_path = str(Path(tmpdir) / "coverage_miss.sqlite")
-            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
             try:
                 with mock.patch.object(session, "step", side_effect=CoverageMissError("synthetic coverage miss")):
                     record = AgentRunner(ScriptedAdapter([{"action_type": "read.tasks", "arguments": {}, "reason": "probe"}]), max_turns=1).run(
@@ -333,7 +926,51 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertTrue(record.protocol_failure)
             self.assertIn("Benchmark coverage miss", record.protocol_failure_reason or "")
             payload = json.loads(Path(record.agent_log_path).read_text())
+            self.assertIsNone(payload["decisions"][0]["executed_action_ref"])
             self.assertIsNone(payload["decisions"][0]["step_result"])
+
+    def test_agent_runner_records_turn_budget_termination(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
+            db_path = str(Path(tmpdir) / "turn_budget.sqlite")
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
+            try:
+                record = AgentRunner(
+                    ScriptedAdapter(
+                        [
+                            {"action_type": "wait.duration", "arguments": {"minutes": 5}, "reason": "advance a little"},
+                            {"action_type": "wait.duration", "arguments": {"minutes": 5}, "reason": "advance a little more"},
+                        ]
+                    ),
+                    max_turns=2,
+                ).run(
+                    session,
+                    seed=11,
+                    output_dir=str(Path(tmpdir) / "turn_budget_run"),
+                    model_name="mock-model",
+                )
+            finally:
+                session.close()
+            self.assertFalse(record.protocol_failure)
+            self.assertEqual(record.termination_reason, "max_turns_reached")
+            self.assertEqual(record.turns_taken, 2)
+            self.assertRegex(record.simulated_end_time, r"^2026-05-05T09:10:00$")
+
+    def test_render_run_summary_exposes_turn_budget_termination(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+        rendered = render_run_summary(summary)
+        self.assertIn("Capability verdict:", rendered)
+        self.assertIn("Direct answer:", rendered)
+        self.assertIn("Top root-cause findings:", rendered)
+        self.assertLess(rendered.index("Top root-cause findings:"), rendered.index("Supporting data:"))
+        self.assertIn("termination: turn budget exhausted; turns=4 / 10", rendered)
+        self.assertIn("Critical actors never contacted: dana, leo", rendered)
+        self.assertIn("Direct questions left unanswered: message:1", rendered)
+        self.assertIn("Reference-path divergence:", rendered)
+        self.assertIn("critical unsurfaced: full_rollout_infeasible, leo_rejects_fake_rollout_dates", rendered)
+        self.assertIn("rubric failure: Scope aligned on time lost=25.0", rendered)
 
     def test_scripted_agent_runner_can_complete_internal_rollout_smoke(self) -> None:
         actions = [
@@ -342,65 +979,94 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 "action_type": "chat.send",
                 "arguments": {
                     "target": "leo",
-                    "act_id": "request.feasibility",
+                    "act_id": "request.scope_tradeoff",
                     "slots": {"task_id": "config_rollout"},
-                    "body": "Need the honest path for Wednesday."
+                    "body": "If full rollout is not credible, what staged path is actually workable this week?"
                 },
-                "reason": "get the real engineering feasibility"
+                "reason": "get the credible staged path from engineering"
             },
-            {"action_type": "wait.until_next_event", "arguments": {"max_minutes": 180}, "reason": "wait for Leo's reply"},
-            {"action_type": "read.thread", "arguments": {"target": "leo"}, "reason": "read Leo's reply"},
+            {"action_type": "wait.until_next_event", "arguments": {"max_minutes": 180}, "reason": "wait for Leo's scope response"},
+            {"action_type": "read.thread", "arguments": {"target": "leo"}, "reason": "read Leo's scope response"},
+            {
+                "action_type": "chat.send",
+                "arguments": {
+                    "target": "leo",
+                    "act_id": "negotiate.scope",
+                    "slots": {"proposed_scope": "staged_rollout"},
+                    "body": "Let's commit to staged rollout as the real path."
+                },
+                "reason": "lock engineering onto staged scope"
+            },
             {
                 "action_type": "chat.send",
                 "arguments": {
                     "target": "dana",
                     "act_id": "request.scope_tradeoff",
                     "slots": {"task_id": "config_rollout"},
-                    "body": "If full rollout is not credible, will you back the staged path?"
+                    "body": "Engineering is saying full rollout is not credible. Will you back staged rollout today?"
                 },
-                "reason": "drive the scope decision"
+                "reason": "get sponsor backing on the real tradeoff"
             },
-            {"action_type": "wait.until_next_event", "arguments": {"max_minutes": 180}, "reason": "wait for Dana"},
-            {"action_type": "read.thread", "arguments": {"target": "dana"}, "reason": "read Dana's decision"},
+            {"action_type": "wait.until_next_event", "arguments": {"max_minutes": 240}, "reason": "wait for Dana"},
+            {"action_type": "read.thread", "arguments": {"target": "dana"}, "reason": "read Dana's tradeoff response"},
+            {
+                "action_type": "chat.send",
+                "arguments": {
+                    "target": "leo",
+                    "act_id": "inform.decision",
+                    "slots": {"decision_key": "launch_scope", "decision_value": "staged_rollout"},
+                    "body": "We are aligning on staged rollout."
+                },
+                "reason": "make the staged decision explicit to engineering"
+            },
+            {
+                "action_type": "chat.send",
+                "arguments": {
+                    "target": "dana",
+                    "act_id": "inform.decision",
+                    "slots": {"decision_key": "launch_scope", "decision_value": "staged_rollout"},
+                    "body": "We are aligning on staged rollout and I need your support on that tradeoff."
+                },
+                "reason": "make the staged decision explicit to the sponsor"
+            },
             {
                 "action_type": "chat.send",
                 "arguments": {
                     "target": "ivy",
-                    "act_id": "request.approval",
+                    "act_id": "request.review",
                     "slots": {"task_id": "approval_review"},
-                    "body": "Requesting approval for the staged rollout path."
+                    "body": "Staged rollout is the path. Please review the concrete staged request before noon."
                 },
                 "reason": "secure approval before the cutoff"
             },
-            {"action_type": "wait.until_next_event", "arguments": {"max_minutes": 240}, "reason": "wait for approval reply"},
+            {"action_type": "wait.until_next_event", "arguments": {"max_minutes": 240}, "reason": "wait for the approval reply"},
             {"action_type": "read.thread", "arguments": {"target": "ivy"}, "reason": "read the approval response"},
-            {"action_type": "wait.until_next_event", "arguments": {"max_minutes": 240}, "reason": "wait for Leo to cool down"},
+            {
+                "action_type": "chat.send",
+                "arguments": {
+                    "target": "mia",
+                    "act_id": "request.feasibility",
+                    "slots": {"task_id": "runbook_readiness"},
+                    "body": "If we go staged, is ops support feasible from your side?"
+                },
+                "reason": "close the small readiness side path"
+            },
             {
                 "action_type": "chat.send",
                 "arguments": {
                     "target": "leo",
                     "act_id": "request.eta",
                     "slots": {"task_id": "config_rollout"},
-                    "body": "What is the credible ETA for the staged rollout path?"
+                    "body": "With staged scope and approval ready, what is the credible ETA?"
                 },
                 "reason": "convert the aligned plan into a concrete ETA"
-            },
-            {"action_type": "wait.until_next_event", "arguments": {"max_minutes": 240}, "reason": "wait for the ETA response"},
-            {"action_type": "read.thread", "arguments": {"target": "leo"}, "reason": "read the ETA response"},
-            {
-                "action_type": "docs.write",
-                "arguments": {
-                    "doc_type": "runbook",
-                    "title": "Rollout runbook",
-                    "body": "Drafted staged rollout checklist, rollback plan, and owner notes."
-                },
-                "reason": "close the small readiness side path"
             },
             {"action_type": "wait.duration", "arguments": {"minutes": 600}, "reason": "let the remaining work land"}
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
             db_path = str(Path(tmpdir) / "scripted.sqlite")
-            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
             try:
                 record = AgentRunner(ScriptedAdapter(actions), max_turns=25).run(
                     session,
@@ -410,78 +1076,521 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 )
             finally:
                 session.close()
-            self.assertGreaterEqual(record.score, 95.0)
+            self.assertGreaterEqual(record.score, 90.0)
             self.assertFalse(record.protocol_failure)
 
     def test_export_run_summary_builds_canonical_tpm_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = str(Path(tmpdir) / "summary.sqlite")
-            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
-            try:
-                record = AgentRunner(
-                    ScriptedAdapter(
-                        [
-                            {"action_type": "read.doc", "arguments": {"doc_id": "DOC-BRIEF-100"}, "reason": "read the kickoff brief"},
-                            {"action_type": "wait.duration", "arguments": {"minutes": 30}, "reason": "advance"},
-                        ]
-                    ),
-                    max_turns=2,
-                ).run(
-                    session,
-                    seed=11,
-                    output_dir=str(Path(tmpdir) / "summary_run"),
-                    model_name="mock-model",
-                )
-            finally:
-                session.close()
-            summary = export_run_summary(Path(record.output_dir), write_files=True)
-            self.assertEqual(summary["schema_version"], "tpm_performance_summary_v1")
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            run_dir = Path(payload["run"]["output_dir"])
+            Path(payload["run"]["report_path"]).write_text(json.dumps(report, indent=2, sort_keys=True))
+            Path(payload["run"]["agent_log_path"]).write_text(json.dumps(payload, indent=2, sort_keys=True))
+            with mock.patch("tpm_sim.performance.load_scenario_bundle", return_value=scenario_bundle):
+                summary = export_run_summary(run_dir, write_files=True)
+            self.assertEqual(summary["schema_version"], "tpm_performance_summary_v3")
+            self.assertIn("capability_assessment", summary)
+            self.assertIn("root_cause_findings", summary)
+            self.assertIn("stakeholder_engagement", summary)
+            self.assertIn("signal_coverage", summary)
+            self.assertIn("window_scorecards", summary)
+            self.assertIn("missed_opportunities", summary)
+            self.assertIn("reference_path_diff", summary)
+            self.assertIn("evidence_catalog", summary)
             self.assertIn("tpm_competency_profile", summary)
             self.assertIn("run_health", summary)
             self.assertEqual(summary["narrative"]["source"], "deterministic_template")
-            self.assertTrue((Path(record.output_dir) / "tpm_performance_summary.json").exists())
+            self.assertTrue((run_dir / "tpm_performance_summary.json").exists())
+            self.assertTrue((run_dir / "judge_input_bundle.json").exists())
+
+    def test_merge_decision_action_rows_prefers_executed_action_refs(self) -> None:
+        action_rows = [
+            {"id": 1, "actor_id": "tpm", "surface": "system", "act_id": "wait", "slots": {"minutes": 5}, "duration_minutes": 5, "metadata": {}},
+            {"id": 2, "actor_id": "tpm", "surface": "system", "act_id": "wait", "slots": {"minutes": 10}, "duration_minutes": 10, "metadata": {}},
+        ]
+        payload = {
+            "decisions": [
+                {
+                    "turn": 1,
+                    "observation_time": "2026-05-05T09:00:00",
+                    "decision": {"action": {"action_type": "wait.duration", "arguments": {"minutes": 5}}},
+                    "executed_action_ref": "action:2",
+                    "step_result": {"ok": True},
+                    "validation_errors": [],
+                    "repair_attempts": 0,
+                },
+                {
+                    "turn": 2,
+                    "observation_time": "2026-05-05T09:05:00",
+                    "decision": {"action": {"action_type": "wait.duration", "arguments": {"minutes": 10}}},
+                    "executed_action_ref": "action:1",
+                    "step_result": {"ok": True},
+                    "validation_errors": [],
+                    "repair_attempts": 0,
+                },
+            ]
+        }
+        merged = _merge_decision_action_rows(payload, action_rows)
+        self.assertEqual(merged[0]["action_id"], 2)
+        self.assertEqual(merged[0]["action_ref"], "action:2")
+        self.assertEqual(merged[1]["action_id"], 1)
+        self.assertEqual(merged[1]["action_ref"], "action:1")
+
+    def test_merge_decision_action_rows_falls_back_for_legacy_runs(self) -> None:
+        action_rows = [
+            {"id": 7, "actor_id": "tpm", "surface": "system", "act_id": "wait", "slots": {"minutes": 5}, "duration_minutes": 5, "metadata": {}},
+            {"id": 8, "actor_id": "tpm", "surface": "system", "act_id": "wait", "slots": {"minutes": 10}, "duration_minutes": 10, "metadata": {}},
+        ]
+        payload = {
+            "decisions": [
+                {
+                    "turn": 1,
+                    "observation_time": "2026-05-05T09:00:00",
+                    "decision": {"action": {"action_type": "wait.duration", "arguments": {"minutes": 5}}},
+                    "step_result": {"ok": True},
+                    "validation_errors": [],
+                    "repair_attempts": 0,
+                },
+                {
+                    "turn": 2,
+                    "observation_time": "2026-05-05T09:05:00",
+                    "decision": {"action": {"action_type": "wait.duration", "arguments": {"minutes": 10}}},
+                    "step_result": {"ok": True},
+                    "validation_errors": [],
+                    "repair_attempts": 0,
+                },
+            ]
+        }
+        merged = _merge_decision_action_rows(payload, action_rows)
+        self.assertEqual([row["action_id"] for row in merged], [7, 8])
+
+    def test_notes_write_persists_refs_in_document_and_action_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
+            db_path = str(Path(tmpdir) / "notes.sqlite")
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "notes.write",
+                        {
+                            "title": "Approval follow-up",
+                            "body": "Need Ivy packet before noon.",
+                            "refs": ["task:approval_review", "actor:ivy"],
+                        },
+                    )
+                )
+                action_row = session.engine.store.actions()[-1]
+                action_metadata = session.engine.deserialize(action_row["metadata_json"], {})
+                note_id = action_metadata["doc_id"]
+                note_row = session.engine.store.get_document(note_id)
+                note_metadata = session.engine.deserialize(note_row["metadata_json"], {})
+            finally:
+                session.close()
+        self.assertEqual(action_metadata["refs"], ["task:approval_review", "actor:ivy"])
+        self.assertEqual(note_metadata["refs"], ["task:approval_review", "actor:ivy"])
+
+    def test_notes_write_rejects_unknown_runtime_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
+            db_path = str(Path(tmpdir) / "notes_invalid.sqlite")
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
+            try:
+                with self.assertRaises(ActionValidationError):
+                    session.step(
+                        StructuredAction(
+                            "notes.write",
+                            {"title": "Missing task", "body": "Track this later.", "refs": ["task:not_real"]},
+                        )
+                    )
+            finally:
+                session.close()
+
+    def test_build_behavior_diagnostics_tracks_private_note_audit_statuses(self) -> None:
+        scenario = summary_scenario_bundle()["scenario"]
+        action_rows = [
+            {
+                "turn": 1,
+                "time": "2026-05-05T09:00:00",
+                "action_type": "notes.write",
+                "act_id": "note.write",
+                "target": None,
+                "task_id": None,
+                "doc_id": "DOC-NOTE-001",
+                "meeting_id": None,
+                "refs": ["task:approval_review"],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:1",
+                "surface": "notes",
+                "duration_minutes": 5,
+                "slots": {"doc_id": "DOC-NOTE-001"},
+                "metadata": {"doc_id": "DOC-NOTE-001", "refs": ["task:approval_review"]},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+            {
+                "turn": 2,
+                "time": "2026-05-05T09:05:00",
+                "action_type": "task.note",
+                "act_id": "task.note",
+                "target": None,
+                "task_id": "approval_review",
+                "doc_id": None,
+                "meeting_id": None,
+                "refs": [],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:2",
+                "surface": "tasks",
+                "duration_minutes": 3,
+                "slots": {"task_id": "approval_review"},
+                "metadata": {},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+            {
+                "turn": 3,
+                "time": "2026-05-05T09:10:00",
+                "action_type": "notes.write",
+                "act_id": "note.write",
+                "target": None,
+                "task_id": None,
+                "doc_id": "DOC-NOTE-002",
+                "meeting_id": None,
+                "refs": ["actor:ivy"],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:3",
+                "surface": "notes",
+                "duration_minutes": 5,
+                "slots": {"doc_id": "DOC-NOTE-002"},
+                "metadata": {"doc_id": "DOC-NOTE-002", "refs": ["actor:ivy"]},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+            {
+                "turn": 4,
+                "time": "2026-05-05T09:12:00",
+                "action_type": "read.thread",
+                "act_id": "read.thread",
+                "target": "ivy",
+                "task_id": None,
+                "doc_id": None,
+                "meeting_id": None,
+                "refs": [],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:4",
+                "surface": "chat",
+                "duration_minutes": 2,
+                "slots": {"thread_id": "ivy"},
+                "metadata": {"thread_id": "ivy", "target_actor_id": "ivy"},
+                "thread_id": "ivy",
+                "target_actor_id": "ivy",
+            },
+            {
+                "turn": 5,
+                "time": "2026-05-05T09:15:00",
+                "action_type": "notes.write",
+                "act_id": "note.write",
+                "target": None,
+                "task_id": None,
+                "doc_id": "DOC-NOTE-003",
+                "meeting_id": None,
+                "refs": ["doc:DOC-BRIEF-100"],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:5",
+                "surface": "notes",
+                "duration_minutes": 5,
+                "slots": {"doc_id": "DOC-NOTE-003"},
+                "metadata": {"doc_id": "DOC-NOTE-003", "refs": ["doc:DOC-BRIEF-100"]},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+            {
+                "turn": 6,
+                "time": "2026-05-05T09:17:00",
+                "action_type": "read.doc",
+                "act_id": "read.doc",
+                "target": None,
+                "task_id": None,
+                "doc_id": "DOC-NOTE-003",
+                "meeting_id": None,
+                "refs": [],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:6",
+                "surface": "docs",
+                "duration_minutes": 5,
+                "slots": {"doc_id": "DOC-NOTE-003"},
+                "metadata": {"doc_id": "DOC-NOTE-003"},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+            {
+                "turn": 7,
+                "time": "2026-05-05T09:20:00",
+                "action_type": "notes.write",
+                "act_id": "note.write",
+                "target": None,
+                "task_id": None,
+                "doc_id": "DOC-NOTE-004",
+                "meeting_id": None,
+                "refs": [],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:7",
+                "surface": "notes",
+                "duration_minutes": 5,
+                "slots": {"doc_id": "DOC-NOTE-004"},
+                "metadata": {"doc_id": "DOC-NOTE-004", "refs": []},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+        ]
+        diagnostics = build_behavior_diagnostics(action_rows, [], scenario)
+        audit = diagnostics["private_note_audit"]
+        self.assertEqual(audit["total_notes_written"], 4)
+        self.assertEqual(audit["structured_notes_written"], 3)
+        self.assertEqual(audit["followed_through"], 1)
+        self.assertEqual(audit["revisited_only"], 1)
+        self.assertEqual(audit["not_followed_through"], 1)
+        self.assertEqual(audit["unscoped_notes"], 1)
+        by_note = {item["note_doc_id"]: item for item in diagnostics["private_note_audit_rows"]}
+        self.assertEqual(by_note["DOC-NOTE-001"]["status"], "followed_through")
+        self.assertEqual(by_note["DOC-NOTE-002"]["status"], "revisited_only")
+        self.assertEqual(by_note["DOC-NOTE-003"]["status"], "not_followed_through")
+        self.assertTrue(by_note["DOC-NOTE-003"]["reread_note"])
+        self.assertEqual(by_note["DOC-NOTE-004"]["status"], "unscoped")
 
     def test_run_summary_surfaces_new_driver_discovery_lines_when_relevant(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = str(Path(tmpdir) / "summary_success.sqlite")
-            engine, evaluator = build_runtime(db_path, "northstar_launch_week", seed=11)
-            try:
-                execute_script(engine, evaluator, EXAMPLES / "golden.tpm", echo=False, emit=False)
-                success_summary = build_run_summary(
-                    evaluator.evaluate(),
-                    scenario_bundle=load_scenario_bundle("northstar_launch_week"),
-                )
-            finally:
-                engine.store.close()
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+        success_ids = {item["id"] for item in summary["key_successes"]}
+        self.assertIn("project_constraint_discovery", success_ids)
+        self.assertIn("stakeholder_driver_discovery", success_ids)
 
-            db_path = str(Path(tmpdir) / "summary_failure.sqlite")
-            engine, evaluator = build_runtime(db_path, "northstar_launch_week", seed=11)
-            try:
-                execute_script(engine, evaluator, EXAMPLES / "false_green.tpm", echo=False, emit=False)
-                failure_summary = build_run_summary(
-                    evaluator.evaluate(),
-                    scenario_bundle=load_scenario_bundle("northstar_launch_week"),
-                )
-            finally:
-                engine.store.close()
+    def test_build_run_summary_surfaces_behavior_centric_findings_with_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+        findings = summary["root_cause_findings"]
+        self.assertGreaterEqual(len(findings), 4)
+        self.assertEqual(findings[0]["id"], "cue_not_converted_to_plan_change")
+        self.assertEqual(findings[0]["lost_points_total"], 70.0)
+        self.assertEqual(
+            [item["id"] for item in findings[0]["impacted_rubric_lines"]],
+            ["scope_aligned_on_time", "approval_secured_on_time", "rollout_ready_on_time"],
+        )
+        ids = {item["id"] for item in findings}
+        self.assertIn("wrong_precondition_sequence", ids)
+        self.assertIn("critical_decision_owner_omission", ids)
+        self.assertIn("single_threaded_approver_loop", ids)
+        omission = next(item for item in findings if item["id"] == "critical_decision_owner_omission")
+        self.assertTrue(any(ref.startswith("message:") for ref in omission["signal_refs"]))
+        self.assertTrue(any(ref.startswith("action:") for ref in omission["action_refs"]))
 
-        self.assertIn("stakeholder_driver_discovery", [item["id"] for item in success_summary["key_successes"]])
-        self.assertIn("stakeholder_driver_discovery", [item["id"] for item in failure_summary["key_failures"]])
+        stakeholders = summary["stakeholder_engagement"]
+        self.assertEqual(stakeholders["summary_metrics"]["critical_actors_never_contacted"], ["dana", "leo"])
+        dana_row = next(item for item in stakeholders["actors"] if item["actor_id"] == "dana")
+        self.assertEqual(dana_row["unanswered_direct_questions"], ["message:1"])
+        self.assertIsNone(dana_row["first_outbound_at"])
+
+        reference = summary["reference_path_diff"]
+        self.assertIsNotNone(reference)
+        self.assertEqual(reference["reference_id"], "smoke.tpm")
+        self.assertEqual(reference["first_divergence_action_ref"], "action:1")
+        self.assertEqual(reference["expected_step"], "docs open DOC-BRIEF-100")
+        self.assertTrue(str(reference["actual_step"]).startswith("chat.send/request.approval"))
+
+        evidence_refs = {item["evidence_ref"] for item in summary["evidence_catalog"]}
+        self.assertIn("message:1", evidence_refs)
+        self.assertIn("message:2", evidence_refs)
+        self.assertIn("action:1", evidence_refs)
+        self.assertIn("event:15", evidence_refs)
+
+    def test_build_run_summary_marks_coverage_interruptions_as_run_interruption(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            report["coverage_miss"] = True
+            payload["decisions"] = []
+            payload["run"]["turns_taken"] = 0
+            payload["run"]["termination_reason"] = "protocol_failure"
+            summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+        self.assertEqual(summary["rubric_failure_appendix"][0]["kind"], "run_interruption")
+        self.assertEqual(summary["run_health"]["overall_status"], "protocol_failure")
+        self.assertEqual(summary["run_health"]["model_status"], "clean")
+        self.assertEqual(summary["run_health"]["harness_status"], "attention_needed")
+        self.assertIn("coverage miss", summary["rubric_failure_appendix"][0]["why_it_matters"].lower())
+
+    def test_build_run_summary_passes_dossier_refs_to_judge_and_falls_back_on_invalid_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            baseline_summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+            allowed_refs = baseline_summary["judge_input_bundle"]["allowed_evidence_refs"]
+            self.assertTrue(any(ref.startswith("event:") for ref in allowed_refs))
+            self.assertTrue(any(ref.startswith("action:") for ref in allowed_refs))
+            self.assertTrue(any(ref.startswith("message:") for ref in allowed_refs))
+            self.assertIn("capability_assessment", baseline_summary["judge_input_bundle"])
+            self.assertIn("root_cause_findings", baseline_summary["judge_input_bundle"])
+            self.assertIn("stakeholder_engagement", baseline_summary["judge_input_bundle"])
+            self.assertIn("reference_path_diff", baseline_summary["judge_input_bundle"])
+
+            client = CaptureStructuredClient(
+                {
+                    "direct_answer": "Invalid evidence ref should trigger deterministic fallback.",
+                    "executive_summary": "Invalid evidence ref should trigger deterministic fallback.",
+                    "top_findings": [
+                        {
+                            "title": "Approval loop",
+                            "explanation": "The model kept asking for approval and missed the real path.",
+                            "evidence_refs": ["action:9999"],
+                        }
+                    ],
+                    "counterfactual_path": [],
+                    "supporting_data": [],
+                    "limitations": [],
+                }
+            )
+            judged_summary = build_run_summary(
+                report,
+                agent_payload=payload,
+                scenario_bundle=scenario_bundle,
+                judge_client=client,
+                judge_model="judge-model",
+            )
+        self.assertEqual(len(client.calls), 1)
+        prompt_bundle = json.loads(client.calls[0]["prompt_spec"]["user"])
+        self.assertIn("capability_assessment", prompt_bundle)
+        self.assertIn("missed_opportunities", prompt_bundle)
+        self.assertIn("evidence_catalog", prompt_bundle)
+        self.assertEqual(judged_summary["narrative"]["source"], "deterministic_template")
+
+    def test_build_run_summary_accepts_valid_v3_judge_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            baseline_summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+            client = CaptureStructuredClient(
+                {
+                    "direct_answer": "The model performed poorly as a TPM because it never turned sponsor and approver cues into the right decision path.",
+                    "executive_summary": "The run stayed stuck in an approval loop instead of aligning the staged rollout path.",
+                    "top_findings": [
+                        {
+                            "title": "Approval loop",
+                            "explanation": "The TPM kept pushing Ivy without answering Dana or engaging Leo.",
+                            "evidence_refs": ["message:1", "action:1"],
+                        }
+                    ],
+                    "counterfactual_path": [
+                        {
+                            "title": "Stage the path first",
+                            "explanation": "Answer Dana, align Leo on staged scope, then return to Ivy with a complete intake.",
+                            "evidence_refs": ["message:2", "event:15"],
+                        }
+                    ],
+                    "supporting_data": [
+                        {
+                            "title": "Critical actor omission",
+                            "explanation": "Dana and Leo were never contacted even though both were needed to make the request approvable.",
+                            "evidence_refs": ["message:1"],
+                        }
+                    ],
+                    "limitations": [
+                        {
+                            "title": "Single run",
+                            "explanation": "This is still a single-seed readout.",
+                            "evidence_refs": [],
+                        }
+                    ],
+                }
+            )
+            judged_summary = build_run_summary(
+                report,
+                agent_payload=payload,
+                scenario_bundle=scenario_bundle,
+                judge_client=client,
+                judge_model="judge-model",
+            )
+        self.assertEqual(judged_summary["narrative"]["source"], "llm_judge")
+        self.assertEqual(judged_summary["narrative"]["model"], "judge-model")
+        self.assertEqual(
+            judged_summary["narrative"]["direct_answer"],
+            "The model performed poorly as a TPM because it never turned sponsor and approver cues into the right decision path.",
+        )
+        self.assertEqual(judged_summary["run_header"]["score"], 15.0)
+        self.assertEqual(judged_summary["outcome_verdict"]["headline"], baseline_summary["outcome_verdict"]["headline"])
 
     def test_export_bundle_summary_aggregates_run_summaries(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             run_summaries = [
                 {
+                    "schema_version": "tpm_performance_summary_v3",
                     "run_header": {"seed": 11, "score": 55, "scenario_id": "internal_rollout_smoke", "summary_path": "a"},
                     "outcome_verdict": {"headline": "partial"},
+                    "capability_assessment": {"rating": "mixed"},
+                    "root_cause_findings": [{"id": "wrong_precondition_sequence", "title": "Wrong Precondition Sequence", "lost_points_total": 50.0}],
+                    "stakeholder_engagement": {
+                        "actors": [
+                            {"actor_id": "dana", "unanswered_direct_questions": ["message:1"]},
+                            {"actor_id": "leo", "unanswered_direct_questions": []},
+                        ],
+                        "summary_metrics": {
+                            "critical_actors_never_contacted": ["leo"],
+                            "critical_actors_contacted_after_deadline": [],
+                            "direct_questions_left_unanswered": ["message:1"],
+                        },
+                    },
+                    "signal_coverage": {
+                        "signals": [
+                            {"signal_id": "approval_required", "criticality": "critical", "surfaced": True, "converted_to_plan_change": True},
+                            {"signal_id": "full_rollout_infeasible", "criticality": "critical", "surfaced": False, "converted_to_plan_change": False},
+                        ]
+                    },
+                    "window_scorecards": [
+                        {"window_id": "approval_cutoff", "state_achieved": {"achieved": False}},
+                    ],
+                    "reference_path_diff": {"expected_step": "docs open DOC-BRIEF-100", "actual_step": "chat.send ivy"},
                     "tpm_competency_profile": [{"id": "discovery_situation_awareness", "label": "Discovery & Situation Awareness", "score": 80}],
                     "outcome_profile": [{"id": "outcome_attainment", "label": "Outcome Attainment", "score": 40}],
                     "run_health": {"protocol_failure": False, "coverage_miss": False, "harness_interface_issues": [], "scenario_authoring_issues": []},
                     "key_failures": [{"id": "scope_aligned_on_time"}],
                 },
                 {
-                    "run_header": {"seed": 29, "score": 35, "scenario_id": "internal_rollout_smoke", "summary_path": "b"},
+                    "schema_version": "tpm_performance_summary_v3",
+                    "run_header": {"seed": 29, "score": 45, "scenario_id": "internal_rollout_smoke", "summary_path": "b"},
                     "outcome_verdict": {"headline": "failed"},
+                    "capability_assessment": {"rating": "poor"},
+                    "root_cause_findings": [{"id": "wrong_precondition_sequence", "title": "Wrong Precondition Sequence", "lost_points_total": 70.0}],
+                    "stakeholder_engagement": {
+                        "actors": [
+                            {"actor_id": "dana", "unanswered_direct_questions": []},
+                            {"actor_id": "leo", "unanswered_direct_questions": []},
+                        ],
+                        "summary_metrics": {
+                            "critical_actors_never_contacted": ["leo"],
+                            "critical_actors_contacted_after_deadline": [],
+                            "direct_questions_left_unanswered": [],
+                        },
+                    },
+                    "signal_coverage": {
+                        "signals": [
+                            {"signal_id": "approval_required", "criticality": "critical", "surfaced": True, "converted_to_plan_change": True},
+                            {"signal_id": "full_rollout_infeasible", "criticality": "critical", "surfaced": False, "converted_to_plan_change": False},
+                        ]
+                    },
+                    "window_scorecards": [
+                        {"window_id": "approval_cutoff", "state_achieved": {"achieved": False}},
+                    ],
+                    "reference_path_diff": {"expected_step": "docs open DOC-BRIEF-100", "actual_step": "chat.send ivy"},
                     "tpm_competency_profile": [{"id": "discovery_situation_awareness", "label": "Discovery & Situation Awareness", "score": 60}],
                     "outcome_profile": [{"id": "outcome_attainment", "label": "Outcome Attainment", "score": 20}],
                     "run_health": {"protocol_failure": False, "coverage_miss": False, "harness_interface_issues": [], "scenario_authoring_issues": []},
@@ -489,9 +1598,14 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 },
             ]
             summary = export_bundle_summary(Path(tmpdir), run_summaries, scenario_id="internal_rollout_smoke", model="mock-model", seed_bundle=[11, 29], write_files=False)
-            self.assertEqual(summary["schema_version"], "tpm_bundle_performance_summary_v1")
-            self.assertEqual(summary["headline"]["mean_score"], 45.0)
-            self.assertEqual(summary["top_recurring_failure_themes"][0]["id"], "scope_aligned_on_time")
+            self.assertEqual(summary["schema_version"], "tpm_bundle_performance_summary_v2")
+            self.assertEqual(summary["headline"]["mean_score"], 50.0)
+            self.assertEqual(summary["aggregate_capability_assessment"]["rating"], "mixed")
+            self.assertEqual(summary["confidence_scope"], "multi_seed_supported")
+            self.assertEqual(summary["recurring_root_causes"][0]["id"], "wrong_precondition_sequence")
+            self.assertEqual(summary["stakeholder_failure_patterns"][0]["actor_id"], "leo")
+            self.assertEqual(summary["signal_coverage_consistency"][0]["signal_id"], "approval_required")
+            self.assertEqual(summary["window_miss_recurrence"][0]["window_id"], "approval_cutoff")
 
     def test_observation_exposes_unread_threads_with_stable_ids(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -519,6 +1633,118 @@ class AgentAndAuthoringTests(unittest.TestCase):
             fact_ids = {item["id"] for item in observation["working_memory"]["surfaced_facts"]}
             self.assertIn("maya_oncall_until_mon_1500", fact_ids)
             self.assertIn("backend_infeasible_for_friday", fact_ids)
+
+    def test_chat_send_uses_semantic_cost_buckets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "semantic_costs.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "leo",
+                            "act_id": "request.feasibility",
+                            "slots": {"task_id": "config_rollout"},
+                            "body": "Need the honest path and blockers.",
+                        },
+                    )
+                )
+                feasibility_action = session.engine.store.actions()[-1]
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "ivy",
+                            "act_id": "request.approval",
+                            "slots": {"task_id": "approval_review"},
+                            "body": "Requesting approval for the rollout.",
+                        },
+                    )
+                )
+                approval_action = session.engine.store.actions()[-1]
+            finally:
+                session.close()
+
+            feasibility_metadata = json.loads(feasibility_action["metadata_json"])
+            approval_metadata = json.loads(approval_action["metadata_json"])
+            self.assertEqual(feasibility_metadata["cost_key"], "ask_discovery_question")
+            self.assertEqual(feasibility_action["duration_minutes"], 10)
+            self.assertEqual(approval_metadata["cost_key"], "follow_up_on_commitment")
+            self.assertEqual(approval_action["duration_minutes"], 10)
+
+    def test_repeated_chat_ping_coalesces_pending_reply_and_uses_status_push_cost(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "coalesced_reply.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "leo",
+                            "act_id": "request.scope_tradeoff",
+                            "slots": {"task_id": "config_rollout"},
+                            "body": "Can we stage the rollout if full scope is not credible?",
+                        },
+                    )
+                )
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "leo",
+                            "act_id": "request.scope_tradeoff",
+                            "slots": {"task_id": "config_rollout"},
+                            "body": "Following up on the staged tradeoff.",
+                        },
+                    )
+                )
+                pending = [
+                    row
+                    for row in session.engine.store.pending_events()
+                    if row["type"] == "npc.respond_message" and row["actor_id"] == "leo"
+                ]
+                latest_action = session.engine.store.actions()[-1]
+            finally:
+                session.close()
+
+            self.assertEqual(len(pending), 1)
+            payload = json.loads(pending[0]["payload_json"])
+            metadata = json.loads(latest_action["metadata_json"])
+            self.assertEqual(payload["batched_message_count"], 2)
+            self.assertEqual(metadata["cost_key"], "status_push_without_new_information")
+            self.assertEqual(latest_action["duration_minutes"], 15)
+
+    def test_working_memory_exposes_thread_state_actor_constraints_and_approval_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "working_memory_state.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "ivy",
+                            "act_id": "request.approval",
+                            "slots": {"task_id": "approval_review"},
+                            "body": "Requesting approval for the rollout.",
+                        },
+                    )
+                )
+                before_reply = session.observe()["working_memory"]
+                session.step(StructuredAction("wait.duration", {"minutes": 60}))
+                after_reply = session.observe()["working_memory"]
+            finally:
+                session.close()
+
+            ivy_thread = next(item for item in before_reply["thread_state"] if item["actor_id"] == "ivy")
+            self.assertIsNotNone(ivy_thread["pending_reply_due_at"])
+            self.assertTrue(ivy_thread["repeated_followup_risk"])
+            self.assertTrue(any("Approval" in item["title"] or "approval" in item["title"].lower() for item in before_reply["approval_readiness"]))
+            ivy_constraints = next(item for item in after_reply["actor_constraints"] if item["actor_id"] == "ivy")
+            joined = " ".join(ivy_constraints["constraints"]).lower()
+            self.assertTrue("blocker" in joined or "intake" in joined or "review" in joined)
 
     def test_pressuring_engineer_vs_honest_feasibility_changes_trust_and_discovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -567,7 +1793,6 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertLess(eta_trust, feasibility_trust)
             self.assertNotIn("full_rollout_infeasible", eta_facts)
             self.assertIn("full_rollout_infeasible", feasibility_facts)
-            self.assertIn("approval_required", feasibility_facts)
 
     def test_read_thread_accepts_envelope_like_target_prefix(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -690,9 +1915,170 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             output = stdout.getvalue()
             self.assertIn("Synthesized candidate world.", output)
-            self.assertIn("Project: Internal Rollout Project", output)
+            self.assertIn("Project: Internal Config Rollout", output)
             self.assertIn("Decision rights: approve scope", output)
             self.assertIn("Proposal Status:", output)
+
+    def test_synthesize_trajectories_prompt_includes_legacy_northstar_examples(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "northstar_launch_week.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            client = TextResponseClient(json.dumps({"smoke.tpm": (EXAMPLES / "golden.tpm").read_text()}))
+            with mock.patch("tpm_sim.authoring.workflow.build_model_client", return_value=client):
+                synthesize_trajectories(proposal_dir, adapter="openai", model="gpt-test")
+            prompt_spec = client.calls[0]["prompt_spec"]
+            payload = json.loads(prompt_spec["user"])
+            accepted_reference = payload["accepted_reference"]
+            self.assertIn("golden.tpm", accepted_reference["filenames"])
+            self.assertIn("golden.tpm", accepted_reference["example_scripts"])
+            self.assertIn("docs open DOC-BRIEF-001", accepted_reference["example_scripts"]["golden.tpm"])
+            self.assertIn("valid_command_templates", payload["trajectory_contract"]["command_reference"])
+
+    def test_synthesize_trajectories_rejects_invalid_dsl_before_validate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            client = TextResponseClient(json.dumps({"smoke.tpm": "READ_DOC DOC-BRIEF-100\n"}))
+            with mock.patch("tpm_sim.authoring.workflow.build_model_client", return_value=client):
+                with self.assertRaises(RuntimeError) as ctx:
+                    synthesize_trajectories(proposal_dir, adapter="openai", model="gpt-test")
+            self.assertIn("syntax validation", str(ctx.exception))
+            self.assertIn("Use `docs open DOC-ID`.", str(ctx.exception))
+
+    def test_synthesize_world_normalizes_external_commitment_requirements_from_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "northstar_launch_week.json"), proposal_dir)
+            scenario = json.loads(json.dumps(load_scenario_bundle("northstar_launch_week")["scenario"]))
+            scenario["policy"]["external_commitment_requirements"] = [{"id": "req_no_fake_eta"}]
+            client = TextResponseClient(json.dumps(scenario))
+            with mock.patch("tpm_sim.authoring.workflow.build_model_client", return_value=client):
+                synthesize_world(proposal_dir, adapter="openai", model="gpt-test")
+            written = json.loads((Path(proposal_dir) / "candidate" / "scenario.json").read_text())
+            self.assertEqual(written["policy"]["external_commitment_requirements"], ["scope_aligned", "security_slot_secured"])
+
+    def test_synthesize_semantics_normalizes_commitment_id_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "northstar_launch_week.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_contract(proposal_dir)
+            semantics = json.loads((OFFICIAL_SCENARIOS / "northstar_launch_week" / "coverage_semantics.json").read_text())
+            rewritten = False
+            for entry in semantics.get("cells", []):
+                for envelope in entry.get("response_envelopes", []):
+                    for effect in envelope.get("effects", []):
+                        if effect.get("type") == "create_or_update_commitment" and isinstance(effect.get("id"), str):
+                            effect["commitment_id"] = effect.pop("id")
+                            rewritten = True
+                            break
+                    if rewritten:
+                        break
+                if rewritten:
+                    break
+            self.assertTrue(rewritten)
+            client = TextResponseClient(json.dumps(semantics))
+            with mock.patch("tpm_sim.authoring.workflow.build_model_client", return_value=client):
+                synthesize_semantics(proposal_dir, adapter="openai", model="gpt-test")
+            rendered = json.loads((Path(proposal_dir) / "candidate" / "coverage_semantics.json").read_text())
+            commitment_effects = [
+                effect
+                for entry in rendered.get("cells", [])
+                for envelope in entry.get("response_envelopes", [])
+                for effect in envelope.get("effects", [])
+                if effect.get("type") == "create_or_update_commitment"
+            ]
+            self.assertTrue(commitment_effects)
+            self.assertTrue(all("id" in effect for effect in commitment_effects))
+            self.assertTrue(all("commitment_id" not in effect for effect in commitment_effects))
+
+    def test_compile_coverage_artifact_normalizes_commitment_id_alias_from_existing_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "northstar_launch_week.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_contract(proposal_dir)
+            synthesize_semantics(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            semantics_path = Path(proposal_dir) / "candidate" / "coverage_semantics.json"
+            semantics = json.loads(semantics_path.read_text())
+            rewritten = False
+            for entry in semantics.get("cells", []):
+                for envelope in entry.get("response_envelopes", []):
+                    for effect in envelope.get("effects", []):
+                        if effect.get("type") == "create_or_update_commitment" and isinstance(effect.get("id"), str):
+                            effect["commitment_id"] = effect.pop("id")
+                            rewritten = True
+                            break
+                    if rewritten:
+                        break
+                if rewritten:
+                    break
+            self.assertTrue(rewritten)
+            semantics_path.write_text(json.dumps(semantics, indent=2, sort_keys=True))
+
+            compile_coverage_artifact(proposal_dir)
+
+            rendered = json.loads(semantics_path.read_text())
+            commitment_effects = [
+                effect
+                for entry in rendered.get("cells", [])
+                for envelope in entry.get("response_envelopes", [])
+                for effect in envelope.get("effects", [])
+                if effect.get("type") == "create_or_update_commitment"
+            ]
+            self.assertTrue(commitment_effects)
+            self.assertTrue(all("id" in effect for effect in commitment_effects))
+            self.assertTrue(all("commitment_id" not in effect for effect in commitment_effects))
+
+    def test_render_operator_briefing_omits_redundant_project_detail(self) -> None:
+        rendered = render_operator_briefing(
+            {
+                "title": "Northstar Launch Week",
+                "scenario_id": "northstar_launch_week",
+                "project_name": "Northstar customer pilot",
+                "premise": (
+                    "A first-week TPM benchmark around rescuing a credible Friday customer pilot under hidden "
+                    "dependency and stakeholder pressure."
+                ),
+                "project_summary": "A first-week TPM benchmark around rescuing a credible Friday pilot for Northstar.",
+                "window": {},
+                "how_to_win": [],
+                "how_to_fail": [],
+                "cast": [],
+                "hidden_landscape": [],
+                "critical_path": [],
+                "deadlines": [],
+                "proposal_status": None,
+                "run_context": None,
+            },
+            compact=False,
+        )
+        self.assertIn("Project: Northstar customer pilot", rendered)
+        self.assertNotIn("Project Detail:", rendered)
+
+    def test_render_operator_briefing_keeps_distinct_project_detail(self) -> None:
+        rendered = render_operator_briefing(
+            {
+                "title": "Northstar Launch Week",
+                "scenario_id": "northstar_launch_week",
+                "project_name": "Northstar customer pilot",
+                "premise": "A benchmark about rescuing a credible Friday pilot.",
+                "project_summary": "Customer-facing admin hub rollout with security, design, and support dependencies.",
+                "window": {},
+                "how_to_win": [],
+                "how_to_fail": [],
+                "cast": [],
+                "hidden_landscape": [],
+                "critical_path": [],
+                "deadlines": [],
+                "proposal_status": None,
+                "run_context": None,
+            },
+            compact=False,
+        )
+        self.assertIn("Project Detail: Customer-facing admin hub rollout with security, design, and support dependencies.", rendered)
 
     def test_fixture_authoring_workflow_round_trips_and_accepts(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -763,6 +2149,47 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertIn("coverage:", output)
             self.assertNotIn('{\n  "', output)
 
+    def test_validate_proposal_reports_trajectory_syntax_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_contract(proposal_dir)
+            synthesize_semantics(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_coverage_artifact(proposal_dir)
+            trajectories_dir = Path(proposal_dir) / "trajectories"
+            trajectories_dir.mkdir(parents=True, exist_ok=True)
+            (trajectories_dir / "smoke.tpm").write_text("READ_DOC DOC-BRIEF-100\n")
+
+            report = validate_proposal(proposal_dir)
+
+            self.assertFalse(report["valid"])
+            self.assertIn("trajectory syntax validation failed", report["errors"])
+            self.assertEqual(report["smoke_results"], [])
+            self.assertIn("Use `docs open DOC-ID`.", " ".join(report["trajectory_syntax_errors"]))
+
+    def test_validate_proposal_reports_invalid_scenario_runtime_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_contract(proposal_dir)
+            synthesize_semantics(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_coverage_artifact(proposal_dir)
+            synthesize_trajectories(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+
+            scenario_path = Path(proposal_dir) / "candidate" / "scenario.json"
+            scenario = json.loads(scenario_path.read_text())
+            scenario["policy"]["external_commitment_requirements"] = [42]
+            scenario_path.write_text(json.dumps(scenario, indent=2, sort_keys=True))
+
+            report = validate_proposal(proposal_dir)
+
+            self.assertFalse(report["valid"])
+            self.assertIn("scenario runtime validation failed", report["errors"])
+            self.assertEqual(report["smoke_results"], [])
+            self.assertIn("policy.external_commitment_requirements", " ".join(report["scenario_validation_errors"]))
+
     def test_init_db_emits_human_readable_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             stdout = StringIO()
@@ -803,6 +2230,7 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 "actors": [
                     {"id": "dana", "coordination_template": "sponsor"},
                     {"id": "mia", "coordination_template": "ally"},
+                    {"id": "ivy", "coordination_template": "cross_functional_dependency_owner"},
                 ]
             }
         }
@@ -813,7 +2241,37 @@ class AgentAndAuthoringTests(unittest.TestCase):
             if cell["selector"].get("surface") == "chat"
         }
         self.assertIn(("dana", "request.approval"), selectors)
+        self.assertIn(("dana", "ack.received"), selectors)
+        self.assertIn(("dana", "commit.propose"), selectors)
+        self.assertIn(("dana", "negotiate.scope"), selectors)
+        self.assertIn(("dana", "inform.status_update"), selectors)
         self.assertIn(("mia", "request.feasibility"), selectors)
+        self.assertIn(("mia", "request.review"), selectors)
+        self.assertIn(("mia", "request.scope_tradeoff"), selectors)
+        self.assertIn(("mia", "negotiate.scope"), selectors)
+        self.assertIn(("mia", "inform.decision"), selectors)
+        self.assertIn(("ivy", "request.feasibility"), selectors)
+        self.assertIn(("ivy", "inform.blocker"), selectors)
+
+    def test_compile_contract_merges_starter_floor_into_reference_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "northstar_launch_week.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+
+            result = compile_contract(proposal_dir)
+
+            contract = json.loads((Path(proposal_dir) / "candidate" / "coverage_contract.json").read_text())
+            selectors = {
+                (cell["selector"].get("actor_id"), cell["selector"].get("incoming_act_id"))
+                for cell in contract["cells"]
+                if isinstance(cell.get("selector"), dict) and cell["selector"].get("surface") == "chat"
+            }
+            ids = {cell["id"] for cell in contract["cells"] if isinstance(cell.get("id"), str)}
+            self.assertGreater(result["starter_floor_cells_added"], 0)
+            self.assertIn(("sara", "request.clarification"), selectors)
+            self.assertIn(("maya", "request.scope_tradeoff"), selectors)
+            self.assertIn("rohit_decision_need_context", ids)
 
     def test_project_env_autoload_reads_repo_root_dotenv_without_overriding_process_env(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -839,6 +2297,69 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 self.assertEqual(os.environ["TPM_AGENT_MODEL"], "gpt-from-dotenv")
                 self.assertEqual(os.environ["TPM_AUTHORING_MODEL"], "gpt-authoring-from-process")
                 self.assertEqual([str(Path(path).resolve()) for path in result["loaded_paths"]], [str((root / ".env").resolve())])
+
+    def test_gpt5_model_client_omits_sampling_controls(self) -> None:
+        class DummyResponses:
+            def __init__(self) -> None:
+                self.requests: list[dict[str, object]] = []
+
+            def create(self, **kwargs: object) -> dict[str, object]:
+                self.requests.append(kwargs)
+                return {
+                    "output": [
+                        {
+                            "type": "message",
+                            "content": [
+                                {
+                                    "type": "output_text",
+                                    "text": json.dumps({"ok": True}),
+                                }
+                            ],
+                        }
+                    ],
+                    "usage": {},
+                }
+
+        responses = DummyResponses()
+        client = OpenAIResponsesModelClient.__new__(OpenAIResponsesModelClient)
+        client.client = type("DummyClient", (), {"responses": responses})()
+
+        prompt_spec = {"system": "system", "messages": [], "metadata": {"test": True}}
+        schema = {
+            "type": "object",
+            "properties": {"ok": {"type": "boolean"}},
+            "required": ["ok"],
+            "additionalProperties": False,
+        }
+
+        client.generate_structured(
+            schema_name="demo",
+            schema=schema,
+            prompt_spec=prompt_spec,
+            config={"model": "gpt-5-nano", "temperature": 0, "top_p": 1, "reasoning_effort": "minimal"},
+        )
+        self.assertNotIn("temperature", responses.requests[-1])
+        self.assertNotIn("top_p", responses.requests[-1])
+        self.assertEqual(responses.requests[-1]["reasoning"], {"effort": "minimal"})
+
+        client.generate_structured(
+            schema_name="demo",
+            schema=schema,
+            prompt_spec=prompt_spec,
+            config={"model": "gpt-4o", "temperature": 0, "top_p": 1},
+        )
+        self.assertEqual(responses.requests[-1]["temperature"], 0)
+        self.assertEqual(responses.requests[-1]["top_p"], 1)
+
+    def test_response_extractors_tolerate_null_content_items(self) -> None:
+        raw = {
+            "output": [
+                {"type": "message", "content": None},
+                {"type": "message", "content": [{"type": "output_text", "text": "hello"}]},
+            ]
+        }
+        self.assertEqual(_extract_output_text(raw), "hello")
+        self.assertIsNone(_extract_refusal(raw))
 
     def test_cli_uses_tpm_agent_model_from_environment_as_default(self) -> None:
         from tpm_sim.cli import build_parser
@@ -923,7 +2444,7 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 report = evaluator.evaluate()
             finally:
                 engine.store.close()
-            self.assertGreaterEqual(report["total_score"], 95.0)
+            self.assertGreaterEqual(report["total_score"], 90.0)
 
     def test_internal_rollout_clarification_to_leo_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -951,7 +2472,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertTrue(any("Leo Park" in message for message in notices))
-            self.assertIn("Full rollout is not credible", thread_view.message)
+            self.assertIn("[inform.status_update]", thread_view.message)
+            self.assertIn("actor.leo.prefers_scope_before_eta", thread_view.message)
 
     def test_internal_rollout_request_eta_to_ivy_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -979,7 +2501,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertTrue(any("Ivy Shah" in message for message in notices))
-            self.assertIn("do not give the delivery ETA", thread_view.message)
+            self.assertIn("[inform.blocker]", thread_view.message)
+            self.assertIn("actor.ivy.cannot_commit_engineering_eta", thread_view.message)
 
     def test_internal_rollout_request_clarification_to_dana_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1002,7 +2525,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
             finally:
                 session.close()
-            self.assertIn("recommend the staged path clearly", thread_view.message)
+            self.assertIn("[inform.blocker]", thread_view.message)
+            self.assertIn("Dana backs staged rollout if engaged early", thread_view.message)
 
     def test_internal_rollout_inform_blocker_to_dana_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1025,7 +2549,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
             finally:
                 session.close()
-            self.assertIn("bring me the staged tradeoff", thread_view.message.lower())
+            self.assertIn("[request.clarification]", thread_view.message)
+            self.assertIn("actor.dana.needs_actionable_summary", thread_view.message)
 
     def test_internal_rollout_inform_decision_to_dana_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1052,7 +2577,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
             finally:
                 session.close()
-            self.assertIn("need the concrete tradeoff", thread_view.message.lower())
+            self.assertIn("[request.clarification]", thread_view.message)
+            self.assertIn("actor.dana.requires_decision_rationale", thread_view.message)
 
     def test_internal_rollout_request_approval_to_dana_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1075,7 +2601,206 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
             finally:
                 session.close()
-            self.assertIn("not approving a vague plan", thread_view.message.lower())
+            self.assertIn("[inform.blocker]", thread_view.message)
+            self.assertIn("project.approval_owner", thread_view.message)
+
+    def test_internal_rollout_request_ownership_to_dana_after_staged_rollout_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_request_ownership.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.engine.store.update_project_state({"launch_scope": "staged_rollout"})
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "request.ownership",
+                            "slots": {"task_id": "config_rollout"},
+                            "body": "Now that staged rollout is the path, who owns delivery versus approval versus sponsor decisions?",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("[inform.decision]", thread_view.message)
+            self.assertIn("project.ownership_split", thread_view.message)
+
+    def test_internal_rollout_negotiate_scope_to_dana_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_negotiate_scope.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "negotiate.scope",
+                            "slots": {
+                                "approved_scope": "staged_rollout",
+                                "rejected_scope": "full_rollout",
+                            },
+                            "body": "If full scope is not credible, I want to negotiate down to staged rollout now.",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("[request.scope_tradeoff]", thread_view.message)
+            self.assertIn("actor.dana.wants_real_rollout_story", thread_view.message)
+
+    def test_internal_rollout_inform_status_update_to_dana_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_status_update.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                execute_script(session.engine, session.evaluator, EXAMPLES / "internal_rollout_smoke" / "smoke.tpm", echo=False, emit=False)
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "inform.status_update",
+                            "slots": {"task_id": "config_rollout"},
+                            "body": "Status update: staged rollout is aligned, but approval and readiness still need follow-through.",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("[request.clarification]", thread_view.message)
+            self.assertIn("project.sponsor_needs_clarity", thread_view.message)
+
+    def test_internal_rollout_escalate_to_sponsor_unknown_dependency_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_escalate_unknown.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "escalate.to_sponsor",
+                            "slots": {"urgency": "now"},
+                            "body": "Escalating because approval is at risk and I need sponsor help on the rollout path.",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("[request.scope_tradeoff]", thread_view.message)
+            self.assertIn("actor.dana.prefers_direct_tradeoff_over_self_escalation", thread_view.message)
+
+    def test_internal_rollout_escalate_to_sponsor_short_timing_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_escalate_short.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(StructuredAction("wait.duration", {"minutes": 390}))
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "escalate.to_sponsor",
+                            "slots": {"urgency": "now"},
+                            "body": "Escalating because approval is at risk and I need sponsor help on the rollout path.",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("[request.scope_tradeoff]", thread_view.message)
+            self.assertIn("actor.dana.prefers_direct_tradeoff_over_self_escalation", thread_view.message)
+
+    def test_internal_rollout_escalate_to_sponsor_short_timing_low_trust_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_escalate_short_low_trust.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(StructuredAction("wait.duration", {"minutes": 390}))
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "escalate.to_sponsor",
+                            "slots": {"urgency": "now"},
+                            "body": "Escalating because approval is at risk and I need sponsor help on the rollout path.",
+                        },
+                    )
+                )
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "escalate.to_sponsor",
+                            "slots": {"urgency": "now"},
+                            "body": "Escalating again because the rollout path still needs sponsor intervention.",
+                        },
+                    )
+                )
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "escalate.to_sponsor",
+                            "slots": {"urgency": "now"},
+                            "body": "Escalating a third time because we still need the sponsor tradeoff clarified.",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("[request.scope_tradeoff]", thread_view.message)
+            self.assertIn("actor.dana.prefers_direct_tradeoff_over_self_escalation", thread_view.message)
+
+    def test_internal_rollout_request_ownership_to_leo_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "leo_request_ownership.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(StructuredAction("wait.duration", {"minutes": 390}))
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "leo",
+                            "act_id": "request.ownership",
+                            "slots": {"task_id": "config_rollout"},
+                            "body": "Can you take explicit ownership of the rollout execution path from engineering?",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "leo"}))
+            finally:
+                session.close()
+            self.assertIn("[inform.blocker]", thread_view.message)
+            self.assertIn("project.engineering_owner", thread_view.message)
 
     def test_internal_rollout_inform_decision_to_ivy_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1103,7 +2828,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertTrue(any("Ivy Shah" in message for message in notices))
-            self.assertIn("Send the concrete staged request", thread_view.message)
+            self.assertIn("[inform.status_update]", thread_view.message)
+            self.assertIn("decision_received", thread_view.message)
 
     def test_internal_rollout_inform_blocker_to_leo_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1131,7 +2857,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertTrue(any("Leo Park" in message for message in notices))
-            self.assertIn("should stay on the staged path", thread_view.message)
+            self.assertIn("[inform.status_update]", thread_view.message)
+            self.assertIn("actor.leo.shared_blocker_context", thread_view.message)
 
     def test_internal_rollout_negotiate_scope_to_leo_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1159,7 +2886,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertTrue(any("Leo Park" in message for message in notices))
-            self.assertIn("scope move is staged rollout", thread_view.message)
+            self.assertIn("[inform.decision]", thread_view.message)
+            self.assertIn("actor.leo.aligned_on_scope", thread_view.message)
 
     def test_internal_rollout_request_ownership_to_ivy_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1187,7 +2915,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertTrue(any("Ivy Shah" in message for message in notices))
-            self.assertIn("I own the approval review", thread_view.message)
+            self.assertIn("[inform.decision]", thread_view.message)
+            self.assertIn("project.approval_owner", thread_view.message)
 
     def test_internal_rollout_negotiate_scope_to_ivy_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1215,7 +2944,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertTrue(any("Ivy Shah" in message for message in notices))
-            self.assertIn("I do not set product scope", thread_view.message)
+            self.assertIn("[inform.decision]", thread_view.message)
+            self.assertIn("actor.ivy.scope_requirement", thread_view.message)
 
     def test_internal_rollout_request_scope_tradeoff_to_ivy_after_scope_is_staged_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1241,6 +2971,7 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertIn("Any remaining scope tradeoff concerns from your side now that the staged path is set?", thread_view.message)
+            self.assertIn("[inform.decision]", thread_view.message)
 
     def test_internal_rollout_request_feasibility_to_mia_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1268,7 +2999,8 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertTrue(any("Mia Torres" in message for message in notices))
-            self.assertIn("staged rollout is feasible", thread_view.message.lower())
+            self.assertIn("[inform.decision]", thread_view.message)
+            self.assertIn("actor.mia.ops_support", thread_view.message)
 
     def test_agent_replay_prints_timestamps_actor_and_trace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

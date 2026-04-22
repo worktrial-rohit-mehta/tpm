@@ -585,7 +585,7 @@
       "task_edit": 3,
       "task_note": 3,
       "write_doc": 15,
-      "write_note": 1
+      "write_note": 5
     },
     "default_timing_band": "late",
     "external_commitment_requirements": [

@@ -575,6 +575,9 @@
   "name": "Northstar Pilot Week",
   "policy": {
     "action_costs": {
+      "ask_discovery_question": 10,
+      "create_commitment": 10,
+      "follow_up_on_commitment": 10,
       "meeting_act": 1,
       "read_calendar": 1,
       "read_doc": 5,
@@ -582,10 +585,12 @@
       "read_thread": 2,
       "schedule_meeting": 2,
       "send_chat": 1,
+      "send_message": 5,
+      "status_push_without_new_information": 15,
       "task_edit": 3,
       "task_note": 3,
       "write_doc": 15,
-      "write_note": 1
+      "write_note": 5
     },
     "default_timing_band": "late",
     "external_commitment_requirements": [

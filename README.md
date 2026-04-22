@@ -170,13 +170,23 @@ Every live TPM-agent run now emits:
 - `tpm_performance_summary.json`
 - `tpm_performance_summary.md`
 
-Those canonical outputs answer the TPM question directly by summarizing:
+Those canonical V2 outputs answer the TPM question directly by summarizing:
 - outcome verdict
 - critical-path result
+- top deterministic failure dossiers
 - TPM competency profile
 - decisive successes and failures
-- run-health / harness-health flags
+- explicit overall/model/harness health flags
 - evidence-backed appendix fields
+
+The new `failure_dossiers[]` section is the primary lab-facing diagnostic surface. It deterministically explains:
+- what high-value outcome or window was missed
+- what agent-visible signals existed before the miss
+- what the model did instead
+- which recurring behavior patterns contributed
+- which fixed remediation hint best fits the miss
+
+The optional LLM judge remains explanatory only. It summarizes the deterministic dossier layer and cannot change score or outcome verdict.
 
 Then run:
 
@@ -332,6 +342,7 @@ docs list
 docs open DOC-ID
 docs write TYPE | TITLE | BODY
 notes write TITLE | BODY
+notes write TITLE | ref1,ref2 | BODY
 chat list
 chat open THREAD_OR_ACTOR
 chat send TARGET | ACT_ID | key=value,... | BODY

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import tempfile
 import unittest
 from pathlib import Path
@@ -44,6 +45,20 @@ def run_script(engine: SimulationEngine, evaluator: Evaluator, script_name: str)
 
 
 class SimulationTests(unittest.TestCase):
+    def test_tpm_time_spend_stays_within_work_hours(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine, evaluator = build_runtime(
+                str(Path(tmpdir) / "workhours.sqlite"),
+                "internal_rollout_smoke",
+                seed=11,
+            )
+            try:
+                engine.store.set_current_time(datetime.fromisoformat("2026-05-05T16:50:00"))
+                engine._spend_time(30, "unit_test")
+                self.assertEqual(engine.now().strftime("%Y-%m-%dT%H:%M:%S"), "2026-05-06T09:20:00")
+            finally:
+                engine.store.close()
+
     def test_wait_until_next_event_advances_to_first_due_event(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             engine, evaluator = build_runtime(str(Path(tmpdir) / "event.sqlite"))
@@ -258,14 +273,14 @@ class SimulationTests(unittest.TestCase):
             engine, evaluator = build_runtime(db_path, seed=11)
             try:
                 first_report = run_script(engine, evaluator, "golden.tpm")
-                self.assertEqual(first_report["total_score"], 85.0)
+                self.assertAlmostEqual(first_report["total_score"], 81.67, places=2)
             finally:
                 engine.store.close()
 
             reopened_engine, reopened_evaluator = open_existing_runtime(db_path)
             try:
                 reopened_report = reopened_evaluator.evaluate()
-                self.assertEqual(reopened_report["total_score"], 85.0)
+                self.assertAlmostEqual(reopened_report["total_score"], 81.67, places=2)
                 self.assertEqual(reopened_report["scenario_digest"], first_report["scenario_digest"])
             finally:
                 reopened_engine.store.close()
@@ -277,7 +292,7 @@ class SimulationTests(unittest.TestCase):
                 report = run_script(engine, evaluator, "golden.tpm")
                 awarded = {line["id"]: float(line["awarded"]) for line in report["rubric"]}
                 self.assertEqual(awarded["project_constraint_discovery"], 10.0)
-                self.assertEqual(awarded["stakeholder_driver_discovery"], 10.0)
+                self.assertAlmostEqual(awarded["stakeholder_driver_discovery"], 6.67, places=2)
             finally:
                 engine.store.close()
 
@@ -303,8 +318,8 @@ class SimulationTests(unittest.TestCase):
                         engine.store.close()
                 score_bands[name] = summarize_score_band(scores)
 
-            self.assertGreaterEqual(score_bands["golden"]["mean"], 83)
-            self.assertGreaterEqual(score_bands["golden"]["worst"], 80)
+            self.assertGreaterEqual(score_bands["golden"]["mean"], 81)
+            self.assertGreaterEqual(score_bands["golden"]["worst"], 81)
             self.assertGreaterEqual(score_bands["competent_but_imperfect"]["mean"], 55)
             self.assertLessEqual(score_bands["competent_but_imperfect"]["mean"], 65)
             self.assertLessEqual(score_bands["busywork"]["mean"], 35)

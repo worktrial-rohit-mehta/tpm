@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from tpm_sim.script_dsl import trajectory_prompt_contract
 
-AUTHORING_PROMPT_VERSION = "authoring_prompt_v5"
+
+AUTHORING_PROMPT_VERSION = "authoring_prompt_v7"
 
 
 def build_world_prompt(brief: dict[str, Any], accepted_reference: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -46,6 +48,8 @@ def build_world_prompt(brief: dict[str, Any], accepted_reference: dict[str, Any]
                 "Use explicit deterministic predicates and scoring rules.",
                 "Keep the scenario bounded and internally consistent.",
                 "Encode hidden stakeholder motives as world facts with metadata fact_kind=actor_private_driver, owner_actor_id, driver_type, and coordination_implication.",
+                "Preserve the accepted_reference shape for policy.external_commitment_requirements exactly when one is provided.",
+                "If no accepted_reference shape is available, policy.external_commitment_requirements should default to a JSON array of milestone id strings rather than prose.",
             ],
         },
     }
@@ -60,7 +64,9 @@ def build_world_prompt(brief: dict[str, Any], accepted_reference: dict[str, Any]
             "include exactly these sections: project, actors, relationships, windows, threads, documents, tasks, "
             "milestones, dependencies, facts, beliefs, commitments, meetings, messages, pending_events. Inside "
             "policy, include: timing_bands, default_timing_band, action_costs, project_state_rules, task_transitions, "
-            "meeting_defaults, meeting_outcomes, external_commitment_requirements. Inside evaluation, include: "
+            "meeting_defaults, meeting_outcomes, external_commitment_requirements. Preserve the accepted_reference "
+            "shape for policy.external_commitment_requirements exactly when present; otherwise default that field to "
+            "a JSON array of milestone id strings like ['scope_aligned', 'security_slot_secured']. Inside evaluation, include: "
             "official_seeds, primary_failure_classes, rubric_lines. Every rubric line must include competency_tags, "
             "measurement_rationale, success_meaning, and failure_meaning. Keep runtime semantics explicit, frozen, "
             "and deterministic. Do not model hidden agendas in actor metadata; express them as actor private-driver "
@@ -85,6 +91,22 @@ def build_semantics_prompt(
         "artifact_contract": {
             "required_top_level_keys": ["version", "cells"],
             "forbidden_top_level_keys": ["brief", "notes", "analysis", "explanation"],
+            "effect_contracts": {
+                "create_or_update_commitment": {
+                    "required_fields": ["type", "id", "owner_id", "subject"],
+                    "optional_fields": [
+                        "audience_ids",
+                        "confidence",
+                        "due_at",
+                        "ground_truth_feasibility",
+                        "metadata",
+                        "preconditions",
+                        "scope",
+                        "status",
+                    ],
+                    "forbidden_aliases": ["commitment_id"],
+                }
+            },
             "requirements": [
                 "Preserve every cell_id from the coverage_contract exactly.",
                 "Do not add, remove, or rename cells.",
@@ -93,6 +115,7 @@ def build_semantics_prompt(
                 "Each response_envelope must use the exact fields: id, weight, outgoing_act_id, outgoing_slots, surface_facts, belief_signals, effects, renderer_variants.",
                 "Use a single outgoing_act_id string, never an array like outgoing_acts.",
                 "Use outgoing_slots, never slots.",
+                "For create_or_update_commitment effects, use id as the commitment identifier field, never commitment_id.",
                 "renderer_variants must be a non-empty list of deterministic text variants.",
                 "Leak actor private drivers through low-confidence cue belief_signals with accumulate=true instead of immediate surface_facts whenever the hidden truth is a stakeholder motive or sensitivity.",
             ],
@@ -109,7 +132,8 @@ def build_semantics_prompt(
             "remove cells. Do not change selectors, guards, or reachability. For each cell, provide realistic but "
             "bounded response_envelopes using the exact schema fields id, weight, outgoing_act_id, outgoing_slots, "
             "surface_facts, belief_signals, effects, and renderer_variants. Use one outgoing_act_id string per "
-            "envelope, not an array. renderer_variants must never be empty. "
+            "envelope, not an array. For create_or_update_commitment effects, the commitment identifier field is id, "
+            "never commitment_id. renderer_variants must never be empty. "
             "When a response is hinting at an actor private driver, use shared belief_key/value pairs plus "
             "metadata.private_driver_fact_id and accumulate=true so repeated cues can deterministically cross the "
             "surfacing threshold. If an accepted_reference artifact is provided, treat it as the required semantic "
@@ -123,9 +147,25 @@ def build_semantics_prompt(
 def build_trajectories_prompt(
     brief: dict[str, Any],
     scenario_candidate: dict[str, Any],
-    accepted_reference: dict[str, str] | None = None,
+    accepted_reference: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    user_payload: dict[str, Any] = {"brief": brief, "scenario": scenario_candidate}
+    user_payload: dict[str, Any] = {
+        "brief": brief,
+        "scenario": scenario_candidate,
+        "trajectory_contract": {
+            "required_filenames": ["smoke.tpm"],
+            "requirements": [
+                "Use the supported .tpm shell DSL exactly as defined in command_reference.",
+                "Use lowercase commands exactly; uppercase aliases are invalid.",
+                "Do not invent new top-level commands.",
+                "When a command expects pipe-delimited fields, preserve that exact delimiter layout.",
+                "Use only supported act_ids from command_reference.",
+                "There is no direct CREATE_COMMITMENT verb; commitments must emerge from valid chat.send or meeting.act lines plus scenario semantics.",
+                "Scripts will be statically rejected if any line falls outside the supported DSL.",
+            ],
+            "command_reference": trajectory_prompt_contract(),
+        },
+    }
     if accepted_reference is not None:
         user_payload["accepted_reference"] = accepted_reference
     return {
@@ -133,8 +173,10 @@ def build_trajectories_prompt(
             "You are assisting with benchmark authoring. Generate a JSON object that maps TPM trajectory filenames to "
             "their script contents. Return a single JSON object only, with no prose and no markdown. Keys must be "
             "filenames ending in .tpm and values must be the full script contents. Include at least smoke.tpm and one "
-            "anti-pattern trajectory when appropriate. If accepted_reference trajectories are provided, treat them as "
-            "the required shell command style and fidelity."
+            "anti-pattern trajectory when appropriate. Use only the supported lowercase .tpm shell DSL from "
+            "trajectory_contract.command_reference. Do not invent uppercase commands, new verbs, or direct commitment "
+            "creation shortcuts. If accepted_reference trajectories are provided, treat them as the required shell "
+            "command style and fidelity."
         ),
         "user": json.dumps(user_payload, indent=2, sort_keys=True),
         "metadata": {"prompt_version": AUTHORING_PROMPT_VERSION, "artifact": "trajectories.json"},

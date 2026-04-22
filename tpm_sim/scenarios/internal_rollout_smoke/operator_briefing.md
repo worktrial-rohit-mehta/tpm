@@ -1,5 +1,5 @@
 Scenario Briefing: Internal Rollout Smoke (internal_rollout_smoke)
-Project: Internal Rollout Project
+Project: Internal Config Rollout
 Premise: A lightweight internal rollout scenario focused on approval timing, staged-scope alignment, and a small non-gating runbook distraction.
 Project Detail: A lightweight internal rollout focused on approval timing and staged-scope alignment.
 Window: Tue 2026-05-05 09:00 -> Wed 2026-05-06 17:00

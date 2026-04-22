@@ -1,109 +1,524 @@
 {
-  "compiled_from_digest": "ff693d1095248e919748dd3e0f4e598e68752e56285d88adcac5df7d40c8ceef",
-  "families": [
+  "version": "CONTEXT_FAMILY_SCHEMA_v1",
+  "compiled_from_digest": "4af8ac3b043967e3a9df0e1ae415b6157032a8108ebe5adb73b6870e37b1f449",
+  "reachable_cells": [
     {
+      "id": "calendar.accept.available",
       "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "incoming_act_id": "meeting.propose",
+        "surface": "calendar"
+      },
       "guard": {
         "context_field": {
           "equals": true,
           "field": "available_for_meeting"
         }
-      },
-      "id": "calendar.accept.available",
-      "priority": 10,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "calendar.accept.available",
-          "outgoing_act_id": "meeting.accept",
-          "outgoing_slots": {},
-          "renderer_id": "calendar.accept.available",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "incoming_act_id": "meeting.propose",
-        "surface": "calendar"
       }
     },
     {
+      "id": "calendar.decline.unavailable",
       "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "incoming_act_id": "meeting.propose",
+        "surface": "calendar"
+      },
       "guard": {
         "context_field": {
           "equals": false,
           "field": "available_for_meeting"
         }
-      },
-      "id": "calendar.decline.unavailable",
-      "priority": 10,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "calendar.decline.unavailable",
-          "outgoing_act_id": "meeting.decline",
-          "outgoing_slots": {
-            "reason": "conflict"
-          },
-          "renderer_id": "calendar.decline.unavailable",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "incoming_act_id": "meeting.propose",
-        "surface": "calendar"
       }
     },
     {
+      "id": "dana.clarification.generic",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.escalate_to_sponsor.early.gap1",
       "criticality": "critical",
-      "id": "leo.feasibility.high",
-      "priority": 30,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.true_risk",
-              "belief_value": "high",
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
-              "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "sponsor",
+        "incoming_act_id": "escalate.to_sponsor",
+        "launch_scope": "undecided",
+        "org_role": "director_product",
+        "pressure_band": "medium",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.inform_blocker",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.inform_decision",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.inform_risk",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.inform_status_update",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "inform.status_update",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.negotiate_scope",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "negotiate.scope",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.request.approval",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.request_ownership.staged_rollout.gap1",
+      "criticality": "secondary",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "sponsor",
+        "incoming_act_id": "request.ownership",
+        "launch_scope": "staged_rollout",
+        "org_role": "director_product",
+        "pressure_band": "medium",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "dana.scope_tradeoff.ready",
+      "criticality": "critical",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.scope_tradeoff",
+        "surface": "chat"
+      },
+      "guard": {
+        "surfaced": "full_rollout_infeasible"
+      }
+    },
+    {
+      "id": "dana.scope_tradeoff.unsupported",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.scope_tradeoff",
+        "surface": "chat"
+      },
+      "guard": {
+        "not": {
+          "surfaced": "full_rollout_infeasible"
+        }
+      }
+    },
+    {
+      "id": "ivy.approval.defer",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "guard": {
+        "any_of": [
+          {
+            "window_state": {
+              "equals": true,
+              "field": "closed",
+              "window_id": "approval_cutoff"
+            }
+          },
+          {
+            "not": {
+              "project_state": {
+                "equals": "staged_rollout",
+                "field": "launch_scope"
               }
             }
-          ],
-          "effects": [
-            {
-              "actor_id": "leo",
-              "delta": 0.05,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "leo.feasibility.high",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "full_scope_not_credible",
-            "task_id": "config_rollout"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ivy.approval.ready",
+      "criticality": "critical",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "guard": {
+        "all_of": [
+          {
+            "critical_window_open": "approval_cutoff"
           },
-          "renderer_id": "leo.feasibility.high",
-          "surface_facts": [
-            "leo_overloaded_until_tue_1100",
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
+          {
+            "project_state": {
+              "equals": "staged_rollout",
+              "field": "launch_scope"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ivy.escalate.to_manager",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "escalate.to_manager",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.escalate.to_sponsor",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "escalate.to_sponsor",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.inform.availability",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.availability",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.inform.decision",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.inform.risk",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.inform.status_update",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.status_update",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.inform_blocker",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.negotiate.ownership",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "negotiate.ownership",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.negotiate.scope",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "negotiate.scope",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.negotiate.timeline",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "negotiate.timeline",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.request.clarification",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.request.eta",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.eta",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.request.feasibility",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.feasibility",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.request.ownership",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.ownership",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "ivy.request.review.defer",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      },
+      "guard": {
+        "any_of": [
+          {
+            "window_state": {
+              "equals": true,
+              "field": "closed",
+              "window_id": "approval_cutoff"
+            }
+          },
+          {
+            "not": {
+              "project_state": {
+                "equals": "staged_rollout",
+                "field": "launch_scope"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ivy.request.review.ready",
+      "criticality": "critical",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      },
+      "guard": {
+        "all_of": [
+          {
+            "critical_window_open": "approval_cutoff"
+          },
+          {
+            "project_state": {
+              "equals": "staged_rollout",
+              "field": "launch_scope"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ivy.scope_tradeoff.clear",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.scope_tradeoff",
+        "surface": "chat"
+      },
+      "guard": {
+        "project_state": {
+          "equals": "staged_rollout",
+          "field": "launch_scope"
         }
-      ],
+      }
+    },
+    {
+      "id": "leo.clarification.blocked",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "dependency_band": "blocked",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "leo.clarification.generic",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "leo.eta.blocked",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.eta",
+        "surface": "chat"
+      },
+      "guard": {
+        "not": {
+          "all_of": [
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "scope_aligned"
+              }
+            },
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "approval_secured"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "leo.eta.high",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.eta",
+        "pressure_band": "high",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "leo.eta.ready",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.eta",
+        "pressure_band": "low",
+        "surface": "chat"
+      },
+      "guard": {
+        "all_of": [
+          {
+            "milestone_state": {
+              "equals": "done",
+              "field": "status",
+              "milestone_id": "scope_aligned"
+            }
+          },
+          {
+            "milestone_state": {
+              "equals": "done",
+              "field": "status",
+              "milestone_id": "approval_secured"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "leo.feasibility.high",
+      "criticality": "critical",
+      "reachable": true,
       "selector": {
         "actor_id": "leo",
         "incoming_act_id": "request.feasibility",
@@ -112,34 +527,9 @@
       }
     },
     {
-      "criticality": "important",
       "id": "leo.feasibility.low",
-      "priority": 20,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.proposed_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.7,
-              "freshness_window_min": 240
-            }
-          ],
-          "effects": [],
-          "id": "leo.feasibility.low",
-          "outgoing_act_id": "negotiate.scope",
-          "outgoing_slots": {
-            "proposed_scope": "staged_rollout",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.feasibility.low",
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
+      "criticality": "important",
+      "reachable": true,
       "selector": {
         "actor_id": "leo",
         "incoming_act_id": "request.feasibility",
@@ -148,165 +538,9 @@
       }
     },
     {
-      "criticality": "important",
-      "id": "leo.scope_tradeoff",
-      "priority": 22,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.proposed_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.85,
-              "freshness_window_min": 240
-            }
-          ],
-          "effects": [],
-          "id": "leo.scope_tradeoff",
-          "outgoing_act_id": "negotiate.scope",
-          "outgoing_slots": {
-            "proposed_scope": "staged_rollout",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.scope_tradeoff",
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.negotiate.scope",
-      "priority": 22,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.proposed_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.85,
-              "freshness_window_min": 240
-            }
-          ],
-          "effects": [],
-          "id": "leo.negotiate.scope",
-          "outgoing_act_id": "negotiate.scope",
-          "outgoing_slots": {
-            "proposed_scope": "staged_rollout",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.negotiate.scope",
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "negotiate.scope",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.blocker",
-      "priority": 16,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "leo.inform.blocker",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "blocker_noted"
-          },
-          "renderer_id": "leo.inform.blocker",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.blocker",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.decision",
-      "priority": 16,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "leo.inform.decision",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "decision_noted"
-          },
-          "renderer_id": "leo.inform.decision",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.decision",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.status_update",
-      "priority": 16,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "leo.inform.status_update",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "status_noted"
-          },
-          "renderer_id": "leo.inform.status_update",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.status_update",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
       "id": "leo.inform.availability",
-      "priority": 16,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "leo.inform.availability",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "availability_noted"
-          },
-          "renderer_id": "leo.inform.availability",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
+      "criticality": "important",
+      "reachable": true,
       "selector": {
         "actor_id": "leo",
         "incoming_act_id": "inform.availability",
@@ -314,32 +548,39 @@
       }
     },
     {
+      "id": "leo.inform.blocker",
       "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "leo.inform.decision",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "leo.inform.status_update",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.status_update",
+        "surface": "chat"
+      }
+    },
+    {
       "id": "leo.inform_risk",
-      "priority": 18,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [
-            {
-              "actor_id": "leo",
-              "delta": 0.01,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "leo.inform_risk",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "risk_acknowledged"
-          },
-          "renderer_id": "leo.inform_risk",
-          "surface_facts": [
-            "full_rollout_infeasible"
-          ],
-          "weight": 1.0
-        }
-      ],
+      "criticality": "important",
+      "reachable": true,
       "selector": {
         "actor_id": "leo",
         "incoming_act_id": "inform.risk",
@@ -347,24 +588,351 @@
       }
     },
     {
+      "id": "leo.negotiate.scope",
       "criticality": "important",
-      "id": "dana.inform_risk",
-      "priority": 15,
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "negotiate.scope",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "leo.request_ownership.blocked_short.gap1",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "critical_path_owner",
+        "dependency_band": "blocked",
+        "incoming_act_id": "request.ownership",
+        "launch_scope": "undecided",
+        "org_role": "engineer",
+        "pressure_band": "low",
+        "surface": "chat",
+        "timing_band": "short",
+        "trust_band": "medium"
+      }
+    },
+    {
+      "id": "leo.scope_tradeoff",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.scope_tradeoff",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "mia.request.feasibility",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "mia",
+        "incoming_act_id": "request.feasibility",
+        "surface": "chat"
+      }
+    },
+    {
+      "id": "mia.request_clarification.early.gap1",
+      "criticality": "important",
+      "reachable": true,
+      "selector": {
+        "actor_id": "mia",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "ally",
+        "dependency_band": "clear",
+        "incoming_act_id": "request.clarification",
+        "launch_scope": "undecided",
+        "org_role": "operations",
+        "pressure_band": "medium",
+        "surface": "chat",
+        "timing_band": "early",
+        "trust_band": "high"
+      }
+    }
+  ],
+  "families": [
+    {
+      "id": "calendar.accept.available",
+      "priority": 10,
+      "criticality": "important",
+      "selector": {
+        "incoming_act_id": "meeting.propose",
+        "surface": "calendar"
+      },
       "response_envelopes": [
         {
+          "id": "calendar_accept_confirm",
+          "weight": 1.0,
+          "outgoing_act_id": "meeting.accept",
+          "outgoing_slots": {
+            "status": "accepted"
+          },
+          "surface_facts": [],
+          "belief_signals": [],
+          "effects": [],
+          "renderer_id": "calendar.accept.available"
+        }
+      ],
+      "guard": {
+        "context_field": {
+          "equals": true,
+          "field": "available_for_meeting"
+        }
+      }
+    },
+    {
+      "id": "calendar.decline.unavailable",
+      "priority": 10,
+      "criticality": "important",
+      "selector": {
+        "incoming_act_id": "meeting.propose",
+        "surface": "calendar"
+      },
+      "response_envelopes": [
+        {
+          "id": "calendar_decline_conflict",
+          "weight": 1.0,
+          "outgoing_act_id": "meeting.decline",
+          "outgoing_slots": {
+            "reason": "unavailable",
+            "status": "declined"
+          },
+          "surface_facts": [],
+          "belief_signals": [],
+          "effects": [],
+          "renderer_id": "calendar.decline.unavailable"
+        }
+      ],
+      "guard": {
+        "context_field": {
+          "equals": false,
+          "field": "available_for_meeting"
+        }
+      }
+    },
+    {
+      "id": "dana.clarification.generic",
+      "priority": 20,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_clarification_direct",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "needs_realistic_scope_story"
+          },
+          "surface_facts": [],
           "belief_signals": [
             {
-              "belief_key": "project.sponsor_needs_tradeoff",
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.5,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "dana.clarification.generic"
+        }
+      ]
+    },
+    {
+      "id": "dana.escalate_to_sponsor.early.gap1",
+      "priority": 20,
+      "criticality": "critical",
+      "selector": {
+        "actor_id": "dana",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "sponsor",
+        "incoming_act_id": "escalate.to_sponsor",
+        "launch_scope": "undecided",
+        "org_role": "director_product",
+        "pressure_band": "medium",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_escalate_to_sponsor_redirect_early",
+          "weight": 1.0,
+          "outgoing_act_id": "request.scope_tradeoff",
+          "outgoing_slots": {
+            "topic": "credible_rollout_tradeoff",
+            "urgency": "now"
+          },
+          "surface_facts": [
+            "dana_accepts_staged_if_early"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.prefers_direct_tradeoff_over_self_escalation",
+              "belief_value": true,
+              "confidence": 0.98,
+              "freshness_window_min": 480
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.6,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": -0.02,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "dana.escalate_to_sponsor.early.gap1"
+        }
+      ]
+    },
+    {
+      "id": "dana.inform_blocker",
+      "priority": 16,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_blocker_ack",
+          "weight": 1.0,
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "blocker_implication"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.needs_actionable_summary",
+              "belief_value": true,
+              "confidence": 0.85,
+              "freshness_window_min": 180
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "dana.inform_blocker"
+        }
+      ]
+    },
+    {
+      "id": "dana.inform_decision",
+      "priority": 17,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_decision_probe",
+          "weight": 1.0,
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "decision_basis"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.requires_decision_rationale",
               "belief_value": true,
               "confidence": 0.9,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "dana.inform_decision"
+        }
+      ]
+    },
+    {
+      "id": "dana.inform_risk",
+      "priority": 15,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_risk_wants_real_story",
+          "weight": 1.0,
+          "outgoing_act_id": "request.scope_tradeoff",
+          "outgoing_slots": {
+            "topic": "credible_rollout_plan"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.wants_real_rollout_story",
+              "belief_value": true,
+              "confidence": 0.95,
               "freshness_window_min": 240
             },
             {
               "accumulate": true,
+              "actor_id": "tpm",
               "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
               "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
+              "confidence": 0.45,
+              "freshness_window_min": 480,
               "metadata": {
                 "private_driver_fact_id": "dana_accepts_staged_if_early"
               }
@@ -378,352 +946,85 @@
               "type": "relationship_delta"
             }
           ],
-          "id": "dana.inform_risk",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "need_tradeoff"
-          },
-          "renderer_id": "dana.inform_risk",
-          "surface_facts": [],
-          "weight": 1.0
+          "renderer_id": "dana.inform_risk"
         }
-      ],
+      ]
+    },
+    {
+      "id": "dana.inform_status_update",
+      "priority": 19,
+      "criticality": "important",
       "selector": {
         "actor_id": "dana",
-        "incoming_act_id": "inform.risk",
+        "incoming_act_id": "inform.status_update",
         "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.inform_blocker",
-      "priority": 16,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "project.sponsor_needs_tradeoff",
-              "belief_value": true,
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
-              "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "dana_accepts_staged_if_early"
-              }
-            }
-          ],
-          "effects": [
-            {
-              "actor_id": "dana",
-              "delta": 0.01,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "dana.inform_blocker",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "need_tradeoff"
-          },
-          "renderer_id": "dana.inform_blocker",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "inform.blocker",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.inform_decision",
-      "priority": 17,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "project.sponsor_needs_tradeoff",
-              "belief_value": true,
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
-              "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "dana_accepts_staged_if_early"
-              }
-            }
-          ],
-          "effects": [
-            {
-              "actor_id": "dana",
-              "delta": 0.01,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "dana.inform_decision",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "need_tradeoff"
-          },
-          "renderer_id": "dana.inform_decision",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "inform.decision",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.clarification.generic",
-      "priority": 20,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "project.sponsor_needs_tradeoff",
-              "belief_value": true,
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
-              "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "dana_accepts_staged_if_early"
-              }
-            }
-          ],
-          "effects": [
-            {
-              "actor_id": "dana",
-              "delta": 0.01,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "dana.clarification.generic",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "need_tradeoff"
-          },
-          "renderer_id": "dana.clarification.generic",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "request.clarification",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.request.approval",
-      "priority": 20,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "project.sponsor_needs_tradeoff",
-              "belief_value": true,
-              "confidence": 0.95,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
-              "belief_value": true,
-              "confidence": 0.55,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "dana_accepts_staged_if_early"
-              }
-            }
-          ],
-          "effects": [
-            {
-              "actor_id": "dana",
-              "delta": 0.01,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "dana.request.approval",
-          "outgoing_act_id": "approve.defer",
-          "outgoing_slots": {
-            "reason": "need_tradeoff"
-          },
-          "renderer_id": "dana.request.approval",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "request.approval",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.clarification.blocked",
-      "priority": 25,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.true_risk",
-              "belief_value": "high",
-              "confidence": 0.85,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
-              "belief_value": true,
-              "confidence": 0.45,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
-              }
-            }
-          ],
-          "effects": [],
-          "id": "leo.clarification.blocked",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "need_scope_and_approval",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.clarification.blocked",
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "leo",
-        "dependency_band": "blocked",
-        "incoming_act_id": "request.clarification",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.clarification.generic",
-      "priority": 15,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.config_rollout.true_risk",
-              "belief_value": "high",
-              "confidence": 0.85,
-              "freshness_window_min": 240
-            },
-            {
-              "accumulate": true,
-              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
-              "belief_value": true,
-              "confidence": 0.45,
-              "freshness_window_min": 240,
-              "metadata": {
-                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
-              }
-            }
-          ],
-          "effects": [],
-          "id": "leo.clarification.generic",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "need_scope_and_approval",
-            "task_id": "config_rollout"
-          },
-          "renderer_id": "leo.clarification.blocked",
-          "surface_facts": [
-            "full_rollout_infeasible",
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.clarification",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "not": {
-          "surfaced": "full_rollout_infeasible"
-        }
       },
-      "id": "dana.scope_tradeoff.unsupported",
-      "priority": 10,
       "response_envelopes": [
         {
-          "belief_signals": [],
-          "effects": [],
-          "id": "dana.scope_tradeoff.unsupported",
-          "outgoing_act_id": "ack.deferred",
+          "id": "dana_status_update_needs_next_step",
+          "weight": 1.0,
+          "outgoing_act_id": "request.clarification",
           "outgoing_slots": {
-            "reason": "need_feasibility_first"
+            "topic": "next_decision_needed"
           },
-          "renderer_id": "dana.scope_tradeoff.unsupported",
           "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "critical",
-      "guard": {
-        "surfaced": "full_rollout_infeasible"
-      },
-      "id": "dana.scope_tradeoff.ready",
-      "priority": 30,
-      "response_envelopes": [
-        {
           "belief_signals": [
             {
-              "belief_key": "project.launch_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.9,
-              "freshness_window_min": 480
+              "actor_id": "tpm",
+              "belief_key": "project.sponsor_needs_clarity",
+              "belief_value": true,
+              "confidence": 0.8,
+              "freshness_window_min": 180
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.needs_actionable_summary",
+              "belief_value": true,
+              "confidence": 0.82,
+              "freshness_window_min": 180
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "dana.inform_status_update"
+        }
+      ]
+    },
+    {
+      "id": "dana.negotiate_scope",
+      "priority": 21,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "negotiate.scope",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_negotiate_scope_requires_tradeoff",
+          "weight": 1.0,
+          "outgoing_act_id": "request.scope_tradeoff",
+          "outgoing_slots": {
+            "topic": "credible_rollout_tradeoff"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.wants_real_rollout_story",
+              "belief_value": true,
+              "confidence": 0.92,
+              "freshness_window_min": 240
             },
             {
               "accumulate": true,
+              "actor_id": "tpm",
               "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
               "belief_value": true,
               "confidence": 0.55,
@@ -731,6 +1032,169 @@
               "metadata": {
                 "private_driver_fact_id": "dana_accepts_staged_if_early"
               }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "dana.negotiate_scope"
+        }
+      ]
+    },
+    {
+      "id": "dana.request.approval",
+      "priority": 20,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_redirect_to_owner",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "approval_owned_by_ivy",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.approval_owner",
+              "belief_value": "ivy",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "dana.request.approval"
+        }
+      ]
+    },
+    {
+      "id": "dana.request_ownership.staged_rollout.gap1",
+      "priority": 10,
+      "criticality": "secondary",
+      "selector": {
+        "actor_id": "dana",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "sponsor",
+        "incoming_act_id": "request.ownership",
+        "launch_scope": "staged_rollout",
+        "org_role": "director_product",
+        "pressure_band": "medium",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana.request_ownership.staged_rollout",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "decision": "ownership_split_confirmed",
+            "owner": "leo",
+            "approval_owner": "ivy",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.engineering_owner",
+              "belief_value": "leo",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.approval_owner",
+              "belief_value": "ivy",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.ownership_split",
+              "belief_value": "ivy_review_leo_delivery",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.supports_staged_rollout",
+              "belief_value": true,
+              "confidence": 0.7,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "dana.request_ownership.staged_rollout.gap1"
+        }
+      ]
+    },
+    {
+      "id": "dana.scope_tradeoff.ready",
+      "priority": 30,
+      "criticality": "critical",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.scope_tradeoff",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_scope_tradeoff_support_stage",
+          "weight": 1.0,
+          "outgoing_act_id": "negotiate.scope",
+          "outgoing_slots": {
+            "approved_scope": "staged_rollout",
+            "rejected_scope": "full_rollout"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.supports_staged_rollout",
+              "belief_value": true,
+              "confidence": 0.9,
+              "freshness_window_min": 480
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.7,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
+              }
+            },
+            {
+              "actor_id": "dana",
+              "belief_key": "project.launch_scope",
+              "belief_value": "staged_rollout",
+              "confidence": 0.9,
+              "freshness_window_min": 480
             }
           ],
           "effects": [
@@ -741,28 +1205,12 @@
               "type": "project_state_patch"
             },
             {
-              "actor_id": "dana",
-              "belief_key": "project.launch_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.95,
-              "freshness_window_min": 480,
-              "type": "belief_signal"
-            },
-            {
-              "actor_id": "leo",
-              "belief_key": "project.launch_scope",
-              "belief_value": "staged_rollout",
-              "confidence": 0.85,
-              "freshness_window_min": 480,
-              "type": "belief_signal"
-            },
-            {
               "audience_ids": [
                 "tpm",
                 "leo",
                 "mia"
               ],
-              "confidence": 0.9,
+              "confidence": 0.88,
               "id": "staged_rollout_plan",
               "metadata": {
                 "milestone_ids": [
@@ -778,63 +1226,949 @@
               "type": "create_or_update_commitment"
             }
           ],
-          "id": "dana.scope_tradeoff.ready",
-          "outgoing_act_id": "inform.decision",
-          "outgoing_slots": {
-            "decision_key": "project.launch_scope",
-            "launch_scope": "staged_rollout"
-          },
-          "renderer_id": "dana.scope_tradeoff.ready",
-          "surface_facts": [],
-          "weight": 1.0
+          "renderer_id": "dana.scope_tradeoff.ready"
         }
       ],
+      "guard": {
+        "surfaced": "full_rollout_infeasible"
+      }
+    },
+    {
+      "id": "dana.scope_tradeoff.unsupported",
+      "priority": 10,
+      "criticality": "important",
       "selector": {
         "actor_id": "dana",
         "incoming_act_id": "request.scope_tradeoff",
         "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "dana_scope_tradeoff_needs_evidence",
+          "weight": 1.0,
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "why_not_full_rollout"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.needs_explicit_feasibility_gap",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.4,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
+              }
+            }
+          ],
+          "effects": [],
+          "renderer_id": "dana.scope_tradeoff.unsupported"
+        }
+      ],
+      "guard": {
+        "not": {
+          "surfaced": "full_rollout_infeasible"
+        }
       }
     },
     {
+      "id": "ivy.approval.defer",
+      "priority": 10,
       "criticality": "important",
-      "id": "leo.eta.high",
-      "priority": 40,
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
       "response_envelopes": [
         {
+          "id": "ivy_approval_defer",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "approval_cannot_be_granted_now",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [
+            "approval_required"
+          ],
           "belief_signals": [
             {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_status",
+              "belief_value": "cannot_approve_current_state",
+              "confidence": 0.98,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.approval.defer"
+        }
+      ],
+      "guard": {
+        "any_of": [
+          {
+            "window_state": {
+              "equals": true,
+              "field": "closed",
+              "window_id": "approval_cutoff"
+            }
+          },
+          {
+            "not": {
+              "project_state": {
+                "equals": "staged_rollout",
+                "field": "launch_scope"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ivy.approval.ready",
+      "priority": 30,
+      "criticality": "critical",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_approval_ready_accept",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "before_cutoff": true,
+            "decision": "approval_granted",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_status",
+              "belief_value": "approved",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "audience_ids": [
+                "tpm",
+                "project"
+              ],
+              "confidence": 0.95,
+              "id": "ivy_approval_commitment",
+              "metadata": {
+                "task_id": "approval_review",
+                "validity_basis": "complete_submission_before_cutoff"
+              },
+              "owner_id": "ivy",
+              "scope": {
+                "before_cutoff": true,
+                "launch_scope": "staged_rollout"
+              },
+              "status": "committed",
+              "subject": "approval_review",
+              "type": "create_or_update_commitment"
+            }
+          ],
+          "renderer_id": "ivy.approval.ready"
+        }
+      ],
+      "guard": {
+        "all_of": [
+          {
+            "critical_window_open": "approval_cutoff"
+          },
+          {
+            "project_state": {
+              "equals": "staged_rollout",
+              "field": "launch_scope"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ivy.escalate.to_manager",
+      "priority": 12,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "escalate.to_manager",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_escalate_manager_resist",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "escalation_not_needed_without_complete_intake",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.prefers_complete_intake_over_escalation",
+              "belief_value": true,
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "ivy",
+              "delta": -0.03,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "ivy.escalate.to_manager"
+        }
+      ]
+    },
+    {
+      "id": "ivy.escalate.to_sponsor",
+      "priority": 12,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "escalate.to_sponsor",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_escalate_sponsor_resist",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "sponsor_escalation_does_not_replace_review",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_integrity",
+              "belief_value": "process_based",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "ivy",
+              "delta": -0.04,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "ivy.escalate.to_sponsor"
+        }
+      ]
+    },
+    {
+      "id": "ivy.inform.availability",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.availability",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_availability_share",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.availability",
+          "outgoing_slots": {
+            "availability": "before_noon_if_complete"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.queue_cutoff",
+              "belief_value": "before_noon",
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.inform.availability"
+        }
+      ]
+    },
+    {
+      "id": "ivy.inform.decision",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_decision_ack",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "decision_received",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [],
+          "effects": [],
+          "renderer_id": "ivy.inform.decision"
+        }
+      ]
+    },
+    {
+      "id": "ivy.inform.risk",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_risk_to_requirement",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "risk_requires_complete_review",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.approval_dependency",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.inform.risk"
+        }
+      ]
+    },
+    {
+      "id": "ivy.inform.status_update",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.status_update",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_status_ack",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "acknowledged",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [],
+          "effects": [],
+          "renderer_id": "ivy.inform.status_update"
+        }
+      ]
+    },
+    {
+      "id": "ivy.inform_blocker",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_blocker_ack_requirements",
+          "weight": 1.0,
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "submission_completeness"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.requires_complete_intake",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "ivy",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "ivy.inform_blocker"
+        }
+      ]
+    },
+    {
+      "id": "ivy.negotiate.ownership",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "negotiate.ownership",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_negotiate_ownership_boundary",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "owner": "ivy_for_review",
+            "owner_dependency": "leo_for_delivery"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.ownership_split",
+              "belief_value": "ivy_review_leo_delivery",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.negotiate.ownership"
+        }
+      ]
+    },
+    {
+      "id": "ivy.negotiate.scope",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "negotiate.scope",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_negotiate_scope_guardrail",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "decision": "scope_must_be_specific_for_review",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.scope_requirement",
+              "belief_value": "specific_staged_scope",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.negotiate.scope"
+        }
+      ]
+    },
+    {
+      "id": "ivy.negotiate.timeline",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "negotiate.timeline",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_negotiate_timeline_queue",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "timeline_limited_by_review_queue",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.timeline_constraint",
+              "belief_value": "queue_cutoff_before_noon",
+              "confidence": 1,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.negotiate.timeline"
+        }
+      ]
+    },
+    {
+      "id": "ivy.request.clarification",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_clarification_direct",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "need_complete_intake_before_noon",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_requirement",
+              "belief_value": "complete_intake_before_noon",
+              "confidence": 1,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.request.clarification"
+        }
+      ]
+    },
+    {
+      "id": "ivy.request.eta",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.eta",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_no_eta_owner",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "eta_owned_by_engineering_after_review",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.cannot_commit_engineering_eta",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.request.eta"
+        }
+      ]
+    },
+    {
+      "id": "ivy.request.feasibility",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.feasibility",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_feasibility_boundary",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "can_review_compliance_not_delivery_feasibility",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.role_boundary",
+              "belief_value": "review_owner_not_delivery_owner",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.request.feasibility"
+        }
+      ]
+    },
+    {
+      "id": "ivy.request.ownership",
+      "priority": 11,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.ownership",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_ownership_confirm",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "owner": "ivy",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.approval_owner",
+              "belief_value": "ivy",
+              "confidence": 1,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.request.ownership"
+        }
+      ]
+    },
+    {
+      "id": "ivy.request.review.defer",
+      "priority": 10,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_review_defer",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "review_not_actionable_now",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_status",
+              "belief_value": "deferred",
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.request.review.defer"
+        }
+      ],
+      "guard": {
+        "any_of": [
+          {
+            "window_state": {
+              "equals": true,
+              "field": "closed",
+              "window_id": "approval_cutoff"
+            }
+          },
+          {
+            "not": {
+              "project_state": {
+                "equals": "staged_rollout",
+                "field": "launch_scope"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ivy.request.review.ready",
+      "priority": 30,
+      "criticality": "critical",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_review_ready_accept",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "before_cutoff": true,
+            "decision": "review_started",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.review_status",
+              "belief_value": "in_progress",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "task_id": "approval_review",
+              "tracker_patch": {
+                "blocker": "",
+                "notes": "Approval granted.",
+                "status": "done"
+              },
+              "true_patch": {
+                "checkpoint": "done"
+              },
+              "type": "task_state_patch"
+            },
+            {
+              "actor_id": "ivy",
+              "delta": 0.03,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "ivy.request.review.ready"
+        }
+      ],
+      "guard": {
+        "all_of": [
+          {
+            "critical_window_open": "approval_cutoff"
+          },
+          {
+            "project_state": {
+              "equals": "staged_rollout",
+              "field": "launch_scope"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ivy.scope_tradeoff.clear",
+      "priority": 18,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.scope_tradeoff",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "ivy_scope_tradeoff_clearance",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "decision": "staged_scope_reviewable",
+            "task_id": "approval_review"
+          },
+          "surface_facts": [
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.ivy.scope_position",
+              "belief_value": "staged_scope_reviewable",
+              "confidence": 0.9,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "ivy.scope_tradeoff.clear"
+        }
+      ],
+      "guard": {
+        "project_state": {
+          "equals": "staged_rollout",
+          "field": "launch_scope"
+        }
+      }
+    },
+    {
+      "id": "leo.clarification.blocked",
+      "priority": 25,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "leo",
+        "dependency_band": "blocked",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_clarification_blocked_specific",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "scope_and_approval_unresolved",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.engineering_blocker",
+              "belief_value": "scope_and_approval_unresolved",
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
               "accumulate": true,
+              "actor_id": "tpm",
               "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
               "belief_value": true,
               "confidence": 0.55,
-              "freshness_window_min": 240,
+              "freshness_window_min": 480,
               "metadata": {
                 "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
               }
             }
           ],
           "effects": [],
-          "id": "leo.eta.high",
-          "outgoing_act_id": "ack.deferred",
-          "outgoing_slots": {
-            "reason": "still_overloaded"
-          },
-          "renderer_id": "leo.eta.high",
-          "surface_facts": [
-            "leo_overloaded_until_tue_1100"
-          ],
-          "weight": 1.0
+          "renderer_id": "leo.clarification.blocked"
         }
-      ],
+      ]
+    },
+    {
+      "id": "leo.clarification.generic",
+      "priority": 15,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_clarification_generic",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "needs_scope_then_eta",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.prefers_scope_before_eta",
+              "belief_value": true,
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.45,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [],
+          "renderer_id": "leo.clarification.blocked"
+        }
+      ]
+    },
+    {
+      "id": "leo.eta.blocked",
+      "priority": 20,
+      "criticality": "important",
       "selector": {
         "actor_id": "leo",
         "incoming_act_id": "request.eta",
-        "pressure_band": "high",
         "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_eta_blocked_until_prereqs",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "eta_depends_on_scope_and_approval",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.eta_prereqs_missing",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [],
+          "renderer_id": "leo.eta.blocked"
+        }
+      ],
       "guard": {
         "not": {
           "all_of": [
@@ -854,77 +2188,97 @@
             }
           ]
         }
+      }
+    },
+    {
+      "id": "leo.eta.high",
+      "priority": 40,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.eta",
+        "pressure_band": "high",
+        "surface": "chat"
       },
-      "id": "leo.eta.blocked",
-      "priority": 20,
       "response_envelopes": [
         {
+          "id": "leo_eta_high_refuse_fake_date",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "eta_not_credible_under_pressure",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [],
           "belief_signals": [
             {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.eta_confidence",
+              "belief_value": "low",
+              "confidence": 0.95,
+              "freshness_window_min": 180
+            },
+            {
               "accumulate": true,
+              "actor_id": "tpm",
               "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
               "belief_value": true,
-              "confidence": 0.45,
-              "freshness_window_min": 240,
+              "confidence": 0.65,
+              "freshness_window_min": 480,
               "metadata": {
                 "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
               }
             }
           ],
-          "effects": [],
-          "id": "leo.eta.blocked",
-          "outgoing_act_id": "ack.deferred",
-          "outgoing_slots": {
-            "reason": "need_scope_and_approval"
-          },
-          "renderer_id": "leo.eta.blocked",
-          "surface_facts": [],
-          "weight": 1.0
+          "effects": [
+            {
+              "actor_id": "leo",
+              "delta": -0.05,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "leo.eta.high"
         }
-      ],
+      ]
+    },
+    {
+      "id": "leo.eta.ready",
+      "priority": 30,
+      "criticality": "important",
       "selector": {
         "actor_id": "leo",
         "incoming_act_id": "request.eta",
+        "pressure_band": "low",
         "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "all_of": [
-          {
-            "milestone_state": {
-              "equals": "done",
-              "field": "status",
-              "milestone_id": "scope_aligned"
-            }
-          },
-          {
-            "milestone_state": {
-              "equals": "done",
-              "field": "status",
-              "milestone_id": "approval_secured"
-            }
-          }
-        ]
       },
-      "id": "leo.eta.ready",
-      "priority": 30,
       "response_envelopes": [
         {
+          "id": "leo_eta_ready_tentative",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "eta_state": "tentative",
+            "eta_window": "by_wednesday_afternoon",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [],
           "belief_signals": [
             {
-              "belief_key": "task.config_rollout.eta",
-              "belief_value": "2026-05-06T15:00:00",
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.eta_confidence",
+              "belief_value": "moderate",
               "confidence": 0.85,
               "freshness_window_min": 240
             },
             {
               "accumulate": true,
+              "actor_id": "tpm",
               "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
               "belief_value": true,
-              "confidence": 0.45,
-              "freshness_window_min": 240,
+              "confidence": 0.4,
+              "freshness_window_min": 480,
               "metadata": {
                 "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
               }
@@ -934,959 +2288,27 @@
             {
               "audience_ids": [
                 "tpm",
-                "dana"
+                "project"
               ],
-              "confidence": 0.8,
-              "due_at": "2026-05-06T15:00:00",
+              "confidence": 0.78,
               "id": "config_rollout_eta",
               "metadata": {
-                "milestone_ids": [
-                  "rollout_ready"
-                ],
-                "task_ids": [
-                  "config_rollout"
-                ]
+                "task_id": "config_rollout",
+                "validity_basis": "staged_scope_and_approval_done"
               },
               "owner_id": "leo",
               "scope": {
-                "eta": "2026-05-06T15:00:00",
-                "task_id": "config_rollout"
+                "approval_required": true,
+                "launch_scope": "staged_rollout"
               },
               "status": "tentative",
-              "subject": "task_eta",
+              "subject": "rollout_eta",
               "type": "create_or_update_commitment"
             }
           ],
-          "id": "leo.eta.ready",
-          "outgoing_act_id": "commit.propose",
-          "outgoing_slots": {
-            "commitment_id": "config_rollout_eta",
-            "task_id": "config_rollout",
-            "tentative_eta": "2026-05-06T15:00:00"
-          },
-          "renderer_id": "leo.eta.ready",
-          "surface_facts": [],
-          "weight": 1.0
+          "renderer_id": "leo.eta.ready"
         }
       ],
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.eta",
-        "pressure_band": "low",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "critical",
-      "guard": {
-        "all_of": [
-          {
-            "critical_window_open": "approval_cutoff"
-          },
-          {
-            "project_state": {
-              "equals": "staged_rollout",
-              "field": "launch_scope"
-            }
-          }
-        ]
-      },
-      "id": "ivy.approval.ready",
-      "priority": 30,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.approval_review.status",
-              "belief_value": "done",
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            }
-          ],
-          "effects": [
-            {
-              "task_id": "approval_review",
-              "tracker_patch": {
-                "blocker": "",
-                "notes": "Approval granted.",
-                "status": "done"
-              },
-              "true_patch": {
-                "checkpoint": "done"
-              },
-              "type": "task_state_patch"
-            },
-            {
-              "actor_id": "ivy",
-              "delta": 0.03,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "ivy.approval.ready",
-          "outgoing_act_id": "approve.grant",
-          "outgoing_slots": {
-            "task_id": "approval_review"
-          },
-          "renderer_id": "ivy.approval.ready",
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.approval",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.escalate.to_manager",
-      "priority": 12,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [
-            {
-              "actor_id": "ivy",
-              "delta": -0.02,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "ivy.escalate.to_manager",
-          "outgoing_act_id": "approve.defer",
-          "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff"
-          },
-          "renderer_id": "ivy.escalate.to_manager",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "escalate.to_manager",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.escalate.to_sponsor",
-      "priority": 12,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [
-            {
-              "actor_id": "ivy",
-              "delta": -0.02,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "ivy.escalate.to_sponsor",
-          "outgoing_act_id": "approve.defer",
-          "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff"
-          },
-          "renderer_id": "ivy.escalate.to_sponsor",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "escalate.to_sponsor",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform.availability",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.inform.availability",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "availability_noted"
-          },
-          "renderer_id": "ivy.inform.availability",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.availability",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform.decision",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.inform.decision",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "decision_noted"
-          },
-          "renderer_id": "ivy.inform.decision",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.decision",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform.status_update",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.inform.status_update",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "status_noted"
-          },
-          "renderer_id": "ivy.inform.status_update",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.status_update",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform.risk",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.inform.risk",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "risk_noted"
-          },
-          "renderer_id": "ivy.inform.risk",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.risk",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform_blocker",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [
-            {
-              "actor_id": "ivy",
-              "delta": 0.01,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "ivy.inform_blocker",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "blocker_noted"
-          },
-          "renderer_id": "ivy.inform_blocker",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.blocker",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.request.eta",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.request.eta",
-          "outgoing_act_id": "ack.deferred",
-          "outgoing_slots": {
-            "reason": "security_does_not_commit_eta"
-          },
-          "renderer_id": "ivy.request.eta",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.eta",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.request.clarification",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.request.clarification",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff",
-            "task_id": "approval_review"
-          },
-          "renderer_id": "ivy.request.clarification",
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.clarification",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "project_state": {
-          "equals": "staged_rollout",
-          "field": "launch_scope"
-        }
-      },
-      "id": "ivy.scope_tradeoff.clear",
-      "priority": 18,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.scope_tradeoff.clear",
-          "outgoing_act_id": "ack.received",
-          "outgoing_slots": {
-            "reason": "scope_already_staged_send_request"
-          },
-          "renderer_id": "ivy.scope_tradeoff.clear",
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "dependency_band": "clear",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.request.ownership",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.request.ownership",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "security_review_needs_staged_scope",
-            "task_id": "approval_review"
-          },
-          "renderer_id": "ivy.request.ownership",
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.ownership",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "critical",
-      "guard": {
-        "all_of": [
-          {
-            "critical_window_open": "approval_cutoff"
-          },
-          {
-            "project_state": {
-              "equals": "staged_rollout",
-              "field": "launch_scope"
-            }
-          }
-        ]
-      },
-      "id": "ivy.request.review.ready",
-      "priority": 30,
-      "response_envelopes": [
-        {
-          "belief_signals": [
-            {
-              "belief_key": "task.approval_review.status",
-              "belief_value": "done",
-              "confidence": 0.9,
-              "freshness_window_min": 240
-            }
-          ],
-          "effects": [
-            {
-              "task_id": "approval_review",
-              "tracker_patch": {
-                "blocker": "",
-                "notes": "Approval granted.",
-                "status": "done"
-              },
-              "true_patch": {
-                "checkpoint": "done"
-              },
-              "type": "task_state_patch"
-            },
-            {
-              "actor_id": "ivy",
-              "delta": 0.03,
-              "target_actor_id": "tpm",
-              "type": "relationship_delta"
-            }
-          ],
-          "id": "ivy.request.review.ready",
-          "outgoing_act_id": "approve.grant",
-          "outgoing_slots": {
-            "task_id": "approval_review"
-          },
-          "renderer_id": "ivy.request.review.ready",
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.review",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "any_of": [
-          {
-            "window_state": {
-              "equals": true,
-              "field": "closed",
-              "window_id": "approval_cutoff"
-            }
-          },
-          {
-            "not": {
-              "project_state": {
-                "equals": "staged_rollout",
-                "field": "launch_scope"
-              }
-            }
-          }
-        ]
-      },
-      "id": "ivy.request.review.defer",
-      "priority": 10,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.request.review.defer",
-          "outgoing_act_id": "approve.defer",
-          "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff"
-          },
-          "renderer_id": "ivy.request.review.defer",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.review",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.request.feasibility",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.request.feasibility",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff",
-            "task_id": "approval_review"
-          },
-          "renderer_id": "ivy.request.feasibility",
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.feasibility",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.scope",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.negotiate.scope",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "security_review_needs_staged_scope",
-            "task_id": "approval_review"
-          },
-          "renderer_id": "ivy.negotiate.scope",
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "negotiate.scope",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.timeline",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.negotiate.timeline",
-          "outgoing_act_id": "approve.defer",
-          "outgoing_slots": {
-            "reason": "security_does_not_commit_eta"
-          },
-          "renderer_id": "ivy.negotiate.timeline",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "negotiate.timeline",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.ownership",
-      "priority": 11,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.negotiate.ownership",
-          "outgoing_act_id": "inform.blocker",
-          "outgoing_slots": {
-            "reason": "security_review_needs_staged_scope",
-            "task_id": "approval_review"
-          },
-          "renderer_id": "ivy.negotiate.ownership",
-          "surface_facts": [
-            "approval_required"
-          ],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "negotiate.ownership",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "any_of": [
-          {
-            "window_state": {
-              "equals": true,
-              "field": "closed",
-              "window_id": "approval_cutoff"
-            }
-          },
-          {
-            "not": {
-              "project_state": {
-                "equals": "staged_rollout",
-                "field": "launch_scope"
-              }
-            }
-          }
-        ]
-      },
-      "id": "ivy.approval.defer",
-      "priority": 10,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "ivy.approval.defer",
-          "outgoing_act_id": "approve.defer",
-          "outgoing_slots": {
-            "reason": "need_staged_scope_or_missed_cutoff"
-          },
-          "renderer_id": "ivy.approval.defer",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.approval",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "mia.request.feasibility",
-      "priority": 15,
-      "response_envelopes": [
-        {
-          "belief_signals": [],
-          "effects": [],
-          "id": "mia.request.feasibility",
-          "outgoing_act_id": "inform.decision",
-          "outgoing_slots": {
-            "reason": "ops_supports_staged_if_locked"
-          },
-          "renderer_id": "mia.request.feasibility",
-          "surface_facts": [],
-          "weight": 1.0
-        }
-      ],
-      "selector": {
-        "actor_id": "mia",
-        "incoming_act_id": "request.feasibility",
-        "surface": "chat"
-      }
-    }
-  ],
-  "reachable_cells": [
-    {
-      "criticality": "important",
-      "guard": {
-        "context_field": {
-          "equals": true,
-          "field": "available_for_meeting"
-        }
-      },
-      "id": "calendar.accept.available",
-      "reachable": true,
-      "selector": {
-        "incoming_act_id": "meeting.propose",
-        "surface": "calendar"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "context_field": {
-          "equals": false,
-          "field": "available_for_meeting"
-        }
-      },
-      "id": "calendar.decline.unavailable",
-      "reachable": true,
-      "selector": {
-        "incoming_act_id": "meeting.propose",
-        "surface": "calendar"
-      }
-    },
-    {
-      "criticality": "critical",
-      "id": "leo.feasibility.high",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.feasibility",
-        "pressure_band": "high",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.feasibility.low",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.feasibility",
-        "pressure_band": "low",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.scope_tradeoff",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.negotiate.scope",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "negotiate.scope",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.blocker",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.blocker",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.decision",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.decision",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.status_update",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.status_update",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.availability",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.availability",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform_risk",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.risk",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.inform_risk",
-      "reachable": true,
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "inform.risk",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.inform_blocker",
-      "reachable": true,
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "inform.blocker",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.inform_decision",
-      "reachable": true,
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "inform.decision",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.clarification.generic",
-      "reachable": true,
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "request.clarification",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "dana.request.approval",
-      "reachable": true,
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "request.approval",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.clarification.blocked",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "dependency_band": "blocked",
-        "incoming_act_id": "request.clarification",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.clarification.generic",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.clarification",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "not": {
-          "surfaced": "full_rollout_infeasible"
-        }
-      },
-      "id": "dana.scope_tradeoff.unsupported",
-      "reachable": true,
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "critical",
-      "guard": {
-        "surfaced": "full_rollout_infeasible"
-      },
-      "id": "dana.scope_tradeoff.ready",
-      "reachable": true,
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "leo.eta.high",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.eta",
-        "pressure_band": "high",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "not": {
-          "all_of": [
-            {
-              "milestone_state": {
-                "equals": "done",
-                "field": "status",
-                "milestone_id": "scope_aligned"
-              }
-            },
-            {
-              "milestone_state": {
-                "equals": "done",
-                "field": "status",
-                "milestone_id": "approval_secured"
-              }
-            }
-          ]
-        }
-      },
-      "id": "leo.eta.blocked",
-      "reachable": true,
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.eta",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
       "guard": {
         "all_of": [
           {
@@ -1904,415 +2326,811 @@
             }
           }
         ]
-      },
-      "id": "leo.eta.ready",
-      "reachable": true,
+      }
+    },
+    {
+      "id": "leo.feasibility.high",
+      "priority": 30,
+      "criticality": "critical",
       "selector": {
         "actor_id": "leo",
-        "incoming_act_id": "request.eta",
+        "incoming_act_id": "request.feasibility",
+        "pressure_band": "high",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_feasibility_high_pushback",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "cannot_commit_full_rollout_feasibility",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [
+            "full_rollout_infeasible"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.capacity.overloaded",
+              "belief_value": true,
+              "confidence": 0.9,
+              "freshness_window_min": 180
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "leo",
+              "delta": -0.04,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "leo.feasibility.high"
+        }
+      ]
+    },
+    {
+      "id": "leo.feasibility.low",
+      "priority": 20,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.feasibility",
         "pressure_band": "low",
         "surface": "chat"
-      }
-    },
-    {
-      "criticality": "critical",
-      "guard": {
-        "all_of": [
-          {
-            "critical_window_open": "approval_cutoff"
-          },
-          {
-            "project_state": {
-              "equals": "staged_rollout",
-              "field": "launch_scope"
-            }
-          }
-        ]
       },
-      "id": "ivy.approval.ready",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.approval",
-        "surface": "chat"
-      }
+      "response_envelopes": [
+        {
+          "id": "leo_feasibility_low_honest",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "full_scope_not_credible",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [
+            "full_rollout_infeasible"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.capacity.overloaded",
+              "belief_value": true,
+              "confidence": 0.8,
+              "freshness_window_min": 180
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.45,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "leo",
+              "delta": 0.02,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "leo.feasibility.low"
+        }
+      ]
     },
     {
+      "id": "leo.inform.availability",
+      "priority": 16,
       "criticality": "important",
-      "id": "ivy.escalate.to_manager",
-      "reachable": true,
       "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "escalate.to_manager",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.escalate.to_sponsor",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "escalate.to_sponsor",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform.availability",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
+        "actor_id": "leo",
         "incoming_act_id": "inform.availability",
         "surface": "chat"
-      }
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_availability_ack",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.availability",
+          "outgoing_slots": {
+            "availability": "limited_until_1100"
+          },
+          "surface_facts": [
+            "leo_overloaded_until_tue_1100"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.capacity.overloaded",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 180
+            }
+          ],
+          "effects": [],
+          "renderer_id": "leo.inform.availability"
+        }
+      ]
     },
     {
+      "id": "leo.inform.blocker",
+      "priority": 16,
       "criticality": "important",
-      "id": "ivy.inform.decision",
-      "reachable": true,
       "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.decision",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform.status_update",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.status_update",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform.risk",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.risk",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.inform_blocker",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
+        "actor_id": "leo",
         "incoming_act_id": "inform.blocker",
         "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.request.eta",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.eta",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.request.clarification",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.clarification",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "project_state": {
-          "equals": "staged_rollout",
-          "field": "launch_scope"
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_ack_blocker",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "blocker_acknowledged",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.shared_blocker_context",
+              "belief_value": true,
+              "confidence": 0.8,
+              "freshness_window_min": 120
+            }
+          ],
+          "effects": [],
+          "renderer_id": "leo.inform.blocker"
         }
-      },
-      "id": "ivy.scope_tradeoff.clear",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "dependency_band": "clear",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      }
+      ]
     },
     {
+      "id": "leo.inform.decision",
+      "priority": 16,
       "criticality": "important",
-      "id": "ivy.request.ownership",
-      "reachable": true,
       "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.ownership",
+        "actor_id": "leo",
+        "incoming_act_id": "inform.decision",
         "surface": "chat"
-      }
-    },
-    {
-      "criticality": "critical",
-      "guard": {
-        "all_of": [
-          {
-            "critical_window_open": "approval_cutoff"
-          },
-          {
-            "project_state": {
-              "equals": "staged_rollout",
-              "field": "launch_scope"
-            }
-          }
-        ]
       },
-      "id": "ivy.request.review.ready",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.review",
-        "surface": "chat"
-      }
+      "response_envelopes": [
+        {
+          "id": "leo_receive_decision_stage",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "decision_received",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "leo",
+              "belief_key": "project.launch_scope",
+              "belief_value": "staged_rollout",
+              "confidence": 0.85,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "renderer_id": "leo.inform.decision"
+        }
+      ]
     },
     {
+      "id": "leo.inform.status_update",
+      "priority": 16,
       "criticality": "important",
-      "guard": {
-        "any_of": [
-          {
-            "window_state": {
-              "equals": true,
-              "field": "closed",
-              "window_id": "approval_cutoff"
-            }
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.status_update",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_status_ack",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "acknowledged",
+            "task_id": "config_rollout"
           },
-          {
-            "not": {
-              "project_state": {
-                "equals": "staged_rollout",
-                "field": "launch_scope"
+          "surface_facts": [],
+          "belief_signals": [],
+          "effects": [],
+          "renderer_id": "leo.inform.status_update"
+        }
+      ]
+    },
+    {
+      "id": "leo.inform_risk",
+      "priority": 18,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_risk_response",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "risk_confirmed_scope_and_approval",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [
+            "full_rollout_infeasible",
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.delivery_risk",
+              "belief_value": "high_without_scope_and_approval",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.5,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
               }
             }
-          }
-        ]
-      },
-      "id": "ivy.request.review.defer",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.review",
-        "surface": "chat"
-      }
+          ],
+          "effects": [
+            {
+              "actor_id": "leo",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "leo.inform_risk"
+        }
+      ]
     },
     {
+      "id": "leo.negotiate.scope",
+      "priority": 22,
       "criticality": "important",
-      "id": "ivy.request.feasibility",
-      "reachable": true,
       "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.feasibility",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.scope",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
+        "actor_id": "leo",
         "incoming_act_id": "negotiate.scope",
         "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.timeline",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "negotiate.timeline",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.ownership",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "negotiate.ownership",
-        "surface": "chat"
-      }
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "any_of": [
-          {
-            "window_state": {
-              "equals": true,
-              "field": "closed",
-              "window_id": "approval_cutoff"
-            }
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_negotiate_scope_accept_stage",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "decision": "support_staged_rollout",
+            "task_id": "config_rollout"
           },
-          {
-            "not": {
-              "project_state": {
-                "equals": "staged_rollout",
-                "field": "launch_scope"
+          "surface_facts": [],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.aligned_on_scope",
+              "belief_value": "staged_rollout",
+              "confidence": 0.85,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "leo",
+              "belief_key": "project.launch_scope",
+              "belief_value": "staged_rollout",
+              "confidence": 0.9,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "patch": {
+                "launch_scope": "staged_rollout"
+              },
+              "type": "project_state_patch"
+            }
+          ],
+          "renderer_id": "leo.negotiate.scope"
+        }
+      ]
+    },
+    {
+      "id": "leo.request_ownership.blocked_short.gap1",
+      "priority": 12,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "leo",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "critical_path_owner",
+        "dependency_band": "blocked",
+        "incoming_act_id": "request.ownership",
+        "launch_scope": "undecided",
+        "org_role": "engineer",
+        "pressure_band": "low",
+        "surface": "chat",
+        "timing_band": "short",
+        "trust_band": "medium"
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_ownership_blocked_until_scope_and_approval",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "scope_and_approval_unresolved",
+            "owner": "leo",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.engineering_owner",
+              "belief_value": "leo",
+              "confidence": 0.95,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.engineering_blocker",
+              "belief_value": "scope_and_approval_unresolved",
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
               }
             }
-          }
-        ]
-      },
-      "id": "ivy.approval.defer",
-      "reachable": true,
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.approval",
-        "surface": "chat"
-      }
+          ],
+          "effects": [],
+          "renderer_id": "leo.request_ownership.blocked_short.gap1"
+        }
+      ]
     },
     {
+      "id": "leo.scope_tradeoff",
+      "priority": 22,
       "criticality": "important",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.scope_tradeoff",
+        "surface": "chat"
+      },
+      "response_envelopes": [
+        {
+          "id": "leo_scope_tradeoff_recommend_stage",
+          "weight": 1.0,
+          "outgoing_act_id": "negotiate.scope",
+          "outgoing_slots": {
+            "dropped_scope": "full_rollout",
+            "proposed_scope": "staged_rollout",
+            "task_id": "config_rollout"
+          },
+          "surface_facts": [
+            "full_rollout_infeasible",
+            "approval_required"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.launch_scope_candidate",
+              "belief_value": "staged_rollout",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "actor_id": "tpm",
+              "belief_key": "actor.leo.private_driver.rejects_fake_rollout_dates",
+              "belief_value": true,
+              "confidence": 0.5,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "leo_rejects_fake_rollout_dates"
+              }
+            }
+          ],
+          "effects": [],
+          "renderer_id": "leo.scope_tradeoff"
+        }
+      ]
+    },
+    {
       "id": "mia.request.feasibility",
-      "reachable": true,
+      "priority": 15,
+      "criticality": "important",
       "selector": {
         "actor_id": "mia",
         "incoming_act_id": "request.feasibility",
         "surface": "chat"
-      }
+      },
+      "response_envelopes": [
+        {
+          "id": "mia_feasibility_supportable",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "decision": "ops_supportable_if_bounded",
+            "task_id": "runbook_readiness"
+          },
+          "surface_facts": [
+            "ops_checklist_available"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.mia.ops_support",
+              "belief_value": "available_for_bounded_staged_path",
+              "confidence": 0.9,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "audience_ids": [
+                "tpm"
+              ],
+              "confidence": 0.82,
+              "id": "runbook_cleanup_commitment",
+              "metadata": {
+                "task_id": "runbook_readiness",
+                "validity_basis": "bounded_noncritical_ask"
+              },
+              "owner_id": "mia",
+              "scope": {
+                "bounded": true,
+                "non_gating": true
+              },
+              "status": "tentative",
+              "subject": "runbook_cleanup",
+              "type": "create_or_update_commitment"
+            }
+          ],
+          "renderer_id": "mia.request.feasibility"
+        }
+      ]
+    },
+    {
+      "id": "mia.request_clarification.early.gap1",
+      "priority": 10,
+      "criticality": "important",
+      "selector": {
+        "actor_id": "mia",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "ally",
+        "dependency_band": "clear",
+        "incoming_act_id": "request.clarification",
+        "launch_scope": "undecided",
+        "org_role": "operations",
+        "pressure_band": "medium",
+        "surface": "chat",
+        "timing_band": "early",
+        "trust_band": "high"
+      },
+      "response_envelopes": [
+        {
+          "id": "mia_clarification_early_noncritical_help",
+          "weight": 1.0,
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "runbook_help_is_available_but_not_main_path",
+            "task_id": "runbook_readiness"
+          },
+          "surface_facts": [
+            "ops_checklist_available"
+          ],
+          "belief_signals": [
+            {
+              "actor_id": "tpm",
+              "belief_key": "actor.mia.ops_ready_for_small_help",
+              "belief_value": true,
+              "confidence": 0.92,
+              "freshness_window_min": 480
+            },
+            {
+              "actor_id": "tpm",
+              "belief_key": "project.runbook_is_non_gating",
+              "belief_value": true,
+              "confidence": 0.88,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "mia",
+              "delta": 0.02,
+              "field": "trust",
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "renderer_id": "mia.request_clarification.early.gap1"
+        }
+      ]
     }
   ],
   "renderers": {
     "calendar.accept.available": [
-      "I can make that time."
+      "Accepted. That time works for me.",
+      "I can make that meeting.",
+      "That slot works \u2014 accepted."
     ],
     "calendar.decline.unavailable": [
-      "I can't make that slot."
+      "I can't make that time.",
+      "I'm unavailable for that slot.",
+      "That time doesn't work for me."
     ],
     "dana.clarification.generic": [
-      "Bring me the concrete tradeoff. If full rollout is not real, recommend the staged path clearly and I will back it."
+      "I need the real rollout story. If full isn't real, say that and bring me the staged option early.",
+      "I'm asking for a credible plan, not a green status update.",
+      "Clarify what's actually deliverable in this window and what tradeoff you want me to support."
+    ],
+    "dana.escalate_to_sponsor.early.gap1": [
+      "You don't need to escalate to me as if I'm a distant sponsor \u2014 just give me the real tradeoff now. If full rollout is blocked, say it clearly and bring the staged plan.",
+      "I'm already the sponsor here. Don't escalate around the problem; tell me whether full scope is real and what staged rollout you want me to back.",
+      "If you're escalating, make it useful: what's the actual feasibility gap, and what narrower rollout should we commit to before the window closes?"
     ],
     "dana.inform_blocker": [
-      "Understood. If this blocker means full rollout is not credible, bring me the staged tradeoff and I will back it."
+      "I understand there's a blocker. What does that mean for the rollout plan?",
+      "Okay, but what's the concrete implication?",
+      "Noted. Tell me what decision that blocker forces."
     ],
     "dana.inform_decision": [
-      "I hear the direction, but I still need the concrete tradeoff. If full rollout is not real, bring me the staged plan clearly and I will back it."
+      "What's that decision based on, and is it actually credible?",
+      "Okay \u2014 walk me through why that's the right call.",
+      "I need the reasoning, not just the headline decision."
     ],
     "dana.inform_risk": [
-      "Thanks for surfacing it early. If full rollout is not real, come back with the staged tradeoff."
+      "Then give me the real tradeoff, not a softened risk statement.",
+      "If that's the risk, I want the credible rollout plan spelled out clearly.",
+      "Okay \u2014 translate that into the actual scope decision I need to make."
+    ],
+    "dana.inform_status_update": [
+      "Thanks for the update. What's the concrete next decision or blocker I should be tracking?",
+      "I appreciate the status, but tell me what still needs to happen and where you need my support.",
+      "Status is useful only if it points to the next choice. What's unresolved and what do you want from me?"
+    ],
+    "dana.negotiate_scope": [
+      "If we're negotiating scope, make the tradeoff explicit. Tell me what staged rollout buys us and what we're cutting.",
+      "Don't negotiate in the abstract. Give me the real rollout tradeoff so I can back the right path.",
+      "If full scope is slipping, say that plainly and bring me the concrete staged option you want supported."
     ],
     "dana.request.approval": [
-      "I am not approving a vague plan. If full rollout is not credible, bring me the staged tradeoff clearly and I will back that path."
+      "I can support the direction, but the actual approval needs to go through Ivy.",
+      "You're asking the wrong person for formal approval. Ivy owns that review path.",
+      "I can back the plan, but security approval still has to come from Ivy before the cutoff."
+    ],
+    "dana.request_ownership.staged_rollout.gap1": [
+      "I back the staged path, but Leo owns delivery and Ivy owns approval. Keep me on the decision, not the execution handoff.",
+      "Ownership is split here: Leo drives rollout execution, Ivy owns the approval queue, and I sponsor the staged tradeoff."
     ],
     "dana.scope_tradeoff.ready": [
-      "Call it a staged rollout. I would rather commit to the smaller credible plan than fake full scope."
+      "If full rollout isn't credible, then let's stop pretending. I support the staged rollout path \u2014 move on it now.",
+      "Okay. Bring the staged plan forward and align the team on that path.",
+      "That's the right tradeoff. Commit to staged rollout and make sure approval happens before the queue closes."
     ],
     "dana.scope_tradeoff.unsupported": [
-      "I need the engineering reality first before I call the scope tradeoff."
+      "Before we talk tradeoff, tell me plainly why full rollout is not real.",
+      "Don't jump to scope reduction without showing me the actual feasibility gap.",
+      "If you want me to consider staged rollout, first make the case that full scope is not credible."
     ],
     "ivy.approval.defer": [
-      "I can't grant that yet. I either need the staged scope locked or you missed the useful queue window."
+      "I can't approve this in the current state.",
+      "Approval has to wait \u2014 either the window has closed or the staged scope isn't actually defined.",
+      "This isn't approvable yet from my side."
     ],
     "ivy.approval.ready": [
-      "Approved for the staged rollout. You have the slot."
+      "This is complete and in the right window. Approved from my side.",
+      "I have what I need for the staged rollout review. Approval is good before the cutoff.",
+      "Submission looks complete and timely. You have approval."
     ],
     "ivy.escalate.to_manager": [
-      "Escalation does not change the requirement. I still need the staged scope and a proper approval request before I can move."
+      "Escalating to my manager won't replace a complete intake.",
+      "Please don't route around the process when what I need is a complete submission.",
+      "My manager can't approve an incomplete request faster than I can review a complete one."
     ],
     "ivy.escalate.to_sponsor": [
-      "Looping in a sponsor does not change the requirement. I still need the staged scope and a proper approval request before I can move."
+      "A sponsor escalation doesn't change the review requirements.",
+      "Dana can't waive the need for a complete review packet.",
+      "If the ask is approval, the fastest path is still a proper submission, not escalation."
     ],
     "ivy.inform.availability": [
-      "Noted. Keep me posted when the staged scope and approval request are ready."
+      "I'm available to review before noon if the intake is complete.",
+      "I can look today, but only if it's submitted cleanly before the queue cutoff.",
+      "My availability is tied to getting a complete request in before noon."
     ],
     "ivy.inform.decision": [
-      "Understood. Send the concrete staged request through the normal approval path and I will review it."
+      "Got it. That helps frame the review.",
+      "Understood. I'll evaluate against that decision.",
+      "Thanks, that gives me the right context."
     ],
     "ivy.inform.risk": [
-      "Understood. If the risk is real, lock the staged scope and send the formal request before the cutoff."
+      "If that's the risk posture, then yes, this needs formal review before you treat it as committed.",
+      "That level of risk means I need a proper intake, not an informal heads-up.",
+      "Then the dependency is explicit: get me the complete review package before cutoff."
     ],
     "ivy.inform.status_update": [
-      "Thanks for the update. I still need the staged scope and the formal request before I can move."
+      "Thanks for the update.",
+      "Understood.",
+      "Got it."
     ],
     "ivy.inform_blocker": [
-      "Noted. When the staged scope is locked, send the actual approval request and I will look at it."
+      "Okay \u2014 what's missing from the submission?",
+      "If there's a blocker, I need to know whether the intake is complete.",
+      "Tell me what remains before I can review it."
     ],
     "ivy.negotiate.ownership": [
-      "I own the approval review, but ownership does not remove the staged-scope and cutoff requirements."
+      "I can own the review, but not the rollout delivery itself.",
+      "Ownership is split: I own approval review, Leo owns execution.",
+      "Happy to own the approval leg; engineering still owns rollout readiness."
     ],
     "ivy.negotiate.scope": [
-      "I do not set product scope. If you want review to move, lock the staged scope and send the actual request."
+      "I'm fine with a narrower rollout, but the scope has to be specific enough to review.",
+      "If you're negotiating scope, land on a concrete staged plan I can evaluate.",
+      "Broad intent isn't enough \u2014 I need the actual staged scope definition."
     ],
     "ivy.negotiate.timeline": [
-      "I am not negotiating the timeline here. Lock the staged scope and get the request in before the cutoff."
+      "The only timeline flexibility I have is within today's queue. After noon, it's effectively too late for this path.",
+      "Timeline here is mostly dictated by the queue cutoff.",
+      "If you want today's review, the negotiation is really about getting complete intake in before noon."
     ],
     "ivy.request.clarification": [
-      "The blocker is the same: I need the staged scope locked and a real approval request in before the cutoff."
+      "The clarification is simple: if this needs review, send a complete intake before noon.",
+      "I need the full staged-rollout request in the queue before the cutoff if you want today's review.",
+      "What matters is submission completeness and timing, not a partial heads-up."
     ],
     "ivy.request.eta": [
-      "I do not give the delivery ETA here. Get the staged scope locked and send the approval request before the cutoff."
+      "I can tell you review timing, not engineering rollout ETA.",
+      "ETA for the rollout isn't mine to commit; I only own the review step.",
+      "From my side I can speak to approval timing, not delivery timing."
     ],
     "ivy.request.feasibility": [
-      "Review is feasible only on the staged path, and only if the actual request lands before the cutoff."
+      "I can tell you whether the staged plan is reviewable, not whether engineering can deliver it.",
+      "Feasibility of delivery is Leo's call; my part is whether the review can clear.",
+      "From my side, the question is completeness and risk, not engineering capacity."
     ],
     "ivy.request.ownership": [
-      "I own the approval review, but I still need the staged scope locked and the actual request in before I can move."
+      "I own the approval review step.",
+      "Yes, approval review is with me.",
+      "I'm the owner for this review queue."
     ],
     "ivy.request.review.defer": [
-      "I still need the staged scope locked and the actual review request in before I can move."
+      "I can't take this review as-is right now.",
+      "This isn't actionable for review in the current state or timing.",
+      "You'll need either the staged scope clarified or a still-open window before I can review it."
     ],
     "ivy.request.review.ready": [
-      "Send me the staged review request and I can approve it now."
+      "This is in time and the staged scope is clear. I'll review it now.",
+      "I can take this review in the current queue.",
+      "Looks review-ready. I'll process it in today's window."
     ],
     "ivy.scope_tradeoff.clear": [
-      "Scope is already staged on my side. I do not decide product tradeoffs, so just send the concrete approval request if you still need review."
+      "If the plan is staged rollout, that's a reviewable scope from my side.",
+      "Staged scope is clear enough to evaluate, assuming the intake is complete.",
+      "I can work with the narrowed staged plan; just get it in before the queue closes."
     ],
     "leo.clarification.blocked": [
-      "The blocker is the same: full rollout is not credible, and I still need the staged scope plus approval before I can give you a real plan."
+      "I can clarify the work, but I don't want to skip straight to dates before scope is real.",
+      "The main clarification is that the answer changes a lot once we stop assuming full rollout.",
+      "Happy to be specific \u2014 I just need us to ground scope first."
     ],
     "leo.eta.blocked": [
-      "I need the staged scope and approval settled before I can give you a credible ETA."
+      "I can't give you a credible ETA yet. It still depends on staged scope being locked and approval being done.",
+      "ETA is blocked until scope alignment and approval are both real.",
+      "The answer is still no on a real ETA until those prerequisites are cleared."
     ],
     "leo.eta.high": [
-      "I am not giving you a real ETA while I am still underwater this morning."
+      "I'm not giving you a made-up ETA just because the pressure is high. Lock scope and approval first.",
+      "No credible ETA from me under this setup. I'd rather be accurate than perform confidence.",
+      "If you want a real date, don't ask me to invent one before the staged path and approval are real."
     ],
     "leo.eta.ready": [
-      "With staged scope and approval in place, I can tentatively target Wednesday at 3:00 PM."
+      "Now that staged scope is aligned and approval is in, I can tentatively target Wednesday afternoon for the rollout.",
+      "With the prerequisites settled, I can give you a real working ETA: staged rollout by Wednesday afternoon.",
+      "Okay \u2014 on staged scope with approval secured, Wednesday afternoon is a credible target."
     ],
     "leo.feasibility.high": [
-      "Full rollout by Wednesday is not credible. I am still buried this morning and we also need approval on the staged path."
+      "I'm still underwater, so I'm not going to pretend full rollout is credible. If you want a real answer, we need to talk staged scope first.",
+      "High-pressure ask or not, I can't give you a believable full-rollout read. The honest blocker is scope realism.",
+      "I don't have a credible yes for full rollout. Right now the real answer is that full scope is not realistic."
     ],
     "leo.feasibility.low": [
-      "If we switch to the staged rollout, I can make the path work once approval is in."
+      "Honestly, full rollout doesn't look credible in this window. A staged path is the realistic one.",
+      "If you're asking for the real feasibility answer, it's that full scope is not believable this week.",
+      "I can support a narrower staged rollout, but I wouldn't call full rollout feasible here."
     ],
     "leo.inform.availability": [
-      "Noted. Keep me posted if the availability changes the rollout decision."
+      "I'm still pretty constrained until late morning.",
+      "I'm available in a limited way before 11.",
+      "I'm overloaded for the next bit, then I should have more room."
     ],
     "leo.inform.blocker": [
-      "Understood. If that blocker stands, we should stay on the staged path."
+      "Yeah, that tracks with what I'm seeing on the rollout work.",
+      "Understood. That's consistent with the current constraint from my side.",
+      "Makes sense. That blocker is part of why I haven't wanted to overstate readiness."
     ],
     "leo.inform.decision": [
-      "Got it. If that decision holds, I can work from the staged path."
+      "Got it. If the decision is staged rollout, I can plan against that.",
+      "Thanks. A real scope decision helps a lot.",
+      "Understood. Once the scope is explicit, I can stop hedging around the work."
     ],
     "leo.inform.status_update": [
-      "Thanks for the update. I am still working from the staged-path assumptions."
+      "Thanks for the update.",
+      "Got it, thanks.",
+      "Understood."
     ],
     "leo.inform_risk": [
-      "Agreed. The risk is real, and it does not get better without cutting to the staged rollout."
+      "Yes, that's the risk: without locked scope and approval, any rollout date I give you is theater.",
+      "Agreed. The risk isn't just delay \u2014 it's pretending we have a real plan before scope and approval are settled.",
+      "That's the core issue from my side too. Scope and approval have to get grounded first."
     ],
     "leo.negotiate.scope": [
-      "The real scope move is staged rollout versus slipping everything. If you want something credible this week, cut to staged and get approval moving."
+      "If we're committing to staged rollout, yes, that's the path I can support.",
+      "I can work to a staged rollout plan. That's a real scope, unlike full launch right now.",
+      "Staged rollout is the credible path from engineering's side."
+    ],
+    "leo.request_ownership.blocked_short.gap1": [
+      "I own the engineering execution, but that doesn't unblock anything until staged scope is real and approval is actually in place.",
+      "Yes, I'm the engineering owner here. The blocker is still unresolved scope plus whether approval is real.",
+      "Ownership on my side isn't the missing piece. I need the staged path locked and the approval path made real before I can move this cleanly."
     ],
     "leo.scope_tradeoff": [
-      "The real tradeoff is staged rollout versus slipping everything. If you want something credible this week, stage it and get approval moving."
+      "The real tradeoff is staged rollout versus pretending full scope still fits. I recommend staged, and we still need approval lined up.",
+      "If we're being honest, we should narrow to a staged rollout and stop carrying full scope. That only works if approval is real.",
+      "My recommendation is to cut to the staged path now. Full rollout isn't credible, and I need approval in hand before giving anything firmer."
     ],
     "mia.request.feasibility": [
-      "From ops, the staged rollout is feasible. If you lock that path, I can support the runbook and launch prep quickly."
+      "Yes \u2014 if the rollout is staged and the ask stays bounded, I can support the runbook side.",
+      "Operationally, the narrowed path is fine. I already have the checklist and rollback notes.",
+      "The staged rollout looks supportable from ops, especially if you keep my workstream clearly non-gating."
+    ],
+    "mia.request_clarification.early.gap1": [
+      "Sure \u2014 on my side the clarification is that the runbook work is easy help, not the thing blocking launch. Once scope settles, I can tidy the checklist quickly.",
+      "Happy to clarify: ops isn't your critical path here. I already have most of the checklist and rollback notes, so this is a small cleanup once the staged scope is decided.",
+      "From ops, the main point is don't over-rotate on me. I can polish the runbook fast after the rollout path is clear, but approval and scope are the real gating items."
     ]
-  },
-  "version": "CONTEXT_FAMILY_SCHEMA_v1"
+  }
 }

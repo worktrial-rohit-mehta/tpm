@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from tpm_sim.agent import AgentRunner, OpenAIResponsesAgentAdapter
+from tpm_sim.agent import AgentRunner, DEFAULT_AGENT_MAX_TURNS, OpenAIResponsesAgentAdapter
 from tpm_sim.authoring.briefs import AuthoringBrief, load_brief
 from tpm_sim.briefing import (
     build_authoring_briefing,
@@ -28,14 +28,20 @@ from tpm_sim.coverage_artifacts import (
     compile_coverage,
     extract_contract_and_semantics,
     extend_contract_with_gaps,
+    merge_contract_with_starter_floor,
+    normalize_semantics_artifact,
     validate_contract,
     validate_semantics,
 )
 from tpm_sim.environment import EnvironmentSession
 from tpm_sim.model_client import build_model_client
-from tpm_sim.scenario import SPEC_FILES, load_bundle_from_paths, seed_store
+from tpm_sim.scenario import SPEC_FILES, load_bundle_from_paths, seed_store, validate_runtime_scenario
+from tpm_sim.script_dsl import validate_trajectory_payload
 from tpm_sim.specs import require_known_act
 from tpm_sim.storage import open_store
+
+
+LEGACY_ROOT_TRAJECTORY_SCENARIOS = {"northstar_launch_week"}
 
 
 def init_proposal(brief_path: str, proposal_dir: str) -> dict[str, Any]:
@@ -98,7 +104,7 @@ def synthesize_world(
         scenario_candidate.setdefault("evaluation", {})["official_seeds"] = _normalize_official_seeds(
             scenario_candidate.get("evaluation", {}).get("official_seeds", [])
         )
-    scenario_candidate = _normalize_world_candidate(scenario_candidate)
+    scenario_candidate = _normalize_world_candidate(scenario_candidate, accepted_full=accepted_full)
     _require_nested_mapping_keys(
         scenario_candidate,
         "world",
@@ -142,6 +148,9 @@ def synthesize_world(
         required_keys=["official_seeds", "primary_failure_classes", "rubric_lines"],
         artifact_name="scenario.json",
     )
+    scenario_errors = validate_runtime_scenario(scenario_candidate)
+    if scenario_errors:
+        raise RuntimeError(f"scenario.json failed validation: {'; '.join(scenario_errors)}")
     paths = _proposal_paths(proposal_dir)
     paths["scenario"].write_text(json.dumps(scenario_candidate, indent=2, sort_keys=True))
     _update_manifest(proposal_dir, status="world_synthesized", generated_artifacts={"scenario": str(paths["scenario"])})
@@ -171,6 +180,7 @@ def compile_contract(proposal_dir: str) -> dict[str, Any]:
                 contract = build_starter_contract(scenario_candidate)
     else:
         contract = build_starter_contract(scenario_candidate)
+    contract, starter_floor_added = merge_contract_with_starter_floor(contract, scenario_candidate)
 
     errors = validate_contract(contract)
     if errors:
@@ -184,7 +194,11 @@ def compile_contract(proposal_dir: str) -> dict[str, Any]:
         generated_artifacts={"coverage_contract": str(paths["contract"])},
     )
     return _with_operator_briefing(
-        {"coverage_contract_path": str(paths["contract"]), "cell_count": len(contract.get("cells", []))},
+        {
+            "coverage_contract_path": str(paths["contract"]),
+            "cell_count": len(contract.get("cells", [])),
+            "starter_floor_cells_added": len(starter_floor_added),
+        },
         proposal_dir,
     )
 
@@ -226,6 +240,7 @@ def synthesize_semantics(
         coverage_contract,
         accepted_full=accepted_full,
     )
+    semantics_candidate = normalize_semantics_artifact(semantics_candidate)
     errors = validate_semantics(coverage_contract, semantics_candidate)
     if errors:
         raise RuntimeError(f"coverage_semantics.json failed validation: {'; '.join(errors)}")
@@ -251,7 +266,12 @@ def compile_coverage_artifact(proposal_dir: str) -> dict[str, Any]:
     contract_bytes = paths["contract"].read_bytes()
     semantics_bytes = paths["semantics"].read_bytes()
     contract = json.loads(contract_bytes)
-    semantics = json.loads(semantics_bytes)
+    semantics = normalize_semantics_artifact(json.loads(semantics_bytes))
+    normalized_semantics_text = json.dumps(semantics, indent=2, sort_keys=True)
+    normalized_semantics_bytes = normalized_semantics_text.encode("utf-8")
+    if normalized_semantics_bytes != semantics_bytes:
+        paths["semantics"].write_text(normalized_semantics_text)
+        semantics_bytes = normalized_semantics_bytes
     source_digest = _source_digest_for_bytes(scenario_bytes, contract_bytes, semantics_bytes)
     compiled, report = compile_coverage(contract, semantics, compiled_from_digest=source_digest)
     paths["coverage"].write_text(json.dumps(compiled, indent=2, sort_keys=True))
@@ -315,10 +335,16 @@ def synthesize_trajectories(
     response = client.generate_text(prompt, {"model": model})
     _write_model_response(proposal_dir, "trajectories", response)
     payload = _extract_json_payload(response.text, artifact_name="trajectories.json")
+    trajectory_errors = validate_trajectory_payload(payload, scenario=scenario_candidate)
+    if trajectory_errors:
+        preview = "; ".join(trajectory_errors[:3])
+        suffix = "" if len(trajectory_errors) <= 3 else f"; +{len(trajectory_errors) - 3} more"
+        raise RuntimeError(f"Generated trajectories failed syntax validation: {preview}{suffix}")
     if accepted_full:
         merged_payload = dict(accepted_full)
         for name, content in payload.items():
-            if not (isinstance(content, str) and name.endswith(".tpm")):
+            if not (isinstance(name, str) and isinstance(content, str) and name.endswith(".tpm")):
+                merged_payload[name] = content
                 continue
             target_name = name if name not in merged_payload else f"generated__{name}"
             merged_payload[target_name] = content
@@ -340,6 +366,7 @@ def validate_proposal(proposal_dir: str, *, smoke_seed: int = 11) -> dict[str, A
     paths = _proposal_paths(proposal_dir)
     brief = _load_proposal_brief(proposal_dir)
     errors: list[str] = []
+    scenario_validation_errors: list[str] = []
     for key, label in (
         ("scenario", "candidate scenario.json"),
         ("contract", "candidate coverage_contract.json"),
@@ -353,63 +380,92 @@ def validate_proposal(proposal_dir: str, *, smoke_seed: int = 11) -> dict[str, A
         _update_manifest(proposal_dir, status="validation_failed")
         return _with_operator_briefing(report, proposal_dir)
 
+    scenario_candidate = json.loads(paths["scenario"].read_text())
+    scenario_validation_errors = validate_runtime_scenario(scenario_candidate)
+    if scenario_validation_errors:
+        errors.append("scenario runtime validation failed")
+
     compile_result = compile_coverage_artifact(proposal_dir)
     compile_report = compile_result["report"]
     if compile_report["errors"]:
         errors.extend(compile_report["errors"])
-
-    bundle = load_bundle_from_paths(
-        paths["scenario"],
-        paths["coverage"],
-        contract_path=paths["contract"],
-        semantics_path=paths["semantics"],
-    )
-    coverage_report = None
-    smoke_results: list[dict[str, Any]] = []
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = str(Path(tmpdir) / "proposal.sqlite")
-        store = open_store(db_path)
-        try:
-            seed_store(store, bundle, smoke_seed, coverage_enforcement="strict")
-            from tpm_sim.engine import SimulationEngine
-            from tpm_sim.evaluator import Evaluator
-
-            engine = SimulationEngine(store, bundle)
-            evaluator = Evaluator(engine)
-            session = EnvironmentSession(db_path, engine, evaluator)
-        except Exception:
-            store.close()
-            raise
-        try:
-            coverage_report = session.coverage_report()
-        finally:
-            session.close()
-
-    if coverage_report["critical_uncovered"] > 0:
-        errors.append("critical coverage cells remain uncovered")
     if compile_report["missing_semantic_cells"]:
         errors.append("contract cells are missing semantics")
     if compile_report["orphan_semantic_cells"]:
         errors.append("orphan semantic cells detected")
 
-    scripts = _smoke_scripts(paths["trajectories"])
-    if not scripts:
-        errors.append("no smoke trajectories available")
-    else:
-        for script in scripts[:2]:
-            smoke_results.append(_run_candidate_script(bundle, script, smoke_seed))
+    coverage_report = None
+    smoke_results: list[dict[str, Any]] = []
+    trajectory_syntax_errors: list[str] = []
+    bundle = None
+    if not scenario_validation_errors:
+        try:
+            bundle = load_bundle_from_paths(
+                paths["scenario"],
+                paths["coverage"],
+                contract_path=paths["contract"],
+                semantics_path=paths["semantics"],
+            )
+        except Exception as exc:
+            errors.append(f"bundle load failed: {exc}")
 
-    if any(item["error"] for item in smoke_results):
-        errors.append("smoke trajectory execution failed")
+    if bundle is not None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "proposal.sqlite")
+            store = open_store(db_path)
+            try:
+                seed_store(store, bundle, smoke_seed, coverage_enforcement="strict")
+                from tpm_sim.engine import SimulationEngine
+                from tpm_sim.evaluator import Evaluator
+
+                engine = SimulationEngine(store, bundle)
+                evaluator = Evaluator(engine)
+                session = EnvironmentSession(db_path, engine, evaluator)
+            except Exception:
+                store.close()
+                raise
+            try:
+                coverage_report = session.coverage_report()
+            finally:
+                session.close()
+
+        if coverage_report["critical_uncovered"] > 0:
+            errors.append("critical coverage cells remain uncovered")
+
+        executable_scripts = {
+            path.name: path.read_text()
+            for path in dict.fromkeys(_smoke_scripts(paths["trajectories"]) + _closure_scripts(paths["trajectories"]))
+        }
+        trajectory_syntax_errors = validate_trajectory_payload(
+            executable_scripts,
+            scenario=bundle["scenario"],
+            require_smoke_like=False,
+        )
+        if trajectory_syntax_errors:
+            errors.append("trajectory syntax validation failed")
+
+        scripts = _smoke_scripts(paths["trajectories"])
+        if trajectory_syntax_errors:
+            smoke_results = []
+        elif not scripts:
+            errors.append("no smoke trajectories available")
+        else:
+            for script in scripts[:2]:
+                smoke_results.append(_run_candidate_script(bundle, script, smoke_seed))
+
+        if any(item["error"] for item in smoke_results):
+            errors.append("smoke trajectory execution failed")
 
     report = {
         "valid": not errors,
         "scenario_id": brief.scenario_id,
-        "bundle_digest": bundle["scenario_digest"],
-        "compiled_coverage_digest": bundle.get("compiled_coverage_digest"),
+        "bundle_digest": bundle["scenario_digest"] if bundle is not None else None,
+        "compiled_coverage_digest": bundle.get("compiled_coverage_digest") if bundle is not None else None,
         "coverage_report": coverage_report,
         "compile_report": compile_report,
+        "scenario_validation_errors": scenario_validation_errors,
         "smoke_results": smoke_results,
+        "trajectory_syntax_errors": trajectory_syntax_errors,
         "errors": errors,
     }
     paths["validation"].write_text(json.dumps(report, indent=2, sort_keys=True))
@@ -433,17 +489,12 @@ def run_closure_suite(
     if not validation or not validation.get("valid"):
         raise RuntimeError("Closure suite requires a successful validation report.")
 
-    bundle = load_bundle_from_paths(
-        paths["scenario"],
-        paths["coverage"],
-        contract_path=paths["contract"],
-        semantics_path=paths["semantics"],
-    )
-    scenario = bundle["scenario"]
-    official_seeds = list(scenario.get("evaluation", {}).get("official_seeds", []))
+    raw_scenario = json.loads(paths["scenario"].read_text())
+    official_seeds = list(raw_scenario.get("evaluation", {}).get("official_seeds", []))
+    scenario_id = raw_scenario.get("id", paths["root"].name)
     if not official_seeds:
         report = {
-            "scenario_id": scenario["id"],
+            "scenario_id": scenario_id,
             "status": "failed_no_seeds",
             "passed": False,
             "deterministic_scripted_suite": [],
@@ -464,6 +515,14 @@ def run_closure_suite(
         _update_manifest(proposal_dir, status="closure_failed")
         return report
 
+    bundle = load_bundle_from_paths(
+        paths["scenario"],
+        paths["coverage"],
+        contract_path=paths["contract"],
+        semantics_path=paths["semantics"],
+    )
+    scenario = bundle["scenario"]
+
     scripted_suite: list[dict[str, Any]] = []
     deterministic_ok = True
     for script in _closure_scripts(paths["trajectories"]):
@@ -483,16 +542,16 @@ def run_closure_suite(
         for seed in official_seeds:
             for run_index in range(repeats):
                 with tempfile.TemporaryDirectory() as tmpdir:
-                    session = EnvironmentSession.create(
+                    session = EnvironmentSession.create_from_bundle(
                         str(Path(tmpdir) / "closure.sqlite"),
-                        scenario["id"],
+                        bundle,
                         seed,
                         coverage_enforcement="strict",
                         force=True,
                     )
                     try:
                         adapter_impl = OpenAIResponsesAgentAdapter(client, model=model, temperature=0, top_p=1)
-                        record = AgentRunner(adapter_impl, max_turns=40).run(
+                        record = AgentRunner(adapter_impl, max_turns=DEFAULT_AGENT_MAX_TURNS).run(
                             session,
                             seed=seed,
                             output_dir=str(Path(tmpdir) / "closure_run"),
@@ -701,7 +760,7 @@ def _proposal_paths(proposal_dir: str) -> dict[str, Path]:
 def _reference_scenario_id(brief: AuthoringBrief, filename: str) -> str | None:
     own_path = Path("tpm_sim") / "scenarios" / brief.scenario_id / filename
     if filename == "trajectories":
-        own_path = Path("examples") / brief.scenario_id
+        own_path = _trajectory_reference_directory(brief.scenario_id) or Path("examples") / brief.scenario_id
     if own_path.exists():
         return brief.scenario_id
     return brief.reference_scenario_id
@@ -765,8 +824,16 @@ def _summarize_semantics(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _normalize_world_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+def _normalize_world_candidate(candidate: dict[str, Any], *, accepted_full: dict[str, Any] | None = None) -> dict[str, Any]:
     normalized = deepcopy(candidate)
+    policy = normalized.setdefault("policy", {})
+    baseline_policy = (accepted_full or {}).get("policy", {})
+    normalized_requirements = _normalize_external_commitment_requirements(
+        policy.get("external_commitment_requirements"),
+        baseline_policy.get("external_commitment_requirements"),
+    )
+    if normalized_requirements:
+        policy["external_commitment_requirements"] = normalized_requirements
     world = normalized.setdefault("world", {})
     beliefs = world.get("beliefs", [])
     if isinstance(beliefs, list):
@@ -780,6 +847,31 @@ def _normalize_world_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     messages = world.get("messages", [])
     if isinstance(messages, list):
         world["messages"] = _normalize_initial_messages(messages, world.get("threads", []))
+    return normalized
+
+
+def _normalize_external_commitment_requirements(candidate: Any, baseline: Any) -> list[str]:
+    normalized = _extract_external_commitment_requirement_ids(candidate)
+    if normalized:
+        return normalized
+    return _extract_external_commitment_requirement_ids(baseline)
+
+
+def _extract_external_commitment_requirement_ids(raw: Any) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    normalized: list[str] = []
+    for item in raw:
+        if isinstance(item, str) and item:
+            normalized.append(item)
+            continue
+        if isinstance(item, dict):
+            milestone_id = item.get("milestone_id")
+            if isinstance(milestone_id, str) and milestone_id:
+                normalized.append(milestone_id)
+            milestone_ids = item.get("milestone_ids")
+            if isinstance(milestone_ids, list):
+                normalized.extend(value for value in milestone_ids if isinstance(value, str) and value)
     return normalized
 
 
@@ -1000,6 +1092,14 @@ def _normalize_semantics_candidate(
         if candidate_entry is None and baseline_entry is not None:
             normalized_cells.append(deepcopy(baseline_entry))
             continue
+        if candidate_entry is None and baseline_entry is None:
+            normalized_cells.append(
+                {
+                    "cell_id": cell_id,
+                    "response_envelopes": _fallback_semantic_envelopes(contract_cell),
+                }
+            )
+            continue
         normalized_entry = {
             "cell_id": cell_id,
             "response_envelopes": _normalize_semantic_envelopes(
@@ -1008,6 +1108,8 @@ def _normalize_semantics_candidate(
                 baseline_entry.get("response_envelopes", []) if isinstance(baseline_entry, dict) else [],
             ),
         }
+        if not normalized_entry["response_envelopes"]:
+            normalized_entry["response_envelopes"] = _fallback_semantic_envelopes(contract_cell)
         normalized_cells.append(normalized_entry)
     return {
         "version": candidate.get("version", (accepted_full or {}).get("version", "coverage_semantics_v1")),
@@ -1109,6 +1211,115 @@ def _default_renderer_variant(outgoing_act_id: str) -> str:
     return defaults.get(outgoing_act_id, "Acknowledged.")
 
 
+def _fallback_semantic_envelopes(contract_cell: dict[str, Any]) -> list[dict[str, Any]]:
+    selector = contract_cell.get("selector", {}) if isinstance(contract_cell, dict) else {}
+    cell_id = str(contract_cell.get("id", "fallback.cell"))
+    incoming_act_id = str(selector.get("incoming_act_id", "request.clarification"))
+    surface = str(selector.get("surface", "chat"))
+    if surface == "calendar" and incoming_act_id == "meeting.propose":
+        available = _calendar_cell_accepts(contract_cell.get("guard"))
+        outgoing_act_id = "meeting.accept" if available else "meeting.decline"
+        outgoing_slots = {"status": "accepted"} if available else {"status": "declined", "reason": "unavailable"}
+    else:
+        outgoing_act_id, outgoing_slots = _fallback_response_plan(incoming_act_id)
+        if surface == "chat":
+            outgoing_slots.setdefault("target_actor_id", "tpm")
+    return [
+        {
+            "id": f"{cell_id}.fallback",
+            "weight": 1.0,
+            "outgoing_act_id": outgoing_act_id,
+            "outgoing_slots": outgoing_slots,
+            "surface_facts": [],
+            "belief_signals": [],
+            "effects": [],
+            "renderer_id": f"{cell_id}.fallback",
+            "renderer_variants": _fallback_renderer_variants(outgoing_act_id, outgoing_slots),
+        }
+    ]
+
+
+def _calendar_cell_accepts(guard: Any) -> bool:
+    if not isinstance(guard, dict):
+        return True
+    context_field = guard.get("context_field")
+    if isinstance(context_field, dict) and context_field.get("field") == "available_for_meeting":
+        return context_field.get("equals") is True
+    return True
+
+
+def _fallback_response_plan(incoming_act_id: str) -> tuple[str, dict[str, Any]]:
+    plans: dict[str, tuple[str, dict[str, Any]]] = {
+        "ack.received": ("inform.status_update", {"status": "acknowledged"}),
+        "ack.deferred": ("inform.status_update", {"status": "deferred_noted"}),
+        "request.feasibility": ("inform.blocker", {"blocker": "needs_scope_or_dependency_alignment"}),
+        "request.eta": ("inform.blocker", {"blocker": "credible_timeline_not_ready"}),
+        "request.scope_tradeoff": (
+            "negotiate.scope",
+            {"proposed_scope": "narrower_credible_slice", "dropped_scope": "full_scope"},
+        ),
+        "request.clarification": ("request.clarification", {"question": "scope_and_dependency_details"}),
+        "request.review": ("request.clarification", {"question": "review_material_and_risk_context"}),
+        "request.approval": ("request.clarification", {"question": "decision_scope_risks_and_owner"}),
+        "request.ownership": ("request.clarification", {"question": "owner_boundary_and_expected_outcome"}),
+        "negotiate.scope": (
+            "negotiate.scope",
+            {"proposed_scope": "narrower_credible_slice", "dropped_scope": "full_scope"},
+        ),
+        "negotiate.timeline": ("inform.blocker", {"blocker": "timeline_not_credible_without_tradeoff"}),
+        "negotiate.ownership": ("request.clarification", {"question": "owner_boundary_and_handoff"}),
+        "commit.propose": ("request.clarification", {"question": "commitment_preconditions_and_scope"}),
+        "commit.confirm": ("inform.status_update", {"status": "commitment_acknowledged"}),
+        "inform.status_update": ("request.clarification", {"question": "impact_on_scope_timing_or_dependencies"}),
+        "inform.decision": ("inform.status_update", {"status": "decision_acknowledged"}),
+        "inform.blocker": ("request.clarification", {"question": "blocker_impact_and_help_needed"}),
+        "inform.risk": ("request.clarification", {"question": "risk_likelihood_impact_and_mitigation"}),
+        "inform.availability": ("inform.status_update", {"status": "availability_acknowledged"}),
+        "escalate.to_sponsor": ("inform.decision", {"decision": "escalation_acknowledged"}),
+    }
+    outgoing_act_id, outgoing_slots = plans.get(
+        incoming_act_id,
+        ("request.clarification", {"question": "next_step_and_decision_context"}),
+    )
+    return outgoing_act_id, deepcopy(outgoing_slots)
+
+
+def _fallback_renderer_variants(outgoing_act_id: str, outgoing_slots: dict[str, Any]) -> list[str]:
+    variants: dict[str, list[str]] = {
+        "meeting.accept": [
+            "I can make that time.",
+            "That slot works for me.",
+        ],
+        "meeting.decline": [
+            "I can't make that slot.",
+            "That time doesn't work for me.",
+        ],
+        "inform.blocker": [
+            "I can't give you a credible answer yet. The blocker is {blocker}.",
+            "The honest constraint here is {blocker}, so I don't want to fake certainty.",
+        ],
+        "negotiate.scope": [
+            "The credible path is {proposed_scope}, not {dropped_scope}.",
+            "If we want a believable plan, we should move to {proposed_scope} and stop carrying {dropped_scope}.",
+        ],
+        "request.clarification": [
+            "I need more clarity on {question} before I can respond credibly.",
+            "Can you clarify {question} so I can give you a useful answer?",
+        ],
+        "inform.status_update": [
+            "Understood. I'm noting {status} and planning around it.",
+            "Got it. I'll treat this as {status} unless something changes.",
+        ],
+        "inform.decision": [
+            "Acknowledged. I'm operating from {decision} for now.",
+            "Understood. I'll treat {decision} as the working decision.",
+        ],
+    }
+    if outgoing_act_id in variants:
+        return variants[outgoing_act_id]
+    return [_default_renderer_variant(outgoing_act_id)]
+
+
 def _normalize_effects(candidate_effects: Any, baseline_effects: Any) -> list[dict[str, Any]]:
     if not isinstance(candidate_effects, list):
         candidate_effects = baseline_effects if isinstance(baseline_effects, list) else []
@@ -1156,25 +1367,52 @@ def _load_accepted_full_artifact(scenario_id: str, filename: str) -> dict[str, A
 
 
 def _load_accepted_trajectory_reference(scenario_id: str) -> dict[str, Any]:
-    directory = Path("examples") / scenario_id
-    if not directory.exists():
+    directory = _trajectory_reference_directory(scenario_id)
+    if directory is None:
         return {}
     items = sorted(directory.glob("*.tpm"))
+    example_items = _reference_trajectory_examples(directory)
     return {
+        "directory": str(directory),
         "filenames": [item.name for item in items],
         "line_counts": {item.name: len(item.read_text().splitlines()) for item in items},
         "first_commands": {
             item.name: [line for line in item.read_text().splitlines() if line.strip() and not line.strip().startswith("#")][:3]
             for item in items
         },
+        "example_scripts": {item.name: item.read_text() for item in example_items},
     }
 
 
 def _load_accepted_full_trajectories(scenario_id: str) -> dict[str, str]:
-    directory = Path("examples") / scenario_id
-    if not directory.exists():
+    directory = _trajectory_reference_directory(scenario_id)
+    if directory is None:
         return {}
     return {item.name: item.read_text() for item in sorted(directory.glob("*.tpm"))}
+
+
+def _trajectory_reference_directory(scenario_id: str | None) -> Path | None:
+    if not scenario_id:
+        return None
+    nested = Path("examples") / scenario_id
+    if nested.exists():
+        return nested
+    root = Path("examples")
+    if scenario_id in LEGACY_ROOT_TRAJECTORY_SCENARIOS and any(root.glob("*.tpm")):
+        return root
+    return None
+
+
+def _reference_trajectory_examples(directory: Path) -> list[Path]:
+    ordered: list[Path] = []
+    for name in ("golden.tpm", "smoke.tpm", "false_green.tpm", "anti_pattern_scenario.tpm"):
+        path = directory / name
+        if path.exists():
+            ordered.append(path)
+    for path in sorted(directory.glob("*.tpm")):
+        if path not in ordered:
+            ordered.append(path)
+    return ordered[:3]
 
 
 def _merge_authoring_candidate(candidate: Any, baseline: Any) -> Any:
@@ -1393,11 +1631,17 @@ def _render_validation_summary(report: dict[str, Any]) -> str:
             f"cells={compile_report['contract_cell_count']} semantics={compile_report['semantic_entry_count']} "
             f"families={compile_report['compiled_family_count']} renderers={compile_report['renderer_count']}"
         )
+    if report.get("scenario_validation_errors"):
+        lines.append("Scenario validation:")
+        lines.extend(f"- {item}" for item in report["scenario_validation_errors"])
     if report.get("smoke_results"):
         lines.append("Smoke runs:")
         for item in report["smoke_results"]:
             status = f"score={item['score']}" if item["error"] is None else f"error={item['error']}"
             lines.append(f"- {item['script']}: {status}")
+    if report.get("trajectory_syntax_errors"):
+        lines.append("Trajectory syntax:")
+        lines.extend(f"- {item}" for item in report["trajectory_syntax_errors"])
     if report.get("errors"):
         lines.append("Errors:")
         lines.extend(f"- {item}" for item in report["errors"])

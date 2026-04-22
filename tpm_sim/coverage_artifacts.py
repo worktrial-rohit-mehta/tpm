@@ -41,6 +41,27 @@ ALLOWED_EFFECT_TYPES = {
 }
 
 
+def normalize_semantics_artifact(semantics: dict[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(semantics)
+    cells = normalized.get("cells")
+    if not isinstance(cells, list):
+        return normalized
+    for entry in cells:
+        if not isinstance(entry, dict):
+            continue
+        envelopes = entry.get("response_envelopes")
+        if not isinstance(envelopes, list):
+            continue
+        for envelope in envelopes:
+            if not isinstance(envelope, dict):
+                continue
+            effects = envelope.get("effects")
+            if not isinstance(effects, list):
+                continue
+            envelope["effects"] = [_normalize_effect_schema(effect) if isinstance(effect, dict) else effect for effect in effects]
+    return normalized
+
+
 ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
     "critical_path_owner": {
         "chat": [
@@ -53,17 +74,20 @@ ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
             "commit.propose",
             "commit.confirm",
             "inform.blocker",
+            "inform.decision",
             "inform.risk",
         ]
     },
     "cross_functional_dependency_owner": {
         "chat": [
+            "request.feasibility",
             "request.review",
             "request.approval",
             "request.clarification",
             "request.scope_tradeoff",
             "request.ownership",
             "negotiate.scope",
+            "inform.blocker",
             "inform.status_update",
             "inform.decision",
         ]
@@ -73,9 +97,13 @@ ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
             "request.approval",
             "request.scope_tradeoff",
             "request.clarification",
+            "commit.propose",
+            "commit.confirm",
+            "negotiate.scope",
             "inform.blocker",
             "inform.risk",
             "inform.decision",
+            "inform.status_update",
             "escalate.to_sponsor",
         ]
     },
@@ -83,8 +111,12 @@ ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
         "chat": [
             "request.feasibility",
             "request.eta",
+            "request.review",
+            "request.scope_tradeoff",
             "request.ownership",
             "request.clarification",
+            "negotiate.scope",
+            "inform.decision",
             "inform.status_update",
         ]
     },
@@ -92,8 +124,12 @@ ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
         "chat": [
             "request.feasibility",
             "request.eta",
+            "request.review",
+            "request.scope_tradeoff",
             "request.ownership",
             "request.clarification",
+            "negotiate.scope",
+            "inform.decision",
             "inform.status_update",
         ]
     },
@@ -108,7 +144,10 @@ ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
 }
 
 DEFAULT_CHAT_AFFORDANCES = [
+    "ack.received",
+    "ack.deferred",
     "request.clarification",
+    "inform.decision",
     "inform.status_update",
 ]
 
@@ -176,7 +215,10 @@ def build_starter_contract(scenario: dict[str, Any]) -> dict[str, Any]:
             or actor.get("traits", {}).get("coordination_template")
             or actor.get("traits", {}).get("coordination_template_id")
         )
-        chat_acts = ACT_AFFORDANCE_LIBRARY_V1.get(template or "", {}).get("chat", DEFAULT_CHAT_AFFORDANCES)
+        template_chat_acts = ACT_AFFORDANCE_LIBRARY_V1.get(template or "", {}).get("chat", [])
+        chat_acts = list(dict.fromkeys([*template_chat_acts, *DEFAULT_CHAT_AFFORDANCES]))
+        if not chat_acts:
+            chat_acts = list(DEFAULT_CHAT_AFFORDANCES)
         for act_id in chat_acts:
             cell_id = f"{actor_id}.{act_id.replace('.', '_')}"
             if cell_id in seen_ids:
@@ -236,10 +278,56 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
     return errors
 
 
+def merge_contract_with_starter_floor(contract: dict[str, Any], scenario: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    starter = build_starter_contract(scenario)
+    return merge_contract_floor(contract, starter)
+
+
+def merge_contract_floor(base_contract: dict[str, Any], floor_contract: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    merged = deepcopy(base_contract)
+    cells = merged.setdefault("cells", [])
+    if not isinstance(cells, list):
+        return merged, []
+    existing_signatures = {
+        _contract_cell_signature(cell)
+        for cell in cells
+        if isinstance(cell, dict) and isinstance(cell.get("selector"), dict)
+    }
+    existing_ids = {
+        str(cell["id"])
+        for cell in cells
+        if isinstance(cell, dict) and isinstance(cell.get("id"), str) and cell.get("id")
+    }
+    added: list[dict[str, Any]] = []
+    for floor_cell in floor_contract.get("cells", []):
+        if not isinstance(floor_cell, dict):
+            continue
+        cell_id = floor_cell.get("id")
+        selector = floor_cell.get("selector")
+        if not isinstance(cell_id, str) or not cell_id or not isinstance(selector, dict):
+            continue
+        signature = _contract_cell_signature(floor_cell)
+        if signature in existing_signatures:
+            continue
+        candidate = deepcopy(floor_cell)
+        if candidate["id"] in existing_ids:
+            base_id = candidate["id"]
+            suffix = 2
+            while f"{base_id}.floor{suffix}" in existing_ids:
+                suffix += 1
+            candidate["id"] = f"{base_id}.floor{suffix}"
+        cells.append(candidate)
+        existing_signatures.add(_contract_cell_signature(candidate))
+        existing_ids.add(candidate["id"])
+        added.append(candidate)
+    merged["version"] = merged.get("version") or floor_contract.get("version") or COVERAGE_CONTRACT_VERSION
+    return merged, added
+
+
 def validate_semantics(contract: dict[str, Any], semantics: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     contract_ids = {cell["id"] for cell in contract.get("cells", []) if isinstance(cell, dict) and cell.get("id")}
-    entries = semantics.get("cells")
+    entries = normalize_semantics_artifact(semantics).get("cells")
     if not isinstance(entries, list) or not entries:
         errors.append("coverage semantics must define a non-empty cells list")
         return errors
@@ -267,9 +355,18 @@ def validate_semantics(contract: dict[str, Any], semantics: dict[str, Any]) -> l
                 require_known_act(str(outgoing_act))
             except ValueError as exc:
                 errors.append(f"semantics entry '{cell_id}' has invalid outgoing_act_id: {exc}")
+            outgoing_slots = envelope.get("outgoing_slots", {})
+            if not isinstance(outgoing_slots, dict):
+                errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has non-object outgoing_slots")
             variants = envelope.get("renderer_variants")
             if not isinstance(variants, list) or not variants:
                 errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' missing renderer_variants")
+            elif not all(isinstance(item, str) and item.strip() for item in variants):
+                errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has invalid renderer_variants")
+            if not isinstance(envelope.get("surface_facts", []), list):
+                errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has non-list surface_facts")
+            if not isinstance(envelope.get("belief_signals", []), list):
+                errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has non-list belief_signals")
             effects = envelope.get("effects", [])
             if not isinstance(effects, list):
                 errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has non-list effects")
@@ -283,6 +380,8 @@ def validate_semantics(contract: dict[str, Any], semantics: dict[str, Any]) -> l
                     errors.append(
                         f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has unsupported effect type: {effect_type}"
                     )
+                    continue
+                errors.extend(_validate_effect_shape(cell_id, str(envelope.get("id", "?")), effect))
     missing = sorted(contract_ids - seen)
     for cell_id in missing:
         errors.append(f"coverage contract cell '{cell_id}' missing semantics")
@@ -295,6 +394,7 @@ def compile_coverage(
     *,
     compiled_from_digest: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    semantics = normalize_semantics_artifact(semantics)
     contract_errors = validate_contract(contract)
     semantics_errors = validate_semantics(contract, semantics)
     errors = contract_errors + semantics_errors
@@ -385,6 +485,73 @@ def compile_coverage(
         "renderers": {key: renderers_by_id[key] for key in sorted(renderers_by_id)},
     }
     return compiled, report
+
+
+def _contract_cell_signature(cell: dict[str, Any]) -> str:
+    return as_json({"selector": cell.get("selector"), "guard": cell.get("guard")})
+
+
+def _normalize_effect_schema(effect: dict[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(effect)
+    if normalized.get("type") == "create_or_update_commitment":
+        commitment_id = normalized.get("id")
+        if not isinstance(commitment_id, str) or not commitment_id:
+            alias = normalized.get("commitment_id")
+            if isinstance(alias, str) and alias:
+                normalized["id"] = alias
+        normalized.pop("commitment_id", None)
+    return normalized
+
+
+def _validate_effect_shape(cell_id: str, envelope_id: str, effect: dict[str, Any]) -> list[str]:
+    effect_type = effect.get("type")
+    label = f"semantics entry '{cell_id}' envelope '{envelope_id}' effect '{effect_type}'"
+    errors: list[str] = []
+    if effect_type == "relationship_delta":
+        if not isinstance(effect.get("actor_id"), str) or not effect.get("actor_id"):
+            errors.append(f"{label} missing actor_id")
+        if not isinstance(effect.get("target_actor_id"), str) or not effect.get("target_actor_id"):
+            errors.append(f"{label} missing target_actor_id")
+        if "delta" not in effect or not isinstance(effect.get("delta"), (int, float)):
+            errors.append(f"{label} missing numeric delta")
+    elif effect_type == "project_state_patch":
+        if not isinstance(effect.get("patch"), dict):
+            errors.append(f"{label} missing object patch")
+    elif effect_type == "actor_state_patch":
+        if not isinstance(effect.get("actor_id"), str) or not effect.get("actor_id"):
+            errors.append(f"{label} missing actor_id")
+        if not isinstance(effect.get("patch"), dict):
+            errors.append(f"{label} missing object patch")
+    elif effect_type == "belief_signal":
+        if not isinstance(effect.get("actor_id"), str) or not effect.get("actor_id"):
+            errors.append(f"{label} missing actor_id")
+        if not isinstance(effect.get("belief_key"), str) or not effect.get("belief_key"):
+            errors.append(f"{label} missing belief_key")
+    elif effect_type == "fact_signal":
+        if not isinstance(effect.get("fact_id"), str) or not effect.get("fact_id"):
+            errors.append(f"{label} missing fact_id")
+    elif effect_type == "create_or_update_commitment":
+        commitment_id = effect.get("id", effect.get("commitment_id"))
+        if not isinstance(commitment_id, str) or not commitment_id:
+            errors.append(f"{label} missing id")
+        if not isinstance(effect.get("owner_id"), str) or not effect.get("owner_id"):
+            errors.append(f"{label} missing owner_id")
+        if not isinstance(effect.get("subject"), str) or not effect.get("subject"):
+            errors.append(f"{label} missing subject")
+        if "scope" in effect and not isinstance(effect.get("scope"), dict):
+            errors.append(f"{label} has non-object scope")
+        if "metadata" in effect and not isinstance(effect.get("metadata"), dict):
+            errors.append(f"{label} has non-object metadata")
+        if "audience_ids" in effect and not isinstance(effect.get("audience_ids"), list):
+            errors.append(f"{label} has non-list audience_ids")
+    elif effect_type == "task_state_patch":
+        if not isinstance(effect.get("task_id"), str) or not effect.get("task_id"):
+            errors.append(f"{label} missing task_id")
+        if "true_patch" in effect and not isinstance(effect.get("true_patch"), dict):
+            errors.append(f"{label} has non-object true_patch")
+        if "tracker_patch" in effect and not isinstance(effect.get("tracker_patch"), dict):
+            errors.append(f"{label} has non-object tracker_patch")
+    return errors
 
 
 def extract_contract_and_semantics(compiled_coverage: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:

@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
-from tpm_sim.agent import AgentRunner, OpenAIResponsesAgentAdapter
+from tpm_sim.agent import AgentRunner, DEFAULT_AGENT_MAX_TURNS, OpenAIResponsesAgentAdapter
 from tpm_sim.authoring import (
     accept_proposal,
     compile_contract,
@@ -24,7 +24,6 @@ from tpm_sim.authoring import (
     validate_proposal,
 )
 from tpm_sim.briefing import build_run_context, load_scenario_briefing, render_operator_briefing
-from tpm_sim.common import csv_ids, parse_duration, parse_slot_map, split_pipe_args
 from tpm_sim.engine import CoverageMissError, SimulationEngine
 from tpm_sim.environment import EnvironmentSession, StructuredAction, render_step_result
 from tpm_sim.evaluator import Evaluator, summarize_score_band
@@ -43,37 +42,8 @@ from tpm_sim.scenario import (
     load_scenario_bundle,
     seed_store,
 )
+from tpm_sim.script_dsl import HELP_TEXT, parse_script_command
 from tpm_sim.storage import open_store
-
-
-HELP_TEXT = """Commands:
-  status
-  people
-  inbox
-  observe
-  tasks
-  calendar
-  docs list
-  docs open DOC-ID
-  docs write TYPE | TITLE | BODY
-  notes write TITLE | BODY
-  chat list
-  chat open THREAD_OR_ACTOR
-  chat send TARGET | ACT_ID | key=value,... | BODY
-  calendar schedule 30m | maya,andrew | TITLE | key=value,... | AGENDA
-  meeting act MEETING_ID | ACT_ID | key=value,... | BODY
-  task note TASK-ID | NOTE
-  task owner TASK-ID | OWNER-ID
-  task target TASK-ID | YYYY-MM-DDTHH:MM:SS
-  wait 60m
-  wait next 120m
-  coverage
-  score
-  log
-  checkpoint LABEL
-  fork LABEL | OUT_DB_PATH | [SEED]
-  quit
-"""
 
 
 class ShellExit(Exception):
@@ -92,119 +62,42 @@ def build_runtime(db_path: str) -> tuple[SimulationEngine, Evaluator]:
 
 
 def execute_command(engine: SimulationEngine, evaluator: Evaluator, raw_line: str) -> Optional[str]:
-    session = EnvironmentSession(engine.store.path, engine, evaluator)
-    line = raw_line.strip()
-    if not line or line.startswith("#"):
+    parsed = parse_script_command(raw_line)
+    if parsed.kind == "noop":
         return ""
-    if line in {"quit", "exit"}:
+    if parsed.kind == "exit":
         raise ShellExit()
-    if line in {"help", "?"}:
+    if parsed.kind == "builtin" and parsed.name == "help":
         return HELP_TEXT
-    if line == "status":
+    if parsed.kind == "builtin" and parsed.name == "status":
         return engine.render_status()
-    if line == "people":
+    if parsed.kind == "builtin" and parsed.name == "people":
         return engine.render_people()
-    if line == "inbox":
+    if parsed.kind == "builtin" and parsed.name == "inbox":
         return engine.render_inbox()
-    if line == "observe":
+    if parsed.kind == "builtin" and parsed.name == "observe":
         return json.dumps(engine.observe(), indent=2, sort_keys=True)
-    if line == "tasks":
-        result = session.step(StructuredAction("read.tasks", {}))
-        return render_step_result(result)
-    if line == "calendar":
-        result = session.step(StructuredAction("read.calendar", {}))
-        return render_step_result(result)
-    if line == "docs list":
+    if parsed.kind == "builtin" and parsed.name == "docs list":
         return engine.render_docs()
-    if line == "chat list":
+    if parsed.kind == "builtin" and parsed.name == "chat list":
         return engine.render_threads("chat")
-    if line == "score":
+    if parsed.kind == "builtin" and parsed.name == "score":
         return engine.render_score_snapshot(evaluator)
-    if line == "coverage":
+    if parsed.kind == "builtin" and parsed.name == "coverage":
         return json.dumps(engine.coverage_report(), indent=2, sort_keys=True)
-    if line == "log":
+    if parsed.kind == "builtin" and parsed.name == "log":
         return engine.render_action_log()
-
-    if line.startswith("wait next "):
-        result = session.step(
-            StructuredAction("wait.until_next_event", {"max_minutes": parse_duration(line.removeprefix("wait next ").strip())})
-        )
+    if parsed.kind == "structured" and parsed.action is not None:
+        session = EnvironmentSession(engine.store.path, engine, evaluator)
+        result = session.step(parsed.action)
         return render_step_result(result)
-    if line.startswith("wait "):
-        result = session.step(StructuredAction("wait.duration", {"minutes": parse_duration(line.removeprefix("wait ").strip())}))
-        return render_step_result(result)
-    if line.startswith("docs open "):
-        result = session.step(StructuredAction("read.doc", {"doc_id": line.removeprefix("docs open ").strip()}))
-        return render_step_result(result)
-    if line.startswith("docs write "):
-        doc_type, title, body = split_pipe_args(line.removeprefix("docs write "), expected=3)
-        result = session.step(StructuredAction("docs.write", {"doc_type": doc_type, "title": title, "body": body}))
-        return render_step_result(result)
-    if line.startswith("notes write "):
-        title, body = split_pipe_args(line.removeprefix("notes write "), expected=2)
-        result = session.step(StructuredAction("notes.write", {"title": title, "body": body}))
-        return render_step_result(result)
-    if line.startswith("chat open "):
-        result = session.step(StructuredAction("read.thread", {"target": line.removeprefix("chat open ").strip()}))
-        return render_step_result(result)
-    if line.startswith("chat send "):
-        target, act_id, raw_slots, body = split_pipe_args(line.removeprefix("chat send "), expected=4)
-        result = session.step(
-            StructuredAction(
-                "chat.send",
-                {"target": target, "act_id": act_id, "slots": parse_slot_map(raw_slots), "body": body},
-            )
-        )
-        return render_step_result(result)
-    if line.startswith("calendar schedule "):
-        duration, attendees, title, raw_slots, agenda = split_pipe_args(line.removeprefix("calendar schedule "), expected=5)
-        result = session.step(
-            StructuredAction(
-                "meeting.propose",
-                {
-                    "duration_minutes": parse_duration(duration),
-                    "attendees": csv_ids(attendees),
-                    "title": title,
-                    "slots": parse_slot_map(raw_slots),
-                    "agenda": agenda,
-                },
-            )
-        )
-        return render_step_result(result)
-    if line.startswith("meeting act "):
-        meeting_id, act_id, raw_slots, body = split_pipe_args(line.removeprefix("meeting act "), expected=4)
-        result = session.step(
-            StructuredAction(
-                "meeting.act",
-                {"meeting_id": meeting_id, "act_id": act_id, "slots": parse_slot_map(raw_slots), "body": body},
-            )
-        )
-        return render_step_result(result)
-    if line.startswith("task note "):
-        task_id, note = split_pipe_args(line.removeprefix("task note "), expected=2)
-        result = session.step(StructuredAction("task.note", {"task_id": task_id, "note": note}))
-        return render_step_result(result)
-    if line.startswith("task owner "):
-        task_id, owner_id = split_pipe_args(line.removeprefix("task owner "), expected=2)
-        result = session.step(StructuredAction("task.set_owner", {"task_id": task_id, "owner_id": owner_id}))
-        return render_step_result(result)
-    if line.startswith("task target "):
-        task_id, target_at = split_pipe_args(line.removeprefix("task target "), expected=2)
-        result = session.step(StructuredAction("task.set_target", {"task_id": task_id, "target_at": target_at}))
-        return render_step_result(result)
-    if line.startswith("checkpoint "):
-        path = engine.checkpoint(line.removeprefix("checkpoint ").strip())
+    if parsed.kind == "checkpoint":
+        path = engine.checkpoint(str(parsed.args["label"]))
         return f"Checkpoint written to {path}."
-    if line.startswith("fork "):
-        parts = split_pipe_args(line.removeprefix("fork "))
-        if len(parts) not in {2, 3}:
-            raise ValueError("fork expects LABEL | OUT_DB_PATH | [SEED]")
-        label, out_db = parts[:2]
-        seed_override = int(parts[2]) if len(parts) == 3 else None
-        path = engine.fork(label, out_db, seed_override=seed_override)
+    if parsed.kind == "fork":
+        path = engine.fork(str(parsed.args["label"]), str(parsed.args["out_db"]), seed_override=parsed.args["seed_override"])
         return f"Forked checkpoint to {path}."
-
-    raise ValueError(f"Unknown command: {line}")
+    raise ValueError(f"Unsupported parsed command kind '{parsed.kind}'.")
 
 
 def execute_script(
@@ -870,6 +763,12 @@ def _run_agent_replay(run_dir: str, *, events: str, event_limit: Optional[int]) 
     print(f"Model: {run['model']}")
     print(f"Score: {run['score']}")
     print(f"Turns: {run['turns_taken']}")
+    if run.get("max_turns") is not None:
+        print(f"Turn budget: {run['turns_taken']} / {run['max_turns']}")
+    if run.get("termination_reason"):
+        print(f"Termination: {run['termination_reason']}")
+    if run.get("simulated_end_time"):
+        print(f"Simulated stop time: {run['simulated_end_time']}")
     print(f"Protocol failure: {'yes' if run['protocol_failure'] else 'no'}")
     print("")
     print("Turn log (TPM actions):")
@@ -1155,7 +1054,7 @@ def build_parser() -> argparse.ArgumentParser:
     agent_run.add_argument("--seed", type=int, default=11)
     agent_run.add_argument("--model", default=os.getenv("TPM_AGENT_MODEL"))
     agent_run.add_argument("--outdir")
-    agent_run.add_argument("--max-turns", type=int, default=80)
+    agent_run.add_argument("--max-turns", type=int, default=DEFAULT_AGENT_MAX_TURNS)
     agent_run.add_argument("--coverage-enforcement", choices=["strict", "permissive"], default="strict")
     agent_run.add_argument("--stream-events", choices=["none", "agent", "omniscient"], default="omniscient")
     agent_run.add_argument("--json", action="store_true")
@@ -1164,7 +1063,7 @@ def build_parser() -> argparse.ArgumentParser:
     agent_bundle.add_argument("--scenario", default="northstar_launch_week", choices=available_scenarios())
     agent_bundle.add_argument("--model", default=os.getenv("TPM_AGENT_MODEL"))
     agent_bundle.add_argument("--outdir")
-    agent_bundle.add_argument("--max-turns", type=int, default=80)
+    agent_bundle.add_argument("--max-turns", type=int, default=DEFAULT_AGENT_MAX_TURNS)
     agent_bundle.add_argument("--json", action="store_true")
 
     agent_replay = agent_subparsers.add_parser("replay", help="Replay a prior agent run directory")

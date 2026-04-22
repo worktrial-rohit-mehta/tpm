@@ -1,17 +1,57 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import mean, pstdev
 from typing import Any, Iterable, Optional
 
+from tpm_sim.common import from_iso
 from tpm_sim.scenario import load_scenario_bundle
+from tpm_sim.script_dsl import parse_script_command
+from tpm_sim.storage import open_store
 
 
-PERFORMANCE_SUMMARY_VERSION = "tpm_performance_summary_v1"
-BUNDLE_PERFORMANCE_SUMMARY_VERSION = "tpm_bundle_performance_summary_v1"
+PERFORMANCE_SUMMARY_VERSION = "tpm_performance_summary_v3"
+BUNDLE_PERFORMANCE_SUMMARY_VERSION = "tpm_bundle_performance_summary_v2"
 COMPETENCY_MODEL_VERSION = "tpm_competency_model_v1"
+READ_ACTION_PREFIX = "read."
+WRITE_ACTION_TYPES = {
+    "chat.send",
+    "docs.write",
+    "notes.write",
+    "task.note",
+    "task.set_owner",
+    "task.set_target",
+    "meeting.propose",
+    "meeting.act",
+}
+SIGNAL_EVENT_TYPES = {
+    "fact_signal": 0,
+    "agenda_signal.observed": 1,
+    "commitment.updated": 2,
+    "npc.message_sent": 3,
+}
+INTENT_FAMILY_PRIORITIES = {
+    "scope_tradeoff": 0,
+    "decision_alignment": 1,
+    "approval_request": 2,
+    "eta_request": 3,
+    "runbook_cleanup": 4,
+    "clarification_loop": 5,
+    "status_only": 6,
+    "read_only": 7,
+    "wait": 8,
+    "other": 9,
+}
+FIX_HINT_LABELS = {
+    "defer approval until preconditions are met": "Defer approval until preconditions are met",
+    "consume and incorporate replies before re-asking": "Consume and incorporate replies before re-asking",
+    "force the path decision before downstream coordination": "Force the path decision before downstream coordination",
+    "convert alignment into explicit commitment immediately": "Convert alignment into explicit commitment immediately",
+    "reallocate turns to the gating path": "Reallocate turns to the gating path",
+}
 
 DIMENSION_DEFINITIONS: list[dict[str, str]] = [
     {
@@ -177,9 +217,19 @@ def build_run_summary(
     scenario_bundle = scenario_bundle or load_scenario_bundle(report["scenario_id"])
     scenario = scenario_bundle["scenario"]
     run_record = (agent_payload or {}).get("run", {})
+    termination_reason = _normalized_termination_reason(run_record)
+    simulated_end_time = run_record.get("simulated_end_time", report["time"])
     omniscient_trace = _load_trace_rows(report.get("trace_paths", {}).get("omniscient_trace"))
     agent_trace = _load_trace_rows(report.get("trace_paths", {}).get("agent_trace"))
-    diagnostics = build_behavior_diagnostics(agent_payload, omniscient_trace, scenario)
+    visible_trace = _select_visible_trace(agent_trace, omniscient_trace)
+    action_log_rows = _load_action_rows(run_record)
+    message_rows = _load_message_rows(run_record)
+    document_rows = _load_document_rows(run_record)
+    merged_action_rows = _merge_decision_action_rows(agent_payload, action_log_rows)
+    diagnostics = build_behavior_diagnostics(merged_action_rows, omniscient_trace, scenario, action_log_rows=action_log_rows)
+    simulated_minutes_elapsed = _simulated_minutes_elapsed(scenario["start_at"], simulated_end_time)
+    turns_taken = int(run_record.get("turns_taken") or 0)
+    simulated_minutes_per_turn = round(simulated_minutes_elapsed / turns_taken, 2) if turns_taken else 0.0
     dimension_scores = _build_dimension_scores(report["rubric"])
     competency_profile = [
         dimension_scores[item_id]
@@ -193,11 +243,55 @@ def build_run_summary(
     ]
     critical_path = _build_critical_path_result(report["rubric"], outcome_profile)
     run_health = _build_run_health(report, run_record, diagnostics)
-    key_successes = _key_successes(report["rubric"], dimension_scores)
-    key_failures = _key_failures(report["rubric"], diagnostics)
-    improvements = _improvement_opportunities(report["rubric"], diagnostics)
-    decisive_timeline = _decisive_timeline(report, omniscient_trace, report["rubric"])
     outcome_verdict = _outcome_verdict(critical_path, dimension_scores, run_health)
+    rubric_failure_dossiers = _build_failure_dossiers(
+        report["rubric"],
+        report=report,
+        scenario=scenario,
+        run_record=run_record,
+        run_health=run_health,
+        diagnostics=diagnostics,
+        critical_path=critical_path,
+        agent_trace=visible_trace,
+        merged_action_rows=merged_action_rows,
+    )
+    signal_coverage = _build_signal_coverage(scenario, visible_trace, merged_action_rows)
+    stakeholder_engagement = _build_stakeholder_engagement(scenario, message_rows, merged_action_rows, visible_trace)
+    window_scorecards = _build_window_scorecards(report, scenario, report["rubric"], merged_action_rows)
+    missed_opportunities = _build_missed_opportunities(
+        scenario,
+        visible_trace,
+        message_rows,
+        merged_action_rows,
+        stakeholder_engagement,
+        signal_coverage,
+        window_scorecards,
+    )
+    reference_path_diff = _build_reference_path_diff(report["scenario_id"], scenario, merged_action_rows)
+    root_cause_findings = _build_root_cause_findings(
+        report["rubric"],
+        rubric_failure_dossiers=rubric_failure_dossiers,
+        diagnostics=diagnostics,
+        signal_coverage=signal_coverage,
+        stakeholder_engagement=stakeholder_engagement,
+        window_scorecards=window_scorecards,
+        missed_opportunities=missed_opportunities,
+        reference_path_diff=reference_path_diff,
+        merged_action_rows=merged_action_rows,
+    )
+    capability_assessment = _build_capability_assessment(
+        report,
+        outcome_verdict=outcome_verdict,
+        critical_path=critical_path,
+        root_cause_findings=root_cause_findings,
+        stakeholder_engagement=stakeholder_engagement,
+        signal_coverage=signal_coverage,
+        window_scorecards=window_scorecards,
+    )
+    key_successes = _key_successes(report["rubric"], dimension_scores)
+    key_failures = _project_key_failures(root_cause_findings, rubric_failure_dossiers=rubric_failure_dossiers)
+    improvements = _project_improvement_opportunities(root_cause_findings, rubric_failure_dossiers=rubric_failure_dossiers)
+    decisive_timeline = _decisive_timeline(report, visible_trace, report["rubric"])
     summary = {
         "schema_version": PERFORMANCE_SUMMARY_VERSION,
         "run_header": {
@@ -213,6 +307,10 @@ def build_run_summary(
             "score": report["total_score"],
             "turns_taken": run_record.get("turns_taken"),
             "max_turns": run_record.get("max_turns"),
+            "termination_reason": termination_reason,
+            "simulated_end_time": simulated_end_time,
+            "simulated_minutes_elapsed": simulated_minutes_elapsed,
+            "simulated_minutes_per_turn": simulated_minutes_per_turn,
             "report_path": run_record.get("report_path"),
             "agent_log_path": run_record.get("agent_log_path"),
         },
@@ -222,8 +320,18 @@ def build_run_summary(
             "primary_failure_classes": scenario["evaluation"].get("primary_failure_classes", []),
             "competency_model_version": COMPETENCY_MODEL_VERSION,
         },
+        "capability_assessment": capability_assessment,
         "outcome_verdict": outcome_verdict,
         "critical_path_result": critical_path,
+        "root_cause_findings": root_cause_findings,
+        "stakeholder_engagement": stakeholder_engagement,
+        "signal_coverage": signal_coverage,
+        "window_scorecards": window_scorecards,
+        "missed_opportunities": missed_opportunities,
+        "reference_path_diff": reference_path_diff,
+        "evidence_catalog": [],
+        "rubric_failure_appendix": rubric_failure_dossiers,
+        "failure_dossiers": rubric_failure_dossiers,
         "tpm_competency_profile": competency_profile,
         "outcome_profile": outcome_profile,
         "decisive_timeline": decisive_timeline,
@@ -231,7 +339,15 @@ def build_run_summary(
         "key_failures": key_failures,
         "improvement_opportunities": improvements,
         "run_health": run_health,
-        "narrative": _deterministic_narrative(outcome_verdict, key_successes, key_failures, improvements),
+        "narrative": _deterministic_narrative(
+            capability_assessment,
+            root_cause_findings,
+            stakeholder_engagement,
+            signal_coverage,
+            window_scorecards,
+            reference_path_diff,
+            key_successes,
+        ),
         "evidence_appendix": {
             "competency_definitions": DIMENSION_DEFINITIONS,
             "rubric_lines": report["rubric"],
@@ -242,9 +358,25 @@ def build_run_summary(
             "recoverability": report.get("recoverability", {}),
             "coverage_miss": report.get("coverage_miss", False),
             "trace_paths": report.get("trace_paths", {}),
+            "private_note_audit_notes": diagnostics.get("private_note_audit_rows", []),
         },
     }
-    summary["judge_input_bundle"] = _build_judge_input_bundle(summary, diagnostics, decisive_timeline, omniscient_trace, agent_trace)
+    summary["evidence_catalog"] = _build_evidence_catalog(
+        summary,
+        visible_trace=visible_trace,
+        omniscient_trace=omniscient_trace,
+        merged_action_rows=merged_action_rows,
+        message_rows=message_rows,
+        document_rows=document_rows,
+    )
+    summary["judge_input_bundle"] = _build_judge_input_bundle(
+        summary,
+        diagnostics,
+        decisive_timeline,
+        omniscient_trace,
+        visible_trace,
+        merged_action_rows,
+    )
     summary["narrative"] = _maybe_apply_judge(summary, judge_client=judge_client, judge_model=judge_model)
     return summary
 
@@ -280,6 +412,11 @@ def build_bundle_summary(
         )
     recurring_failures = Counter()
     recurring_health = Counter()
+    recurring_root_causes: dict[str, dict[str, Any]] = {}
+    stakeholder_patterns: dict[str, dict[str, int]] = defaultdict(lambda: {"never_contacted": 0, "after_deadline": 0, "unanswered_questions": 0})
+    signal_consistency: dict[str, dict[str, Any]] = defaultdict(lambda: {"criticality": "supporting", "surfaced": 0, "converted": 0, "runs": 0})
+    reference_patterns = Counter()
+    window_miss_recurrence = Counter()
     for run in run_summaries:
         for item in run.get("key_failures", []):
             recurring_failures[item["id"]] += 1
@@ -287,6 +424,50 @@ def build_bundle_summary(
             recurring_health[item] += 1
         for item in run.get("run_health", {}).get("scenario_authoring_issues", []):
             recurring_health[item] += 1
+        for finding in run.get("root_cause_findings", []):
+            entry = recurring_root_causes.setdefault(
+                finding["id"],
+                {"id": finding["id"], "title": finding["title"], "count": 0, "mean_lost_points": 0.0, "total_lost_points": 0.0},
+            )
+            entry["count"] += 1
+            entry["total_lost_points"] += float(finding.get("lost_points_total", 0.0))
+        metrics = run.get("stakeholder_engagement", {}).get("summary_metrics", {})
+        for actor_id in metrics.get("critical_actors_never_contacted", []):
+            stakeholder_patterns[str(actor_id)]["never_contacted"] += 1
+        for actor_id in metrics.get("critical_actors_contacted_after_deadline", []):
+            stakeholder_patterns[str(actor_id)]["after_deadline"] += 1
+        for actor in run.get("stakeholder_engagement", {}).get("actors", []):
+            unanswered = len(actor.get("unanswered_direct_questions", []))
+            if unanswered:
+                stakeholder_patterns[str(actor["actor_id"])]["unanswered_questions"] += unanswered
+        for signal in run.get("signal_coverage", {}).get("signals", []):
+            signal_id = str(signal["signal_id"])
+            signal_consistency[signal_id]["criticality"] = signal.get("criticality", "supporting")
+            signal_consistency[signal_id]["runs"] += 1
+            if signal.get("surfaced"):
+                signal_consistency[signal_id]["surfaced"] += 1
+            if signal.get("converted_to_plan_change"):
+                signal_consistency[signal_id]["converted"] += 1
+        reference = run.get("reference_path_diff")
+        if reference and reference.get("expected_step"):
+            reference_patterns[f"{reference.get('expected_step')} -> {reference.get('actual_step')}"] += 1
+        for window in run.get("window_scorecards", []):
+            if not window.get("state_achieved", {}).get("achieved"):
+                window_miss_recurrence[str(window["window_id"])] += 1
+    for entry in recurring_root_causes.values():
+        count = max(1, int(entry["count"]))
+        entry["mean_lost_points"] = round(float(entry["total_lost_points"]) / count, 2)
+        del entry["total_lost_points"]
+    score_stdev = round(pstdev(scores), 3) if len(scores) > 1 else 0.0
+    clean_bundle = not recurring_health and not any(run.get("run_health", {}).get("protocol_failure") for run in run_summaries)
+    confidence_scope = "multi_seed_supported" if len(run_summaries) > 1 and clean_bundle and score_stdev < 15 else "single_run_directional"
+    mean_score = round(mean(scores), 2) if scores else 0.0
+    if mean_score >= 75:
+        aggregate_rating = "strong"
+    elif mean_score >= 45:
+        aggregate_rating = "mixed"
+    else:
+        aggregate_rating = "poor"
     aggregate = {
         "schema_version": BUNDLE_PERFORMANCE_SUMMARY_VERSION,
         "bundle_header": {
@@ -295,17 +476,61 @@ def build_bundle_summary(
             "seed_bundle": seed_bundle,
         },
         "headline": {
-            "mean_score": round(mean(scores), 2) if scores else 0.0,
+            "mean_score": mean_score,
             "worst_score": round(min(scores), 2) if scores else 0.0,
             "best_score": round(max(scores), 2) if scores else 0.0,
-            "stdev": round(pstdev(scores), 3) if len(scores) > 1 else 0.0,
+            "stdev": score_stdev,
+        },
+        "aggregate_capability_assessment": {
+            "rating": aggregate_rating,
+            "direct_answer": (
+                "Across the seed bundle, this model looks strong as a TPM in this scenario."
+                if aggregate_rating == "strong"
+                else "Across the seed bundle, this model shows mixed TPM performance in this scenario."
+                if aggregate_rating == "mixed"
+                else "Across the seed bundle, this model performs poorly as a TPM in this scenario."
+            ),
+            "confidence_scope": confidence_scope,
         },
         "aggregate_competency_profile": competency_profile,
         "seed_consistency": {
             "protocol_failures": sum(1 for run in run_summaries if run.get("run_health", {}).get("protocol_failure")),
             "coverage_misses": sum(1 for run in run_summaries if run.get("run_health", {}).get("coverage_miss")),
-            "score_variance_ok": (round(pstdev(scores), 3) if len(scores) > 1 else 0.0) < 15,
+            "score_variance_ok": score_stdev < 15,
         },
+        "recurring_root_causes": sorted(
+            recurring_root_causes.values(),
+            key=lambda item: (int(item["count"]), float(item["mean_lost_points"])),
+            reverse=True,
+        )[:6],
+        "stakeholder_failure_patterns": [
+            {"actor_id": actor_id, **counts}
+            for actor_id, counts in sorted(
+                stakeholder_patterns.items(),
+                key=lambda item: (item[1]["never_contacted"] + item[1]["after_deadline"] + item[1]["unanswered_questions"], item[0]),
+                reverse=True,
+            )
+            if sum(counts.values()) > 0
+        ],
+        "signal_coverage_consistency": [
+            {
+                "signal_id": signal_id,
+                "criticality": row["criticality"],
+                "surfaced_rate": round(row["surfaced"] / row["runs"], 3) if row["runs"] else 0.0,
+                "converted_rate": round(row["converted"] / row["runs"], 3) if row["runs"] else 0.0,
+                "runs": row["runs"],
+            }
+            for signal_id, row in sorted(signal_consistency.items(), key=lambda item: (item[1]["criticality"] != "critical", item[0]))
+        ],
+        "reference_divergence_patterns": [
+            {"pattern": pattern, "count": count}
+            for pattern, count in reference_patterns.most_common(5)
+        ],
+        "window_miss_recurrence": [
+            {"window_id": window_id, "count": count}
+            for window_id, count in window_miss_recurrence.most_common(6)
+        ],
+        "confidence_scope": confidence_scope,
         "top_recurring_failure_themes": [
             {"id": key, "count": count}
             for key, count in recurring_failures.most_common(5)
@@ -319,6 +544,7 @@ def build_bundle_summary(
                 "seed": run["run_header"]["seed"],
                 "score": run["run_header"]["score"],
                 "outcome_verdict": run["outcome_verdict"]["headline"],
+                "capability_rating": run.get("capability_assessment", {}).get("rating"),
                 "summary_path": run["run_header"].get("summary_path"),
             }
             for run in run_summaries
@@ -328,43 +554,100 @@ def build_bundle_summary(
 
 
 def render_run_summary(summary: dict[str, Any]) -> str:
-    strengths = summary.get("key_successes", [])[:2]
-    failures = summary.get("key_failures", [])[:3]
-    competencies = summary.get("tpm_competency_profile", [])
+    capability = summary.get("capability_assessment", {})
+    findings = summary.get("root_cause_findings", [])[:4]
+    stakeholder = summary.get("stakeholder_engagement", {})
+    stakeholder_rows = stakeholder.get("actors", [])
+    stakeholder_metrics = stakeholder.get("summary_metrics", {})
+    windows = summary.get("window_scorecards", [])
+    signals = summary.get("signal_coverage", {}).get("signals", [])
+    run_health = summary.get("run_health", {})
+    narrative = summary.get("narrative", {})
+    reference_path_diff = summary.get("reference_path_diff") or {}
     lines = [
         f"Scenario: {summary['run_header']['scenario_id']}",
         f"Seed: {summary['run_header'].get('seed')}",
         f"Model: {summary['run_header'].get('model')}",
         f"Score: {summary['run_header']['score']}",
         "",
-        f"Outcome verdict: {summary['outcome_verdict']['headline']}",
-        f"Critical path: {summary['critical_path_result']['status']}",
+        f"Capability verdict: {capability.get('headline', summary['outcome_verdict']['headline'])}",
+        f"Direct answer: {capability.get('direct_answer', summary['outcome_verdict']['headline'])}",
         "",
-        "Competency profile:",
+        "Top root-cause findings:",
     ]
-    for item in competencies:
-        lines.append(f"- {item['label']}: {item['score']} ({item['band']})")
-    lines.extend(["", "Top strengths:"])
-    if strengths:
-        for item in strengths:
-            lines.append(f"- {item['title']}: {item['summary']}")
+    if findings:
+        for finding in findings:
+            impacted = ", ".join(item["id"] for item in finding.get("impacted_rubric_lines", [])[:4]) or "none"
+            lines.append(f"- {finding['title']} [{finding['severity']}] lost={finding['lost_points_total']}")
+            lines.append(f"  {finding['headline']}")
+            lines.append(f"  impacted: {impacted}")
     else:
         lines.append("- none")
-    lines.extend(["", "Top failures:"])
-    if failures:
-        for item in failures:
-            lines.append(f"- {item['title']}: {item['summary']}")
+    lines.extend(["", "What the model actually did:"])
+    top_contacted_actor_id = stakeholder_metrics.get("top_contacted_actor_id")
+    top_contacted_actor_share = float(stakeholder_metrics.get("top_contacted_actor_share") or 0.0)
+    if top_contacted_actor_id:
+        lines.append(
+            f"- Concentrated {round(top_contacted_actor_share * 100)}% of outbound coordination on {top_contacted_actor_id}."
+        )
+    if stakeholder_metrics.get("critical_actors_never_contacted"):
+        lines.append(
+            f"- Critical actors never contacted: {', '.join(stakeholder_metrics['critical_actors_never_contacted'])}"
+        )
+    if stakeholder_metrics.get("direct_questions_left_unanswered"):
+        lines.append(
+            f"- Direct questions left unanswered: {', '.join(stakeholder_metrics['direct_questions_left_unanswered'])}"
+        )
+    if reference_path_diff.get("summary"):
+        lines.append(f"- Reference-path divergence: {reference_path_diff['summary']}")
+    lines.extend(["", "What a strong TPM would have done instead:"])
+    counterfactual_path = narrative.get("counterfactual_path", [])
+    if counterfactual_path:
+        for item in counterfactual_path[:4]:
+            lines.append(f"- {item['explanation']}")
+    elif reference_path_diff.get("missed_expected_steps_before_deadline"):
+        for step in reference_path_diff["missed_expected_steps_before_deadline"][:3]:
+            lines.append(f"- {step}")
     else:
-        lines.append("- none")
-    lines.extend(["", "Run health:"])
-    lines.append(f"- status: {summary['run_health']['status']}")
-    if summary["run_health"].get("model_behavior_issues"):
-        lines.append(f"- model issues: {', '.join(summary['run_health']['model_behavior_issues'])}")
-    if summary["run_health"].get("harness_interface_issues"):
-        lines.append(f"- harness issues: {', '.join(summary['run_health']['harness_interface_issues'])}")
-    if summary["run_health"].get("scenario_authoring_issues"):
-        lines.append(f"- scenario issues: {', '.join(summary['run_health']['scenario_authoring_issues'])}")
-    lines.extend(["", "Narrative:", f"- {summary['narrative']['executive_summary']}"])
+        for finding in findings[:3]:
+            lines.append(f"- {finding['counterfactual_step']}")
+    lines.extend(["", "Supporting data:"])
+    lines.append("- Stakeholder engagement:")
+    if stakeholder_rows:
+        for row in stakeholder_rows:
+            if row.get("criticality_to_outcome") != "critical":
+                continue
+            lines.append(
+                f"  {row['actor_id']}: outbound={row['outbound_count']} first_outbound={row['first_outbound_at']} unanswered={len(row.get('unanswered_direct_questions', []))}"
+            )
+    else:
+        lines.append("  none")
+    lines.append("- Window scorecards:")
+    for window in windows[:3]:
+        lines.append(
+            f"  {window['window_id']}: achieved={window['state_achieved']['achieved']} actions={window['actions_taken']} outbound={window['outbound_by_actor']}"
+        )
+    lines.append("- Signal coverage:")
+    critical_signals = [row for row in signals if row.get("criticality") == "critical"]
+    lines.append(
+        f"  critical surfaced={sum(1 for row in critical_signals if row.get('surfaced'))}/{len(critical_signals)}"
+    )
+    unsurfaced = [row["signal_id"] for row in critical_signals if not row.get("surfaced")]
+    if unsurfaced:
+        lines.append(f"  critical unsurfaced: {', '.join(unsurfaced)}")
+    lines.extend(["", "Confidence / limitations:"])
+    lines.append(f"- confidence scope: {capability.get('confidence_scope', 'single_run_directional')}")
+    lines.append(
+        f"- termination: {_render_termination_reason(summary['run_header'].get('termination_reason'))}; turns={summary['run_header'].get('turns_taken')} / {summary['run_header'].get('max_turns')}"
+    )
+    lines.extend(["", "Audit appendix:"])
+    lines.append(f"- outcome verdict: {summary['outcome_verdict']['headline']}")
+    lines.append(f"- critical path: {summary['critical_path_result']['status']}")
+    if run_health.get("model_behavior_issues"):
+        lines.append(f"- model issues: {', '.join(run_health['model_behavior_issues'])}")
+    if summary.get("rubric_failure_appendix"):
+        for dossier in summary["rubric_failure_appendix"][:3]:
+            lines.append(f"- rubric failure: {dossier['title']} lost={dossier['lost_points']}")
     return "\n".join(lines)
 
 
@@ -376,43 +659,44 @@ def render_bundle_summary(summary: dict[str, Any]) -> str:
         f"Worst score: {summary['headline']['worst_score']}",
         f"Stdev: {summary['headline']['stdev']}",
         "",
-        "Aggregate competency profile:",
+        f"Capability verdict: {summary.get('aggregate_capability_assessment', {}).get('direct_answer', 'No aggregate verdict.')}",
+        f"Confidence: {summary.get('confidence_scope', 'single_run_directional')}",
     ]
-    for item in summary.get("aggregate_competency_profile", [])[:8]:
-        lines.append(f"- {item['label']}: mean={item['mean_score']} worst={item['worst_score']} stdev={item['stdev']}")
-    if summary.get("top_recurring_failure_themes"):
-        lines.extend(["", "Recurring failure themes:"])
-        for item in summary["top_recurring_failure_themes"]:
-            lines.append(f"- {item['id']}: {item['count']}")
-    if summary.get("harness_health", {}).get("issues"):
-        lines.extend(["", "Harness health:"])
-        for item in summary["harness_health"]["issues"]:
-            lines.append(f"- {item['issue']}: {item['count']}")
+    if summary.get("recurring_root_causes"):
+        lines.extend(["", "Recurring root causes:"])
+        for item in summary["recurring_root_causes"][:5]:
+            lines.append(f"- {item['title']}: count={item['count']} mean_lost={item['mean_lost_points']}")
+    if summary.get("stakeholder_failure_patterns"):
+        lines.extend(["", "Stakeholder failure patterns:"])
+        for item in summary["stakeholder_failure_patterns"][:5]:
+            lines.append(
+                f"- {item['actor_id']}: never_contacted={item['never_contacted']} after_deadline={item['after_deadline']} unanswered_questions={item['unanswered_questions']}"
+            )
+    if summary.get("signal_coverage_consistency"):
+        lines.extend(["", "Signal coverage consistency:"])
+        for item in summary["signal_coverage_consistency"][:6]:
+            if item["criticality"] != "critical":
+                continue
+            lines.append(
+                f"- {item['signal_id']}: surfaced_rate={item['surfaced_rate']} converted_rate={item['converted_rate']}"
+            )
+    if summary.get("reference_divergence_patterns"):
+        lines.extend(["", "Reference divergence patterns:"])
+        for item in summary["reference_divergence_patterns"][:5]:
+            lines.append(f"- {item['pattern']}: {item['count']}")
     return "\n".join(lines)
 
 
-def build_behavior_diagnostics(agent_payload: dict[str, Any] | None, omniscient_trace: list[dict[str, Any]], scenario: dict[str, Any]) -> dict[str, Any]:
-    decisions = (agent_payload or {}).get("decisions", [])
-    action_rows = []
-    for turn in decisions:
-        decision = turn.get("decision", {})
-        action = decision.get("action", {})
-        args = action.get("arguments", {})
-        action_rows.append(
-            {
-                "turn": turn.get("turn"),
-                "time": turn.get("observation_time"),
-                "action_type": action.get("action_type"),
-                "target": args.get("target"),
-                "act_id": args.get("act_id"),
-                "doc_id": args.get("doc_id"),
-                "task_id": args.get("task_id"),
-                "validation_errors": turn.get("validation_errors") or [],
-                "repair_attempts": turn.get("repair_attempts", 0),
-            }
-        )
+def build_behavior_diagnostics(
+    decision_rows: list[dict[str, Any]],
+    omniscient_trace: list[dict[str, Any]],
+    scenario: dict[str, Any],
+    *,
+    action_log_rows: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    action_rows = list(decision_rows)
     read_count = sum(1 for row in action_rows if str(row["action_type"]).startswith("read."))
-    write_count = sum(1 for row in action_rows if row["action_type"] in {"chat.send", "docs.write", "notes.write", "task.note", "task.set_owner", "task.set_target", "meeting.propose", "meeting.act"})
+    write_count = sum(1 for row in action_rows if row["action_type"] in WRITE_ACTION_TYPES)
     wait_count = sum(1 for row in action_rows if str(row["action_type"]).startswith("wait."))
     artifact_churn = sum(1 for row in action_rows if row["action_type"] in {"docs.write", "notes.write"})
     tracker_churn = sum(1 for row in action_rows if row["action_type"] in {"task.note", "task.set_owner", "task.set_target"})
@@ -423,7 +707,23 @@ def build_behavior_diagnostics(agent_payload: dict[str, Any] | None, omniscient_
     reply_loops = _count_unresolved_reply_loops(action_rows, omniscient_trace)
     alias_normalizations = sum(1 for row in omniscient_trace if row.get("event_type") == "thread.normalized")
     coverage_misses = sum(1 for row in omniscient_trace if row.get("event_type") == "coverage.miss")
+    batched_replies = sum(
+        max(0, int((row.get("payload") or {}).get("batched_message_count", 1)) - 1)
+        for row in omniscient_trace
+        if row.get("event_type") == "npc.message_sent"
+    )
     protocol_repairs = sum(int(row.get("repair_attempts", 0)) for row in action_rows)
+    chat_minutes_by_cost_key: dict[str, int] = {}
+    if action_log_rows:
+        counter: Counter[str] = Counter()
+        for row in action_log_rows:
+            metadata = row.get("metadata", {})
+            if row.get("surface") != "chat" or row.get("actor_id") != "tpm":
+                continue
+            cost_key = str(metadata.get("cost_key") or "send_chat")
+            counter[cost_key] += int(metadata.get("cost_minutes") or row.get("duration_minutes") or 0)
+        chat_minutes_by_cost_key = dict(sorted(counter.items()))
+    private_note_audit = _build_private_note_audit(action_rows)
     diagnostics = {
         "counts": {
             "reads": read_count,
@@ -438,8 +738,12 @@ def build_behavior_diagnostics(agent_payload: dict[str, Any] | None, omniscient_
             "alias_normalization_corrections": alias_normalizations,
             "protocol_repairs": protocol_repairs,
             "coverage_miss_count": coverage_misses,
+            "batched_npc_reply_count": batched_replies,
         },
         "repeated_action_loops": repeated_loops,
+        "chat_minutes_by_cost_key": chat_minutes_by_cost_key,
+        "private_note_audit": private_note_audit["counts"],
+        "private_note_audit_rows": private_note_audit["notes"],
     }
     return diagnostics
 
@@ -533,25 +837,936 @@ def _build_run_health(report: dict[str, Any], run_record: dict[str, Any], diagno
     if diagnostics["counts"]["coverage_miss_count"] > 0 or report.get("coverage_miss"):
         scenario_issues.append("coverage miss observed")
 
-    if run_record.get("protocol_failure"):
-        status = "protocol_failure"
-    elif scenario_issues:
-        status = "scenario_authoring_attention_needed"
-    elif harness_issues:
-        status = "minor_harness_friction"
+    if run_record.get("protocol_failure") or report.get("coverage_miss"):
+        overall_status = "protocol_failure"
+    elif model_issues or harness_issues or scenario_issues:
+        overall_status = "attention_needed"
     else:
-        status = "clean"
+        overall_status = "clean"
+    model_status = "attention_needed" if model_issues else "clean"
+    harness_status = "attention_needed" if harness_issues or scenario_issues else "clean"
 
     return {
-        "status": status,
+        "status": overall_status,
+        "overall_status": overall_status,
+        "model_status": model_status,
+        "harness_status": harness_status,
+        "termination_reason": _normalized_termination_reason(run_record),
+        "simulated_end_time": run_record.get("simulated_end_time", report.get("time")),
         "protocol_failure": bool(run_record.get("protocol_failure")),
         "protocol_failure_reason": run_record.get("protocol_failure_reason"),
         "coverage_miss": bool(report.get("coverage_miss")),
         "model_behavior_issues": model_issues,
         "harness_interface_issues": harness_issues,
         "scenario_authoring_issues": scenario_issues,
-        "behavior_diagnostics": diagnostics,
+        "chat_minutes_by_cost_key": diagnostics.get("chat_minutes_by_cost_key", {}),
+        "behavior_diagnostics": {
+            key: value
+            for key, value in diagnostics.items()
+            if key != "private_note_audit_rows"
+        },
     }
+
+
+def _load_action_rows(run_record: dict[str, Any]) -> list[dict[str, Any]]:
+    output_dir = run_record.get("output_dir")
+    if not output_dir:
+        return []
+    db_path = Path(output_dir) / "run.sqlite"
+    if not db_path.exists():
+        return []
+    store = open_store(str(db_path))
+    try:
+        rows = []
+        for row in store.actions():
+            rows.append(
+                {
+                    "id": int(row["id"]),
+                    "at": row["at"],
+                    "actor_id": row["actor_id"],
+                    "surface": row["surface"],
+                    "act_id": row["act_id"],
+                    "slots": json.loads(row["slots_json"] or "{}"),
+                    "body": row["body"],
+                    "duration_minutes": row["duration_minutes"],
+                    "metadata": json.loads(row["metadata_json"] or "{}"),
+                }
+            )
+        return rows
+    finally:
+        store.close()
+
+
+def _load_message_rows(run_record: dict[str, Any]) -> list[dict[str, Any]]:
+    output_dir = run_record.get("output_dir")
+    if not output_dir:
+        return []
+    db_path = Path(output_dir) / "run.sqlite"
+    if not db_path.exists():
+        return []
+    store = open_store(str(db_path))
+    try:
+        rows = store.fetchall("SELECT * FROM messages ORDER BY created_at ASC, id ASC")
+        return [
+            {
+                "id": int(row["id"]),
+                "thread_id": row["thread_id"],
+                "surface": row["surface"],
+                "sender_id": row["sender_id"],
+                "act_id": row["act_id"],
+                "slots": json.loads(row["slots_json"] or "{}"),
+                "body": row["body"],
+                "created_at": row["created_at"],
+                "unread_for_tpm": bool(row["unread_for_tpm"]),
+                "metadata": json.loads(row["metadata_json"] or "{}"),
+            }
+            for row in rows
+        ]
+    finally:
+        store.close()
+
+
+def _load_document_rows(run_record: dict[str, Any]) -> list[dict[str, Any]]:
+    output_dir = run_record.get("output_dir")
+    if not output_dir:
+        return []
+    db_path = Path(output_dir) / "run.sqlite"
+    if not db_path.exists():
+        return []
+    store = open_store(str(db_path))
+    try:
+        rows = store.fetchall("SELECT * FROM documents ORDER BY updated_at ASC, id ASC")
+        return [
+            {
+                "id": row["id"],
+                "type": row["type"],
+                "title": row["title"],
+                "author_id": row["author_id"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "content": row["content"],
+                "metadata": json.loads(row["metadata_json"] or "{}"),
+            }
+            for row in rows
+        ]
+    finally:
+        store.close()
+
+
+def _simulated_minutes_elapsed(start_at: str, end_at: str) -> int:
+    return max(0, int((from_iso(end_at) - from_iso(start_at)).total_seconds() // 60))
+
+
+def _merge_decision_action_rows(agent_payload: dict[str, Any] | None, action_log_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    decisions = (agent_payload or {}).get("decisions", [])
+    persisted_rows = [row for row in action_log_rows if row.get("actor_id") == "tpm"]
+    persisted_by_ref = {f"action:{row['id']}": row for row in persisted_rows}
+    persisted_index = 0
+    used_action_ids: set[int] = set()
+    merged_rows: list[dict[str, Any]] = []
+    for turn in decisions:
+        decision = turn.get("decision", {})
+        action = decision.get("action", {})
+        args = action.get("arguments", {})
+        step_succeeded = turn.get("step_result") is not None
+        persisted = None
+        executed_action_ref = turn.get("executed_action_ref")
+        if step_succeeded and isinstance(executed_action_ref, str):
+            candidate = persisted_by_ref.get(executed_action_ref)
+            if candidate is not None:
+                persisted = candidate
+                used_action_ids.add(int(candidate["id"]))
+        if step_succeeded and persisted is None:
+            while persisted_index < len(persisted_rows) and int(persisted_rows[persisted_index]["id"]) in used_action_ids:
+                persisted_index += 1
+            if persisted_index < len(persisted_rows):
+                persisted = persisted_rows[persisted_index]
+                used_action_ids.add(int(persisted["id"]))
+                persisted_index += 1
+        persisted_slots = persisted.get("slots", {}) if persisted else {}
+        persisted_metadata = persisted.get("metadata", {}) if persisted else {}
+        resolved_action_ref = f"action:{persisted['id']}" if persisted else None
+        merged_rows.append(
+            {
+                "turn": turn.get("turn"),
+                "time": turn.get("observation_time"),
+                "action_type": action.get("action_type"),
+                "target": args.get("target"),
+                "act_id": args.get("act_id"),
+                "doc_id": args.get("doc_id") or persisted_slots.get("doc_id") or persisted_metadata.get("doc_id"),
+                "task_id": args.get("task_id") or persisted_slots.get("task_id"),
+                "meeting_id": args.get("meeting_id") or persisted_slots.get("meeting_id"),
+                "refs": list(args.get("refs") or persisted_metadata.get("refs") or []),
+                "validation_errors": turn.get("validation_errors") or [],
+                "repair_attempts": turn.get("repair_attempts", 0),
+                "step_succeeded": step_succeeded,
+                "executed_action_ref": executed_action_ref,
+                "action_id": persisted.get("id") if persisted else None,
+                "action_ref": executed_action_ref if isinstance(executed_action_ref, str) and executed_action_ref in persisted_by_ref else resolved_action_ref,
+                "surface": persisted.get("surface") if persisted else None,
+                "duration_minutes": persisted.get("duration_minutes") if persisted else None,
+                "body": persisted.get("body") if persisted else str(args.get("body", "")),
+                "slots": persisted_slots,
+                "metadata": persisted_metadata,
+                "thread_id": persisted_slots.get("thread_id") or persisted_metadata.get("thread_id"),
+                "target_actor_id": persisted_metadata.get("target_actor_id"),
+            }
+        )
+    return merged_rows
+
+
+def _build_private_note_audit(action_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    successful_rows = [row for row in action_rows if row.get("step_succeeded")]
+    counts = {
+        "total_notes_written": 0,
+        "structured_notes_written": 0,
+        "followed_through": 0,
+        "revisited_only": 0,
+        "not_followed_through": 0,
+        "unscoped_notes": 0,
+    }
+    notes: list[dict[str, Any]] = []
+    for index, row in enumerate(successful_rows):
+        if row.get("action_type") != "notes.write":
+            continue
+        counts["total_notes_written"] += 1
+        refs = [str(ref) for ref in row.get("refs") or []]
+        note_doc_id = str(row.get("doc_id") or row.get("metadata", {}).get("doc_id") or "")
+        note_reread = None
+        first_touch = None
+        first_touch_refs: list[str] = []
+        first_non_read_touch = None
+        first_non_read_touch_refs: list[str] = []
+        touch_action_refs: list[str] = []
+        for later in successful_rows[index + 1 :]:
+            if later.get("action_type") == "read.doc" and note_doc_id and _row_doc_id(later) == note_doc_id and note_reread is None:
+                note_reread = later
+            if later.get("action_type") == "notes.write":
+                continue
+            matched_refs = [ref for ref in refs if _action_touches_note_ref(later, ref)]
+            if not matched_refs:
+                continue
+            if later.get("action_ref"):
+                touch_action_refs.append(str(later["action_ref"]))
+            if first_touch is None:
+                first_touch = later
+                first_touch_refs = matched_refs
+            if not _is_read_action(later) and first_non_read_touch is None:
+                first_non_read_touch = later
+                first_non_read_touch_refs = matched_refs
+        if not refs:
+            status = "unscoped"
+            counts["unscoped_notes"] += 1
+        else:
+            counts["structured_notes_written"] += 1
+            if first_non_read_touch is not None:
+                status = "followed_through"
+                counts["followed_through"] += 1
+            elif first_touch is not None:
+                status = "revisited_only"
+                counts["revisited_only"] += 1
+            else:
+                status = "not_followed_through"
+                counts["not_followed_through"] += 1
+        notes.append(
+            {
+                "note_doc_id": note_doc_id or None,
+                "note_action_ref": row.get("action_ref"),
+                "created_turn": row.get("turn"),
+                "created_at": row.get("time"),
+                "refs": refs,
+                "status": status,
+                "reread_note": bool(note_reread),
+                "reread_note_action_ref": note_reread.get("action_ref") if note_reread else None,
+                "reread_note_at": note_reread.get("time") if note_reread else None,
+                "first_touch_action_ref": first_touch.get("action_ref") if first_touch else None,
+                "first_touch_at": first_touch.get("time") if first_touch else None,
+                "first_touch_refs": first_touch_refs,
+                "first_non_read_touch_action_ref": first_non_read_touch.get("action_ref") if first_non_read_touch else None,
+                "first_non_read_touch_at": first_non_read_touch.get("time") if first_non_read_touch else None,
+                "first_non_read_touch_refs": first_non_read_touch_refs,
+                "touch_action_refs": _unique_refs(touch_action_refs),
+            }
+        )
+    return {"counts": counts, "notes": notes}
+
+
+def _action_touches_note_ref(row: dict[str, Any], ref: str) -> bool:
+    kind, ref_id = _split_note_ref(ref)
+    if kind == "actor":
+        if row.get("action_type") not in {"chat.send", "read.thread"}:
+            return False
+        return str(row.get("target_actor_id") or row.get("target") or "") == ref_id
+    if kind == "thread":
+        if row.get("action_type") not in {"chat.send", "read.thread"}:
+            return False
+        return str(row.get("thread_id") or "") == ref_id
+    if kind == "task":
+        if row.get("action_type") not in {"task.note", "task.set_owner", "task.set_target"}:
+            return False
+        return _row_task_id(row) == ref_id
+    if kind == "doc":
+        if row.get("action_type") not in {"read.doc", "docs.write"}:
+            return False
+        return _row_doc_id(row) == ref_id
+    if kind == "meeting":
+        if row.get("action_type") not in {"meeting.propose", "meeting.act"}:
+            return False
+        return _row_meeting_id(row) == ref_id
+    return False
+
+
+def _split_note_ref(ref: str) -> tuple[str, str]:
+    kind, _, ref_id = str(ref).partition(":")
+    return kind, ref_id
+
+
+def _row_doc_id(row: dict[str, Any]) -> str:
+    return str(row.get("doc_id") or row.get("slots", {}).get("doc_id") or row.get("metadata", {}).get("doc_id") or "")
+
+
+def _row_task_id(row: dict[str, Any]) -> str:
+    return str(row.get("task_id") or row.get("slots", {}).get("task_id") or "")
+
+
+def _row_meeting_id(row: dict[str, Any]) -> str:
+    return str(row.get("meeting_id") or row.get("slots", {}).get("meeting_id") or "")
+
+
+def _build_failure_dossiers(
+    rubric_lines: list[dict[str, Any]],
+    *,
+    report: dict[str, Any],
+    scenario: dict[str, Any],
+    run_record: dict[str, Any],
+    run_health: dict[str, Any],
+    diagnostics: dict[str, Any],
+    critical_path: dict[str, Any],
+    agent_trace: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    dossiers: list[dict[str, Any]] = []
+    selected_line_ids: set[str] = set()
+    if run_health.get("protocol_failure") or report.get("coverage_miss"):
+        dossiers.append(
+            _build_interruption_dossier(
+                report,
+                run_record=run_record,
+                run_health=run_health,
+                diagnostics=diagnostics,
+                critical_path=critical_path,
+                merged_action_rows=merged_action_rows,
+            )
+        )
+    missed_lines = [line for line in rubric_lines if float(line["weight"]) > float(line["awarded"])]
+    critical_lines = sorted(
+        [line for line in missed_lines if _is_critical_window_line(line)],
+        key=lambda line: (float(line["weight"]) - float(line["awarded"]), float(line["weight"])),
+        reverse=True,
+    )
+    supporting_lines = sorted(
+        [line for line in missed_lines if line["id"] not in {item["id"] for item in critical_lines}],
+        key=lambda line: (float(line["weight"]) - float(line["awarded"]), float(line["weight"])),
+        reverse=True,
+    )
+    for line in critical_lines:
+        if len(dossiers) >= 3:
+            break
+        selected_line_ids.add(str(line["id"]))
+        dossiers.append(
+            _build_rubric_failure_dossier(
+                line,
+                scenario=scenario,
+                diagnostics=diagnostics,
+                critical_path=critical_path,
+                agent_trace=agent_trace,
+                merged_action_rows=merged_action_rows,
+            )
+        )
+    for line in supporting_lines:
+        if len(dossiers) >= 3:
+            break
+        if str(line["id"]) in selected_line_ids:
+            continue
+        selected_line_ids.add(str(line["id"]))
+        dossiers.append(
+            _build_rubric_failure_dossier(
+                line,
+                scenario=scenario,
+                diagnostics=diagnostics,
+                critical_path=critical_path,
+                agent_trace=agent_trace,
+                merged_action_rows=merged_action_rows,
+            )
+        )
+    return dossiers[:3]
+
+
+def _build_interruption_dossier(
+    report: dict[str, Any],
+    *,
+    run_record: dict[str, Any],
+    run_health: dict[str, Any],
+    diagnostics: dict[str, Any],
+    critical_path: dict[str, Any],
+    merged_action_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    example_action_refs = [row["action_ref"] for row in merged_action_rows if row.get("action_ref")][:3]
+    contributing_patterns = _build_contributing_patterns(
+        None,
+        diagnostics=diagnostics,
+        merged_action_rows=merged_action_rows,
+        deadline_at=None,
+        critical_path_failed=critical_path.get("status") != "critical_path_moved",
+    )
+    fix_hint = _select_fix_hint(None, contributing_patterns)
+    protocol_reason = run_health.get("protocol_failure_reason")
+    if protocol_reason:
+        why_it_matters = str(protocol_reason)
+    elif report.get("coverage_miss"):
+        why_it_matters = "Benchmark coverage miss interrupted the run before the TPM could complete the benchmark path."
+    else:
+        why_it_matters = "Run was interrupted before the TPM could complete the benchmark path."
+    headline = why_it_matters.rstrip(".")
+    if example_action_refs:
+        headline = f"{headline}, after {len(example_action_refs)} successful actions had already been taken."
+    else:
+        headline = f"{headline}."
+    return {
+        "id": "run_interruption",
+        "kind": "run_interruption",
+        "severity": "critical",
+        "rubric_line_id": None,
+        "title": "Run interrupted before the benchmark path completed",
+        "lost_points": round(max(0.0, 100.0 - float(report.get("total_score", 0.0))), 2),
+        "deadline_label": None,
+        "deadline_at": None,
+        "headline": headline,
+        "why_it_matters": why_it_matters,
+        "signal_refs": [],
+        "example_action_refs": example_action_refs,
+        "contributing_patterns": contributing_patterns,
+        "metrics": {
+            "first_signal_at": None,
+            "first_action_at": merged_action_rows[0]["time"] if merged_action_rows else None,
+            "minutes_from_first_signal_to_deadline": None,
+            "actions_before_deadline": None,
+            "reads_before_deadline": None,
+            "writes_before_deadline": None,
+        },
+        "deterministic_fix_hint": fix_hint,
+    }
+
+
+def _build_rubric_failure_dossier(
+    line: dict[str, Any],
+    *,
+    scenario: dict[str, Any],
+    diagnostics: dict[str, Any],
+    critical_path: dict[str, Any],
+    agent_trace: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    deadline_at = _line_deadline_at(line, scenario)
+    signal_refs = _resolve_signal_refs(line, agent_trace, deadline_at)
+    contributing_patterns = _build_contributing_patterns(
+        line,
+        diagnostics=diagnostics,
+        merged_action_rows=merged_action_rows,
+        deadline_at=deadline_at,
+        critical_path_failed=critical_path.get("status") != "critical_path_moved",
+    )
+    example_action_refs = _select_example_action_refs(
+        line,
+        contributing_patterns=contributing_patterns,
+        merged_action_rows=merged_action_rows,
+        deadline_at=deadline_at,
+    )
+    metrics = _build_dossier_metrics(
+        signal_refs,
+        example_action_refs,
+        agent_trace=agent_trace,
+        merged_action_rows=merged_action_rows,
+        deadline_at=deadline_at,
+    )
+    headline = _build_dossier_headline(line, contributing_patterns, metrics)
+    lost_points = round(float(line["weight"]) - float(line["awarded"]), 2)
+    kind = "missed_critical_window" if _is_critical_window_line(line) else "supporting_failure"
+    fix_hint = _select_fix_hint(line, contributing_patterns)
+    return {
+        "id": f"failure.{line['id']}",
+        "kind": kind,
+        "severity": _dossier_severity(kind, lost_points),
+        "rubric_line_id": line["id"],
+        "title": line["label"],
+        "lost_points": lost_points,
+        "deadline_label": line.get("deadline_or_window"),
+        "deadline_at": deadline_at,
+        "headline": headline,
+        "why_it_matters": line.get("failure_meaning", line["label"]),
+        "signal_refs": signal_refs,
+        "example_action_refs": example_action_refs,
+        "contributing_patterns": contributing_patterns,
+        "metrics": metrics,
+        "deterministic_fix_hint": fix_hint,
+    }
+
+
+def _dossier_severity(kind: str, lost_points: float) -> str:
+    if kind == "run_interruption" or lost_points >= 20:
+        return "critical"
+    if lost_points >= 10:
+        return "high"
+    return "medium"
+
+
+def _is_critical_window_line(line: dict[str, Any]) -> bool:
+    tags = set(line.get("competency_tags", []))
+    return "outcome_attainment" in tags or "timing_optionality_preservation" in tags
+
+
+def _line_deadline_at(line: dict[str, Any], scenario: dict[str, Any]) -> str | None:
+    success_predicate = line.get("success_predicate") or {}
+    before = success_predicate.get("before") if isinstance(success_predicate, dict) else None
+    if isinstance(before, dict):
+        explicit = before.get("time")
+        if explicit:
+            return explicit
+    deadline_label = str(line.get("deadline_or_window") or "")
+    if deadline_label:
+        window = _scenario_window_by_id(scenario, deadline_label)
+        if window is not None:
+            return str(window.get("end_at") or "") or None
+        milestone = _scenario_milestone_by_id(scenario, deadline_label)
+        if milestone is not None:
+            return str(milestone.get("due_at") or "") or None
+    milestone_id = _line_success_milestone_id(line)
+    if milestone_id:
+        milestone = _scenario_milestone_by_id(scenario, milestone_id)
+        if milestone is not None:
+            return str(milestone.get("due_at") or "") or None
+    task_id = _line_success_task_id(line)
+    if task_id:
+        for task in scenario.get("world", {}).get("tasks", []):
+            if isinstance(task, dict) and task.get("id") == task_id:
+                return str(task.get("due_at") or "") or None
+    return None
+
+
+def _scenario_window_by_id(scenario: dict[str, Any], window_id: str) -> dict[str, Any] | None:
+    for row in scenario.get("world", {}).get("windows", []):
+        if isinstance(row, dict) and row.get("id") == window_id:
+            return row
+    return None
+
+
+def _scenario_milestone_by_id(scenario: dict[str, Any], milestone_id: str) -> dict[str, Any] | None:
+    for row in scenario.get("world", {}).get("milestones", []):
+        if isinstance(row, dict) and row.get("id") == milestone_id:
+            return row
+    return None
+
+
+def _line_success_milestone_id(line: dict[str, Any]) -> str | None:
+    before = (line.get("success_predicate") or {}).get("before")
+    predicate = before.get("predicate") if isinstance(before, dict) else line.get("success_predicate")
+    if not isinstance(predicate, dict):
+        return None
+    milestone_state = predicate.get("milestone_state")
+    if isinstance(milestone_state, dict):
+        value = milestone_state.get("milestone_id")
+        return str(value) if value else None
+    all_of = predicate.get("all_of")
+    if isinstance(all_of, list):
+        for item in all_of:
+            if not isinstance(item, dict):
+                continue
+            milestone_state = item.get("milestone_state")
+            if isinstance(milestone_state, dict) and milestone_state.get("milestone_id"):
+                return str(milestone_state["milestone_id"])
+    return None
+
+
+def _line_success_task_id(line: dict[str, Any]) -> str | None:
+    before = (line.get("success_predicate") or {}).get("before")
+    predicate = before.get("predicate") if isinstance(before, dict) else line.get("success_predicate")
+    if not isinstance(predicate, dict):
+        return None
+    task_state = predicate.get("task_true_state")
+    if isinstance(task_state, dict):
+        value = task_state.get("task_id")
+        return str(value) if value else None
+    all_of = predicate.get("all_of")
+    if isinstance(all_of, list):
+        for item in all_of:
+            if not isinstance(item, dict):
+                continue
+            task_state = item.get("task_true_state")
+            if isinstance(task_state, dict) and task_state.get("task_id"):
+                return str(task_state["task_id"])
+    return None
+
+
+def _build_contributing_patterns(
+    line: dict[str, Any] | None,
+    *,
+    diagnostics: dict[str, Any],
+    merged_action_rows: list[dict[str, Any]],
+    deadline_at: str | None,
+    critical_path_failed: bool,
+) -> list[dict[str, Any]]:
+    patterns: list[dict[str, Any]] = []
+    line_text = _line_text(line)
+    concern_is_approval_or_dependency = (
+        line is None
+        or _is_critical_window_line(line)
+        or any(token in line_text for token in ("approval", "scope", "commit", "dependency"))
+    )
+    if diagnostics["counts"]["approval_before_preconditions"] > 0 and concern_is_approval_or_dependency:
+        refs = _sample_action_refs(
+            merged_action_rows,
+            deadline_at=deadline_at,
+            predicate=lambda row: row.get("act_id") == "request.approval",
+        )
+        patterns.append(
+            {
+                "kind": "approval_before_preconditions",
+                "count": int(diagnostics["counts"]["approval_before_preconditions"]),
+                "action_refs": refs,
+            }
+        )
+    if diagnostics["counts"]["unresolved_reply_loops"] > 0:
+        patterns.append(
+            {
+                "kind": "reasking_without_new_information",
+                "count": int(diagnostics["counts"]["unresolved_reply_loops"]),
+                "action_refs": _reasking_action_refs(merged_action_rows, deadline_at=deadline_at),
+            }
+        )
+    repeated_loops = _relevant_repeated_loops(diagnostics.get("repeated_action_loops", []), deadline_at=deadline_at)
+    if repeated_loops:
+        action_refs = _unique_refs(ref for loop in repeated_loops for ref in loop.get("action_refs", []))[:3]
+        patterns.append(
+            {
+                "kind": "repeated_coordination_loop",
+                "count": int(sum(int(loop.get("count", 0)) for loop in repeated_loops)),
+                "action_refs": action_refs,
+            }
+        )
+    if (
+        diagnostics["counts"]["reads"]
+        and diagnostics["counts"]["writes"] > diagnostics["counts"]["reads"] * 2
+        and critical_path_failed
+    ):
+        patterns.append(
+            {
+                "kind": "write_heavy_coordination",
+                "count": int(diagnostics["counts"]["writes"]),
+                "action_refs": _sample_action_refs(
+                    merged_action_rows,
+                    deadline_at=deadline_at,
+                    predicate=lambda row: row.get("action_type") in WRITE_ACTION_TYPES,
+                ),
+            }
+        )
+    return patterns
+
+
+def _select_example_action_refs(
+    line: dict[str, Any],
+    *,
+    contributing_patterns: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+    deadline_at: str | None,
+) -> list[str]:
+    priority_refs = _unique_refs(ref for pattern in contributing_patterns for ref in pattern.get("action_refs", []))
+    if priority_refs:
+        return priority_refs[:3]
+    line_text = _line_text(line)
+    if any(token in line_text for token in ("approval", "scope", "commit")) or _is_critical_window_line(line):
+        refs = _sample_action_refs(
+            merged_action_rows,
+            deadline_at=deadline_at,
+            predicate=lambda row: row.get("act_id") == "request.approval",
+        )
+        if refs:
+            return refs
+    refs = _sample_action_refs(
+        merged_action_rows,
+        deadline_at=deadline_at,
+        predicate=lambda row: row.get("action_type") == "chat.send",
+    )
+    if refs:
+        return refs
+    return _sample_action_refs(merged_action_rows, deadline_at=deadline_at, predicate=lambda row: True)
+
+
+def _sample_action_refs(
+    merged_action_rows: list[dict[str, Any]],
+    *,
+    deadline_at: str | None,
+    predicate,
+) -> list[str]:
+    refs: list[str] = []
+    for row in merged_action_rows:
+        if deadline_at and str(row.get("time")) > deadline_at:
+            continue
+        if not row.get("action_ref") or not predicate(row):
+            continue
+        refs.append(str(row["action_ref"]))
+        if len(refs) >= 3:
+            break
+    return refs
+
+
+def _reasking_action_refs(merged_action_rows: list[dict[str, Any]], *, deadline_at: str | None) -> list[str]:
+    seen_pairs: Counter[tuple[str, str]] = Counter()
+    refs: list[str] = []
+    for row in merged_action_rows:
+        if deadline_at and str(row.get("time")) > deadline_at:
+            continue
+        if row.get("action_type") != "chat.send" or not row.get("target") or not row.get("act_id"):
+            continue
+        key = (str(row["target"]), str(row["act_id"]))
+        seen_pairs[key] += 1
+        if seen_pairs[key] >= 2 and row.get("action_ref"):
+            refs.append(str(row["action_ref"]))
+        if len(refs) >= 3:
+            break
+    return refs
+
+
+def _relevant_repeated_loops(repeated_loops: list[dict[str, Any]], *, deadline_at: str | None) -> list[dict[str, Any]]:
+    relevant = []
+    for loop in repeated_loops:
+        action_times = [str(value) for value in loop.get("action_times", [])]
+        if deadline_at and action_times and min(action_times) > deadline_at:
+            continue
+        relevant.append(loop)
+    return relevant
+
+
+def _resolve_signal_refs(line: dict[str, Any], agent_trace: list[dict[str, Any]], deadline_at: str | None) -> list[str]:
+    if not agent_trace:
+        return []
+    keywords = _keywords_for_text(_line_text(line))
+    candidates = []
+    for row in agent_trace:
+        event_type = str(row.get("event_type"))
+        if event_type not in SIGNAL_EVENT_TYPES or row.get("id") is None:
+            continue
+        if deadline_at and str(row.get("at")) > deadline_at:
+            continue
+        summary = str(row.get("summary") or "")
+        payload = json.dumps(row.get("payload") or {}, sort_keys=True)
+        candidate_text = f"{summary} {payload}".lower()
+        overlap = sum(1 for keyword in keywords if keyword in candidate_text)
+        candidates.append(
+            (
+                -overlap,
+                SIGNAL_EVENT_TYPES[event_type],
+                str(row.get("at")),
+                int(row["id"]),
+                row,
+            )
+        )
+    if not candidates:
+        return []
+    selected = [item[-1] for item in sorted(candidates)[:3]]
+    return [f"event:{row['id']}" for row in selected]
+
+
+def _build_dossier_metrics(
+    signal_refs: list[str],
+    example_action_refs: list[str],
+    *,
+    agent_trace: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+    deadline_at: str | None,
+) -> dict[str, Any]:
+    event_index = {f"event:{row['id']}": row for row in agent_trace if row.get("id") is not None}
+    action_index = {str(row["action_ref"]): row for row in merged_action_rows if row.get("action_ref")}
+    first_signal_at = None
+    if signal_refs:
+        signal_times = [str(event_index[ref]["at"]) for ref in signal_refs if ref in event_index]
+        if signal_times:
+            first_signal_at = min(signal_times)
+    first_action_at = None
+    if example_action_refs:
+        action_times = [str(action_index[ref]["time"]) for ref in example_action_refs if ref in action_index]
+        if action_times:
+            first_action_at = min(action_times)
+    if deadline_at:
+        window_rows = [row for row in merged_action_rows if row.get("action_ref") and str(row.get("time")) <= deadline_at]
+        actions_before_deadline = len(window_rows)
+        reads_before_deadline = sum(1 for row in window_rows if _is_read_action(row))
+        writes_before_deadline = sum(1 for row in window_rows if _is_write_action(row))
+    else:
+        actions_before_deadline = None
+        reads_before_deadline = None
+        writes_before_deadline = None
+    minutes_from_first_signal_to_deadline = None
+    if first_signal_at and deadline_at:
+        minutes_from_first_signal_to_deadline = max(
+            0,
+            int((from_iso(deadline_at) - from_iso(first_signal_at)).total_seconds() // 60),
+        )
+    return {
+        "first_signal_at": first_signal_at,
+        "first_action_at": first_action_at,
+        "minutes_from_first_signal_to_deadline": minutes_from_first_signal_to_deadline,
+        "actions_before_deadline": actions_before_deadline,
+        "reads_before_deadline": reads_before_deadline,
+        "writes_before_deadline": writes_before_deadline,
+    }
+
+
+def _build_dossier_headline(
+    line: dict[str, Any],
+    contributing_patterns: list[dict[str, Any]],
+    metrics: dict[str, Any],
+) -> str:
+    base = str(line.get("failure_meaning", line["label"])).rstrip(".")
+    if contributing_patterns:
+        first_pattern = contributing_patterns[0]
+        clauses = {
+            "approval_before_preconditions": f"after {first_pattern['count']} premature approval asks",
+            "reasking_without_new_information": f"after {first_pattern['count']} re-asks without incorporating replies",
+            "repeated_coordination_loop": f"after repeating the same coordination loop {first_pattern['count']} times",
+            "write_heavy_coordination": f"after spending {first_pattern['count']} write actions without enough learning",
+        }
+        clause = clauses.get(first_pattern["kind"])
+        if clause:
+            return f"{base}, {clause}."
+    if metrics.get("first_signal_at"):
+        return f"{base}, despite a first visible signal at {metrics['first_signal_at']}."
+    return f"{base}."
+
+
+def _select_fix_hint(line: dict[str, Any] | None, contributing_patterns: list[dict[str, Any]]) -> str:
+    pattern_kinds = {item["kind"] for item in contributing_patterns}
+    if "approval_before_preconditions" in pattern_kinds:
+        return "defer approval until preconditions are met"
+    if "reasking_without_new_information" in pattern_kinds:
+        return "consume and incorporate replies before re-asking"
+    line_text = _line_text(line)
+    if any(token in line_text for token in ("scope", "aligned", "decision", "tradeoff")) or (line and _is_critical_window_line(line)):
+        return "force the path decision before downstream coordination"
+    if any(token in line_text for token in ("commit", "eta", "approval")):
+        return "convert alignment into explicit commitment immediately"
+    return "reallocate turns to the gating path"
+
+
+def _project_key_failures(
+    root_cause_findings: list[dict[str, Any]],
+    *,
+    rubric_failure_dossiers: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    projected = []
+    for finding in root_cause_findings[:4]:
+        evidence_refs = _unique_refs(finding.get("signal_refs", []) + finding.get("action_refs", []))
+        projected.append(
+            {
+                "id": finding["id"],
+                "title": finding["title"],
+                "summary": finding["headline"],
+                "evidence_refs": evidence_refs,
+                "lost_points": finding["lost_points_total"],
+            }
+        )
+    if projected:
+        return projected
+    for dossier in rubric_failure_dossiers:
+        evidence_refs = _unique_refs(dossier.get("signal_refs", []) + dossier.get("example_action_refs", []))
+        projected.append(
+            {
+                "id": dossier.get("rubric_line_id") or dossier["id"],
+                "title": dossier["title"],
+                "summary": dossier["headline"],
+                "evidence_refs": evidence_refs,
+                "lost_points": dossier["lost_points"],
+            }
+        )
+    return projected[:4]
+
+
+def _project_improvement_opportunities(
+    root_cause_findings: list[dict[str, Any]],
+    *,
+    rubric_failure_dossiers: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    opportunities: list[dict[str, Any]] = []
+    seen_titles: set[str] = set()
+    for finding in root_cause_findings:
+        title = str(finding.get("title") or "")
+        counterfactual = str(finding.get("counterfactual_step") or "")
+        if not title or not counterfactual or title in seen_titles:
+            continue
+        seen_titles.add(title)
+        opportunities.append({"title": title, "summary": counterfactual})
+    if opportunities:
+        return opportunities[:4]
+    seen_hints: set[str] = set()
+    for dossier in rubric_failure_dossiers:
+        hint = str(dossier["deterministic_fix_hint"])
+        if hint in seen_hints:
+            continue
+        seen_hints.add(hint)
+        opportunities.append({"title": FIX_HINT_LABELS[hint], "summary": hint})
+    return opportunities[:4]
+
+
+def _is_read_action(row: dict[str, Any]) -> bool:
+    return str(row.get("action_type") or "").startswith(READ_ACTION_PREFIX)
+
+
+def _is_write_action(row: dict[str, Any]) -> bool:
+    return str(row.get("action_type") or "") in WRITE_ACTION_TYPES
+
+
+def _line_text(line: dict[str, Any] | None) -> str:
+    if not line:
+        return ""
+    return " ".join(
+        str(line.get(key, ""))
+        for key in ("id", "label", "failure_meaning", "measurement_rationale", "deadline_or_window")
+    ).lower()
+
+
+def _keywords_for_text(text: str) -> list[str]:
+    tokens = [token for token in re.findall(r"[a-z0-9_]+", text.lower()) if len(token) >= 4]
+    stopwords = {
+        "that",
+        "with",
+        "from",
+        "this",
+        "were",
+        "when",
+        "would",
+        "into",
+        "before",
+        "after",
+        "still",
+        "enough",
+        "their",
+        "there",
+        "which",
+        "them",
+        "while",
+        "make",
+        "made",
+        "time",
+        "timing",
+    }
+    return [token for token in tokens if token not in stopwords][:12]
+
+
+def _unique_refs(refs: Iterable[str]) -> list[str]:
+    ordered: list[str] = []
+    for ref in refs:
+        if ref and ref not in ordered:
+            ordered.append(ref)
+    return ordered
 
 
 def _key_successes(rubric_lines: list[dict[str, Any]], dimension_scores: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -649,6 +1864,1195 @@ def _improvement_opportunities(rubric_lines: list[dict[str, Any]], diagnostics: 
     return opportunities[:4]
 
 
+def _select_visible_trace(agent_trace: list[dict[str, Any]], omniscient_trace: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if agent_trace:
+        return agent_trace
+    return [
+        row
+        for row in omniscient_trace
+        if row.get("event_type") in SIGNAL_EVENT_TYPES
+        or row.get("visibility") == "agent"
+        or row.get("actor_id") == "tpm"
+    ]
+
+
+def _normalize_excerpt(text: str | None, *, limit: int = 200) -> str:
+    normalized = re.sub(r"\s+", " ", str(text or "")).strip()
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[: max(0, limit - 3)].rstrip() + "..."
+
+
+def _row_target_actor_id(row: dict[str, Any]) -> str | None:
+    metadata = row.get("metadata", {}) if isinstance(row.get("metadata"), dict) else {}
+    slots = row.get("slots", {}) if isinstance(row.get("slots"), dict) else {}
+    for candidate in (
+        row.get("target_actor_id"),
+        metadata.get("target_actor_id"),
+        row.get("target"),
+        slots.get("thread_id"),
+        metadata.get("thread_id"),
+    ):
+        if candidate:
+            return str(candidate)
+    return None
+
+
+def _action_intent_family(row: dict[str, Any]) -> str:
+    action_type = str(row.get("action_type") or "")
+    act_id = str(row.get("act_id") or "")
+    task_id = str(row.get("task_id") or row.get("slots", {}).get("task_id") or "")
+    if action_type.startswith("wait."):
+        return "wait"
+    if _is_read_action(row):
+        return "read_only"
+    if action_type == "chat.send":
+        if act_id in {"request.scope_tradeoff", "negotiate.scope"}:
+            return "scope_tradeoff"
+        if act_id == "inform.decision":
+            return "decision_alignment"
+        if act_id in {"request.review", "request.approval"}:
+            return "approval_request"
+        if "eta" in act_id:
+            return "eta_request"
+        if task_id == "runbook_readiness" or act_id == "request.feasibility":
+            return "runbook_cleanup"
+        if act_id == "request.clarification":
+            return "clarification_loop"
+        if act_id.startswith("inform.") or act_id.startswith("status."):
+            return "status_only"
+    if action_type == "docs.write" and ("runbook" in task_id or "runbook" in _normalize_excerpt(row.get("body")).lower()):
+        return "runbook_cleanup"
+    return "other"
+
+
+def _action_summary(row: dict[str, Any]) -> str:
+    intent_family = _action_intent_family(row)
+    target = _row_target_actor_id(row)
+    action_type = str(row.get("action_type") or "")
+    act_id = str(row.get("act_id") or "")
+    parts = [part for part in [action_type or None, act_id or None] if part]
+    summary = "/".join(parts) if parts else "action"
+    if target:
+        summary += f" -> {target}"
+    if intent_family not in {"other", "read_only", "wait"}:
+        summary += f" [{intent_family}]"
+    body = _normalize_excerpt(row.get("body"))
+    if body:
+        summary += f": {body}"
+    return summary
+
+
+def _signal_id_from_event(row: dict[str, Any]) -> str | None:
+    payload = row.get("payload", {})
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get("fact_id") or payload.get("signal_id")
+    return str(value) if value else None
+
+
+def _signal_kind(fact: dict[str, Any] | None, event_type: str | None) -> str:
+    metadata = fact.get("metadata", {}) if isinstance(fact, dict) else {}
+    if isinstance(metadata, dict) and (
+        metadata.get("fact_kind") == "actor_private_driver"
+        or metadata.get("coordination_implication")
+        or metadata.get("driver_type")
+    ):
+        return "driver"
+    if event_type == "agenda_signal.observed":
+        return "agenda"
+    return "fact"
+
+
+def _signal_criticality(signal_id: str, fact: dict[str, Any] | None) -> str:
+    metadata = fact.get("metadata", {}) if isinstance(fact, dict) else {}
+    text = " ".join(
+        [
+            signal_id,
+            str(fact.get("label", "") if isinstance(fact, dict) else ""),
+            str(fact.get("description", "") if isinstance(fact, dict) else ""),
+            str(metadata.get("coordination_implication", "") if isinstance(metadata, dict) else ""),
+        ]
+    ).lower()
+    if any(token in text for token in ("runbook", "checklist", "ops support")) and not any(
+        token in text for token in ("approval", "scope", "rollout", "launch", "eta")
+    ):
+        return "supporting"
+    if isinstance(metadata, dict) and (
+        metadata.get("coordination_implication")
+        or metadata.get("fact_kind") == "actor_private_driver"
+        or metadata.get("owner_actor_id")
+    ):
+        return "critical"
+    if any(token in text for token in ("approval", "scope", "rollout", "launch", "review", "eta", "credible")):
+        return "critical"
+    return "supporting"
+
+
+def _deadline_from_label_or_task(
+    scenario: dict[str, Any],
+    *,
+    deadline_label: str | None = None,
+    task_id: str | None = None,
+) -> str | None:
+    if deadline_label:
+        window = _scenario_window_by_id(scenario, deadline_label)
+        if window is not None and window.get("end_at"):
+            return str(window["end_at"])
+        milestone = _scenario_milestone_by_id(scenario, deadline_label)
+        if milestone is not None and milestone.get("due_at"):
+            return str(milestone["due_at"])
+    if task_id:
+        for task in scenario.get("world", {}).get("tasks", []):
+            if isinstance(task, dict) and task.get("id") == task_id and task.get("due_at"):
+                return str(task["due_at"])
+    return None
+
+
+def _signal_expectations(signal_id: str, fact: dict[str, Any] | None, scenario: dict[str, Any]) -> dict[str, Any]:
+    metadata = fact.get("metadata", {}) if isinstance(fact, dict) else {}
+    text = " ".join(
+        [
+            signal_id,
+            str(fact.get("label", "") if isinstance(fact, dict) else ""),
+            str(fact.get("description", "") if isinstance(fact, dict) else ""),
+            str(metadata.get("coordination_implication", "") if isinstance(metadata, dict) else ""),
+        ]
+    ).lower()
+    if signal_id == "approval_required" or ("approval" in text and "review" in text):
+        return {
+            "expected_action_families": ["approval_request"],
+            "expected_actors": ["ivy"],
+            "deadline_label": "approval_cutoff",
+            "deadline_at": _deadline_from_label_or_task(scenario, deadline_label="approval_cutoff"),
+        }
+    if signal_id == "ops_checklist_available" or any(token in text for token in ("ops", "checklist", "runbook")):
+        return {
+            "expected_action_families": ["runbook_cleanup"],
+            "expected_actors": ["mia"],
+            "deadline_label": "runbook_readiness",
+            "deadline_at": _deadline_from_label_or_task(scenario, task_id="runbook_readiness"),
+        }
+    if signal_id in {"dana_accepts_staged_if_early", "full_rollout_infeasible", "leo_rejects_fake_rollout_dates"} or any(
+        token in text for token in ("staged rollout", "tradeoff", "credible", "scope", "fake rollout dates")
+    ):
+        return {
+            "expected_action_families": ["scope_tradeoff", "decision_alignment"],
+            "expected_actors": ["dana", "leo"],
+            "deadline_label": "scope_alignment_cutoff",
+            "deadline_at": _deadline_from_label_or_task(scenario, deadline_label="scope_alignment_cutoff"),
+        }
+    expected_actors = [str(metadata.get("owner_actor_id"))] if isinstance(metadata, dict) and metadata.get("owner_actor_id") else []
+    return {
+        "expected_action_families": [],
+        "expected_actors": expected_actors,
+        "deadline_label": None,
+        "deadline_at": None,
+    }
+
+
+def _find_matching_actions(
+    merged_action_rows: list[dict[str, Any]],
+    *,
+    after_at: str | None,
+    deadline_at: str | None,
+    expected_action_families: list[str],
+    expected_actors: list[str],
+    max_refs: int = 3,
+) -> list[str]:
+    refs: list[str] = []
+    for row in merged_action_rows:
+        if not row.get("step_succeeded") or not row.get("action_ref"):
+            continue
+        when = str(row.get("time") or "")
+        if after_at and when <= after_at:
+            continue
+        if deadline_at and when > deadline_at:
+            continue
+        intent_family = _action_intent_family(row)
+        if expected_action_families and intent_family not in expected_action_families:
+            continue
+        target_actor_id = _row_target_actor_id(row)
+        if expected_actors and target_actor_id and target_actor_id not in expected_actors:
+            continue
+        if expected_actors and target_actor_id is None and row.get("action_type") == "chat.send":
+            continue
+        refs.append(str(row["action_ref"]))
+        if len(refs) >= max_refs:
+            break
+    return refs
+
+
+def _build_signal_coverage(
+    scenario: dict[str, Any],
+    visible_trace: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    facts = {
+        str(fact["id"]): fact
+        for fact in scenario.get("world", {}).get("facts", [])
+        if isinstance(fact, dict) and fact.get("id")
+    }
+    surfaced_by_signal: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in visible_trace:
+        event_type = str(row.get("event_type"))
+        if event_type not in {"fact_signal", "agenda_signal.observed"}:
+            continue
+        signal_id = _signal_id_from_event(row)
+        if signal_id:
+            surfaced_by_signal[signal_id].append(row)
+    candidate_signal_ids: set[str] = set(surfaced_by_signal)
+    for signal_id, fact in facts.items():
+        metadata = fact.get("metadata", {}) if isinstance(fact, dict) else {}
+        text = " ".join([signal_id, str(fact.get("label", "")), str(fact.get("description", ""))]).lower()
+        if surfaced_by_signal.get(signal_id) or (
+            isinstance(metadata, dict)
+            and (metadata.get("coordination_implication") or metadata.get("fact_kind") == "actor_private_driver")
+        ) or any(token in text for token in ("approval", "scope", "rollout", "launch", "eta", "checklist", "runbook")):
+            candidate_signal_ids.add(signal_id)
+    rows: list[dict[str, Any]] = []
+    for signal_id in sorted(candidate_signal_ids):
+        fact = facts.get(signal_id)
+        events = sorted(surfaced_by_signal.get(signal_id, []), key=lambda row: (str(row.get("at")), int(row.get("id") or 0)))
+        first_event = events[0] if events else None
+        kind = _signal_kind(fact, str(first_event.get("event_type")) if first_event else None)
+        criticality = _signal_criticality(signal_id, fact)
+        expectations = _signal_expectations(signal_id, fact, scenario)
+        conversion_refs = _find_matching_actions(
+            merged_action_rows,
+            after_at=str(first_event.get("at")) if first_event else None,
+            deadline_at=expectations.get("deadline_at"),
+            expected_action_families=list(expectations.get("expected_action_families") or []),
+            expected_actors=list(expectations.get("expected_actors") or []),
+        ) if first_event else []
+        rows.append(
+            {
+                "signal_id": signal_id,
+                "label": str(fact.get("label", signal_id)) if isinstance(fact, dict) else signal_id,
+                "kind": kind,
+                "criticality": criticality,
+                "surfaced": bool(first_event),
+                "first_surfaced_at": str(first_event.get("at")) if first_event else None,
+                "surface_event_ref": f"event:{first_event['id']}" if first_event and first_event.get("id") is not None else None,
+                "surface_source_ref": (
+                    str(first_event.get("payload", {}).get("source_ref"))
+                    if first_event and isinstance(first_event.get("payload"), dict) and first_event.get("payload", {}).get("source_ref")
+                    else None
+                ),
+                "converted_to_plan_change": bool(conversion_refs),
+                "conversion_action_refs": conversion_refs,
+                "expected_action_families": list(expectations.get("expected_action_families") or []),
+                "expected_actors": list(expectations.get("expected_actors") or []),
+                "deadline_label": expectations.get("deadline_label"),
+                "deadline_at": expectations.get("deadline_at"),
+            }
+        )
+    rows.sort(key=lambda row: (row["criticality"] != "critical", row["signal_id"]))
+    return {
+        "signals": rows,
+        "summary_metrics": {
+            "critical_surfaced": sum(1 for row in rows if row["criticality"] == "critical" and row["surfaced"]),
+            "critical_unsurfaced": [row["signal_id"] for row in rows if row["criticality"] == "critical" and not row["surfaced"]],
+            "critical_converted": sum(
+                1 for row in rows if row["criticality"] == "critical" and row["surfaced"] and row["converted_to_plan_change"]
+            ),
+        },
+    }
+
+
+def _actor_decision_rights(actor: dict[str, Any]) -> list[str]:
+    profile = actor.get("authority_profile", {}) if isinstance(actor, dict) else {}
+    if not isinstance(profile, dict):
+        return []
+    return sorted(key for key, value in profile.items() if value)
+
+
+def _is_critical_actor(actor: dict[str, Any]) -> bool:
+    if not isinstance(actor, dict):
+        return False
+    if actor.get("id") == "tpm":
+        return False
+    if actor.get("coordination_template") in {"sponsor", "critical_path_owner", "cross_functional_dependency_owner"}:
+        return True
+    rights = set(_actor_decision_rights(actor))
+    return bool({"can_approve_scope", "can_commit_eta", "can_grant_review"} & rights)
+
+
+def _relevant_deadlines_for_actor(actor: dict[str, Any], scenario: dict[str, Any]) -> list[dict[str, str]]:
+    actor_id = str(actor.get("id") or "")
+    output: list[dict[str, str]] = []
+    seen_ids: set[str] = set()
+    for task in scenario.get("world", {}).get("tasks", []):
+        if not isinstance(task, dict) or task.get("owner_id") != actor_id or not task.get("due_at"):
+            continue
+        critical = bool((task.get("metadata") or {}).get("critical")) if isinstance(task.get("metadata"), dict) else False
+        if not critical:
+            continue
+        entry_id = f"task:{task['id']}"
+        if entry_id in seen_ids:
+            continue
+        seen_ids.add(entry_id)
+        output.append({"id": entry_id, "label": str(task.get("title") or task["id"]), "at": str(task["due_at"])})
+    rights = set(_actor_decision_rights(actor))
+    mappings = [
+        ("approval_cutoff", {"can_grant_review"}),
+        ("scope_alignment_cutoff", {"can_approve_scope", "can_commit_eta"}),
+        ("rollout_ready", {"can_commit_eta"}),
+    ]
+    for deadline_label, required_rights in mappings:
+        if not rights & required_rights:
+            continue
+        deadline_at = _deadline_from_label_or_task(scenario, deadline_label=deadline_label)
+        if not deadline_at:
+            continue
+        if deadline_label in seen_ids:
+            continue
+        seen_ids.add(deadline_label)
+        output.append({"id": deadline_label, "label": deadline_label, "at": deadline_at})
+    output.sort(key=lambda row: row["at"])
+    return output
+
+
+def _message_is_direct_question(message_row: dict[str, Any]) -> bool:
+    act_id = str(message_row.get("act_id") or "")
+    body = str(message_row.get("body") or "")
+    return act_id.startswith("request.") or "?" in body
+
+
+def _has_outbound_after(actor_id: str, at: str, merged_action_rows: list[dict[str, Any]]) -> bool:
+    for row in merged_action_rows:
+        if not row.get("step_succeeded") or row.get("action_type") != "chat.send":
+            continue
+        if _row_target_actor_id(row) == actor_id and str(row.get("time") or "") > at:
+            return True
+    return False
+
+
+def _build_stakeholder_engagement(
+    scenario: dict[str, Any],
+    message_rows: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+    visible_trace: list[dict[str, Any]],
+) -> dict[str, Any]:
+    actors = [
+        actor
+        for actor in scenario.get("world", {}).get("actors", [])
+        if isinstance(actor, dict) and actor.get("id") and actor.get("id") != "tpm"
+    ]
+    rows: list[dict[str, Any]] = []
+    for actor in actors:
+        actor_id = str(actor["id"])
+        inbound = [row for row in message_rows if str(row.get("sender_id")) == actor_id]
+        outbound = [
+            row
+            for row in merged_action_rows
+            if row.get("step_succeeded") and row.get("action_type") == "chat.send" and _row_target_actor_id(row) == actor_id
+        ]
+        reads = [
+            row
+            for row in merged_action_rows
+            if row.get("step_succeeded") and row.get("action_type") == "read.thread" and _row_target_actor_id(row) == actor_id
+        ]
+        cue_times = [str(row.get("created_at")) for row in inbound if row.get("created_at")]
+        for event in visible_trace:
+            payload = event.get("payload", {}) if isinstance(event.get("payload"), dict) else {}
+            if str(payload.get("owner_actor_id") or "") == actor_id or str(event.get("actor_id") or "") == actor_id:
+                if event.get("event_type") in SIGNAL_EVENT_TYPES and event.get("at"):
+                    cue_times.append(str(event["at"]))
+        direct_question_refs = [
+            f"message:{row['id']}"
+            for row in inbound
+            if _message_is_direct_question(row) and not _has_outbound_after(actor_id, str(row.get("created_at") or ""), merged_action_rows)
+        ]
+        relevant_deadlines = _relevant_deadlines_for_actor(actor, scenario)
+        earliest_deadline = relevant_deadlines[0]["at"] if relevant_deadlines else None
+        first_outbound_at = min((str(row.get("time")) for row in outbound if row.get("time")), default=None)
+        engaged_before = bool(first_outbound_at and (earliest_deadline is None or first_outbound_at <= earliest_deadline))
+        criticality = "critical" if _is_critical_actor(actor) else "supporting"
+        notes: list[str] = []
+        if criticality == "critical" and not outbound:
+            notes.append("Critical stakeholder was never contacted.")
+        if direct_question_refs:
+            notes.append("Left at least one direct stakeholder question unanswered.")
+        rows.append(
+            {
+                "actor_id": actor_id,
+                "name": actor.get("name"),
+                "role": actor.get("org_role"),
+                "decision_rights": _actor_decision_rights(actor),
+                "relevant_deadlines": relevant_deadlines,
+                "first_cue_at": min(cue_times) if cue_times else None,
+                "first_read_at": min((str(row.get("time")) for row in reads if row.get("time")), default=None),
+                "first_outbound_at": first_outbound_at,
+                "outbound_count": len(outbound),
+                "inbound_count": len(inbound),
+                "unanswered_direct_questions": direct_question_refs,
+                "engaged_before_relevant_deadline": engaged_before,
+                "criticality_to_outcome": criticality,
+                "notes": notes,
+            }
+        )
+    rows.sort(key=lambda row: (row["criticality_to_outcome"] != "critical", row["actor_id"]))
+    total_outbound = sum(int(row["outbound_count"]) for row in rows)
+    top_contacted = max(rows, key=lambda row: int(row["outbound_count"]), default=None)
+    top_contacted_share = round((int(top_contacted["outbound_count"]) / total_outbound), 3) if top_contacted and total_outbound else 0.0
+    summary_metrics = {
+        "top_contacted_actor_id": top_contacted["actor_id"] if top_contacted else None,
+        "top_contacted_actor_share": top_contacted_share,
+        "critical_actors_never_contacted": [
+            row["actor_id"] for row in rows if row["criticality_to_outcome"] == "critical" and int(row["outbound_count"]) == 0
+        ],
+        "critical_actors_contacted_after_deadline": [
+            row["actor_id"]
+            for row in rows
+            if row["criticality_to_outcome"] == "critical"
+            and row["first_outbound_at"]
+            and row["relevant_deadlines"]
+            and row["first_outbound_at"] > row["relevant_deadlines"][0]["at"]
+        ],
+        "direct_questions_left_unanswered": _unique_refs(
+            ref for row in rows for ref in row.get("unanswered_direct_questions", [])
+        ),
+    }
+    return {"actors": rows, "summary_metrics": summary_metrics}
+
+
+def _line_recoverability_key(line: dict[str, Any]) -> str | None:
+    return _line_success_milestone_id(line) or _line_success_task_id(line)
+
+
+def _build_window_scorecards(
+    report: dict[str, Any],
+    scenario: dict[str, Any],
+    rubric_lines: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    scorecards: list[dict[str, Any]] = []
+    outcome_lines = [line for line in rubric_lines if _is_critical_window_line(line)]
+    for line in sorted(outcome_lines, key=lambda item: (_line_deadline_at(item, scenario) or "", item["id"])):
+        deadline_at = _line_deadline_at(line, scenario)
+        window = _scenario_window_by_id(scenario, str(line.get("deadline_or_window") or ""))
+        start_at = str(window.get("start_at")) if isinstance(window, dict) and window.get("start_at") else scenario.get("start_at")
+        relevant_rows = [
+            row for row in merged_action_rows if row.get("step_succeeded") and deadline_at and str(row.get("time")) <= deadline_at
+        ] if deadline_at else [row for row in merged_action_rows if row.get("step_succeeded")]
+        outbound_by_actor = Counter(
+            _row_target_actor_id(row)
+            for row in relevant_rows
+            if row.get("action_type") == "chat.send" and _row_target_actor_id(row)
+        )
+        top_action_families = Counter(_action_intent_family(row) for row in relevant_rows)
+        recoverability_key = _line_recoverability_key(line)
+        recoverability_status = str(report.get("recoverability", {}).get(recoverability_key, "unknown"))
+        achieved = float(line["awarded"]) >= float(line["weight"])
+        scorecards.append(
+            {
+                "window_id": str(line.get("deadline_or_window") or line["id"]),
+                "title": str(window.get("title") if isinstance(window, dict) else line["label"]),
+                "start_at": start_at,
+                "end_at": deadline_at,
+                "goal": line["label"],
+                "required_state_change": line.get("success_meaning", line.get("measurement_rationale", line["label"])),
+                "recoverability_status": recoverability_status,
+                "actions_taken": len(relevant_rows),
+                "reads": sum(1 for row in relevant_rows if _is_read_action(row)),
+                "writes": sum(1 for row in relevant_rows if _is_write_action(row)),
+                "waits": sum(1 for row in relevant_rows if str(row.get("action_type") or "").startswith("wait.")),
+                "outbound_by_actor": dict(sorted((actor_id, count) for actor_id, count in outbound_by_actor.items() if actor_id)),
+                "top_action_families": [
+                    {"intent_family": family, "count": count}
+                    for family, count in sorted(
+                        top_action_families.items(),
+                        key=lambda item: (item[1], -INTENT_FAMILY_PRIORITIES.get(item[0], 99)),
+                        reverse=True,
+                    )[:5]
+                ],
+                "actor_coverage_before_deadline": sorted(outbound_by_actor),
+                "state_before_deadline": {
+                    "achieved": achieved,
+                    "awarded": float(line["awarded"]),
+                    "weight": float(line["weight"]),
+                },
+                "state_achieved": {
+                    "achieved": achieved,
+                    "rubric_line_id": line["id"],
+                },
+                "miss_reason": None if achieved else line.get("failure_meaning", line["label"]),
+            }
+        )
+    return scorecards
+
+
+def _step_summaries_after(merged_action_rows: list[dict[str, Any]], at: str, *, limit: int = 3) -> list[dict[str, Any]]:
+    rows = [
+        row
+        for row in merged_action_rows
+        if row.get("step_succeeded") and row.get("time") and str(row.get("time")) > at
+    ]
+    output = []
+    for row in rows[:limit]:
+        output.append(
+            {
+                "action_ref": row.get("action_ref"),
+                "at": row.get("time"),
+                "summary": _action_summary(row),
+                "target_actor_id": _row_target_actor_id(row),
+                "intent_family": _action_intent_family(row),
+            }
+        )
+    return output
+
+
+def _build_missed_opportunities(
+    scenario: dict[str, Any],
+    visible_trace: list[dict[str, Any]],
+    message_rows: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+    stakeholder_engagement: dict[str, Any],
+    signal_coverage: dict[str, Any],
+    window_scorecards: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    stakeholders_by_id = {row["actor_id"]: row for row in stakeholder_engagement.get("actors", [])}
+    missed: list[dict[str, Any]] = []
+    seen_cues: set[str] = set()
+    for message_row in message_rows:
+        actor_id = str(message_row.get("sender_id") or "")
+        stakeholder = stakeholders_by_id.get(actor_id)
+        if not stakeholder or stakeholder.get("criticality_to_outcome") != "critical":
+            continue
+        if not _message_is_direct_question(message_row):
+            continue
+        cue_ref = f"message:{message_row['id']}"
+        if cue_ref in seen_cues or _has_outbound_after(actor_id, str(message_row.get("created_at") or ""), merged_action_rows):
+            continue
+        seen_cues.add(cue_ref)
+        observed_next_actions = _step_summaries_after(merged_action_rows, str(message_row.get("created_at") or ""))
+        missed.append(
+            {
+                "cue_ref": cue_ref,
+                "cue_summary": _normalize_excerpt(message_row.get("body") or f"{actor_id} asked for clarification"),
+                "expected_action_families": ["decision_alignment" if actor_id == "dana" else "scope_tradeoff"],
+                "expected_actors": [actor_id],
+                "deadline_context": stakeholder.get("relevant_deadlines", [])[:1],
+                "observed_next_actions": observed_next_actions,
+                "why_missed": f"The TPM never responded directly to {actor_id}'s question before continuing other coordination.",
+                "counterfactual_step": f"Reply directly to {actor_id} with the credible plan and the next required decision.",
+            }
+        )
+    for message_row in message_rows:
+        actor_id = str(message_row.get("sender_id") or "")
+        stakeholder = stakeholders_by_id.get(actor_id)
+        if not stakeholder:
+            continue
+        rights = set(stakeholder.get("decision_rights", []))
+        if "can_grant_review" not in rights:
+            continue
+        body = str(message_row.get("body") or "").lower()
+        cue_ref = f"message:{message_row['id']}"
+        if cue_ref in seen_cues:
+            continue
+        if not any(token in body for token in ("complete", "completeness", "queue", "cutoff", "approvable", "partial")):
+            continue
+        observed_next_actions = _step_summaries_after(merged_action_rows, str(message_row.get("created_at") or ""))
+        qualifies = any(
+            action["intent_family"] in {"scope_tradeoff", "decision_alignment"} and action["target_actor_id"] in {"dana", "leo"}
+            for action in observed_next_actions
+        )
+        if qualifies:
+            continue
+        seen_cues.add(cue_ref)
+        missed.append(
+            {
+                "cue_ref": cue_ref,
+                "cue_summary": _normalize_excerpt(message_row.get("body")),
+                "expected_action_families": ["scope_tradeoff", "decision_alignment"],
+                "expected_actors": ["dana", "leo"],
+                "deadline_context": stakeholder.get("relevant_deadlines", [])[:1],
+                "observed_next_actions": observed_next_actions,
+                "why_missed": "The approver signaled that completeness was the blocker, but the TPM did not pivot to the upstream decision owners or completion path.",
+                "counterfactual_step": "Stop re-asking the approver and align the staged scope with Dana and Leo before returning with a complete intake.",
+            }
+        )
+    for signal in signal_coverage.get("signals", []):
+        cue_ref = signal.get("surface_event_ref")
+        if not cue_ref or cue_ref in seen_cues or not signal.get("surfaced"):
+            continue
+        signal_id = str(signal.get("signal_id") or "")
+        if signal_id == "ops_checklist_available":
+            scope_window = next((row for row in window_scorecards if row["window_id"] == "scope_alignment_cutoff"), None)
+            if not scope_window or not scope_window.get("state_achieved", {}).get("achieved"):
+                continue
+        if signal.get("expected_action_families") and signal.get("converted_to_plan_change"):
+            continue
+        if signal_id not in {"dana_accepts_staged_if_early", "ops_checklist_available"}:
+            continue
+        seen_cues.add(cue_ref)
+        observed_next_actions = _step_summaries_after(merged_action_rows, str(signal.get("first_surfaced_at") or ""))
+        missed.append(
+            {
+                "cue_ref": cue_ref,
+                "cue_summary": f"{signal.get('label')} surfaced",
+                "expected_action_families": list(signal.get("expected_action_families") or []),
+                "expected_actors": list(signal.get("expected_actors") or []),
+                "deadline_context": [{"id": signal.get("deadline_label"), "at": signal.get("deadline_at")}]
+                if signal.get("deadline_label") or signal.get("deadline_at")
+                else [],
+                "observed_next_actions": observed_next_actions,
+                "why_missed": "A high-value coordination cue surfaced, but the next actions did not change the plan in the direction the signal implied.",
+                "counterfactual_step": (
+                    "Use the sponsor cue immediately to align the staged tradeoff."
+                    if signal_id == "dana_accepts_staged_if_early"
+                    else "Close the ops side-path cheaply once scope is settled."
+                ),
+            }
+        )
+    missed.sort(key=lambda row: (str(row.get("deadline_context", [{}])[0].get("at") if row.get("deadline_context") else ""), row["cue_ref"]))
+    return missed[:6]
+
+
+def _normalized_step_signature(
+    *,
+    action_type: str,
+    act_id: str,
+    target_actor_id: str | None,
+    task_id: str | None,
+    body: str | None = None,
+) -> str:
+    intent_family = _action_intent_family(
+        {
+            "action_type": action_type,
+            "act_id": act_id,
+            "target_actor_id": target_actor_id,
+            "task_id": task_id,
+            "body": body or "",
+        }
+    )
+    surface = action_type.split(".", 1)[0] if action_type else "action"
+    target = target_actor_id or "-"
+    task = task_id or "-"
+    return f"{surface}|{target}|{intent_family}|{task}"
+
+
+def _reference_script_path(scenario_id: str) -> Path | None:
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates = [
+        repo_root / "examples" / scenario_id / "smoke.tpm",
+        repo_root / "examples" / scenario_id / "golden.tpm",
+        repo_root / "authoring" / "fixtures" / scenario_id / "trajectories" / "smoke.tpm",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
+def _parse_reference_steps(path: Path) -> list[dict[str, Any]]:
+    steps: list[dict[str, Any]] = []
+    for line_no, raw_line in enumerate(path.read_text().splitlines(), start=1):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        try:
+            parsed = parse_script_command(stripped)
+        except Exception:
+            continue
+        action = parsed.action
+        if action is None:
+            continue
+        arguments = action.arguments
+        target_actor_id = str(arguments.get("target")) if arguments.get("target") else None
+        task_id = str(arguments.get("task_id") or arguments.get("slots", {}).get("task_id") or "") or None
+        act_id = str(arguments.get("act_id") or "")
+        body = str(arguments.get("body") or "")
+        steps.append(
+            {
+                "reference_ref": f"reference:{path.name}:{line_no}",
+                "line_no": line_no,
+                "raw": stripped,
+                "action_type": action.action_type,
+                "act_id": act_id,
+                "target_actor_id": target_actor_id,
+                "task_id": task_id,
+                "signature": _normalized_step_signature(
+                    action_type=action.action_type,
+                    act_id=act_id,
+                    target_actor_id=target_actor_id,
+                    task_id=task_id,
+                    body=body,
+                ),
+            }
+        )
+    return steps
+
+
+def _build_reference_path_diff(
+    scenario_id: str,
+    scenario: dict[str, Any],
+    merged_action_rows: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    path = _reference_script_path(scenario_id)
+    if path is None:
+        return None
+    reference_steps = _parse_reference_steps(path)
+    actual_steps = [
+        {
+            "action_ref": row.get("action_ref"),
+            "at": row.get("time"),
+            "summary": _action_summary(row),
+            "signature": _normalized_step_signature(
+                action_type=str(row.get("action_type") or ""),
+                act_id=str(row.get("act_id") or ""),
+                target_actor_id=_row_target_actor_id(row),
+                task_id=str(row.get("task_id") or row.get("slots", {}).get("task_id") or "") or None,
+                body=str(row.get("body") or ""),
+            ),
+        }
+        for row in merged_action_rows
+        if row.get("step_succeeded")
+    ]
+    completed: list[str] = []
+    divergence_index = None
+    for index, ref_step in enumerate(reference_steps):
+        if index >= len(actual_steps):
+            divergence_index = index
+            break
+        if ref_step["signature"] != actual_steps[index]["signature"]:
+            divergence_index = index
+            break
+        completed.append(ref_step["raw"])
+    if divergence_index is None:
+        divergence_index = min(len(reference_steps), len(actual_steps))
+        if len(reference_steps) == len(actual_steps):
+            return {
+                "reference_id": path.name,
+                "first_divergence_at": None,
+                "first_divergence_action_ref": None,
+                "expected_step": None,
+                "actual_step": None,
+                "missed_expected_steps_before_deadline": [],
+                "reference_steps_completed": completed[:5],
+                "reference_steps_missed": [],
+                "summary": "The run matched the authored reference path.",
+            }
+    expected_step = reference_steps[divergence_index]["raw"] if divergence_index < len(reference_steps) else None
+    actual_step = actual_steps[divergence_index]["summary"] if divergence_index < len(actual_steps) else None
+    first_divergence_at = actual_steps[divergence_index]["at"] if divergence_index < len(actual_steps) else None
+    first_divergence_action_ref = actual_steps[divergence_index]["action_ref"] if divergence_index < len(actual_steps) else None
+    missed_steps = [step["raw"] for step in reference_steps[divergence_index : divergence_index + 5]]
+    return {
+        "reference_id": path.name,
+        "first_divergence_at": first_divergence_at,
+        "first_divergence_action_ref": first_divergence_action_ref,
+        "expected_step": expected_step,
+        "actual_step": actual_step,
+        "missed_expected_steps_before_deadline": missed_steps[:3],
+        "reference_steps_completed": completed[:5],
+        "reference_steps_missed": missed_steps,
+        "summary": (
+            f"First diverged from {path.name} at step {divergence_index + 1}: expected `{expected_step}` but saw `{actual_step}`."
+            if expected_step or actual_step
+            else f"Matched {len(completed)} opening steps of {path.name}."
+        ),
+    }
+
+
+def _severity_from_lost_points(lost_points_total: float) -> str:
+    if lost_points_total >= 40:
+        return "critical"
+    if lost_points_total >= 20:
+        return "high"
+    return "medium"
+
+
+def _impacted_rubric_rows(rubric_lines: list[dict[str, Any]], ids: list[str]) -> list[dict[str, Any]]:
+    by_id = {str(line["id"]): line for line in rubric_lines}
+    rows = []
+    for line_id in ids:
+        line = by_id.get(line_id)
+        if not line:
+            continue
+        rows.append(
+            {
+                "id": line_id,
+                "label": line["label"],
+                "lost_points": round(float(line["weight"]) - float(line["awarded"]), 2),
+            }
+        )
+    return rows
+
+
+def _impacted_milestones_for_lines(rubric_lines: list[dict[str, Any]], ids: list[str]) -> list[str]:
+    by_id = {str(line["id"]): line for line in rubric_lines}
+    milestones = []
+    for line_id in ids:
+        line = by_id.get(line_id)
+        if not line:
+            continue
+        milestone_id = _line_success_milestone_id(line)
+        if milestone_id and milestone_id not in milestones:
+            milestones.append(milestone_id)
+    return milestones
+
+
+def _build_root_cause_findings(
+    rubric_lines: list[dict[str, Any]],
+    *,
+    rubric_failure_dossiers: list[dict[str, Any]],
+    diagnostics: dict[str, Any],
+    signal_coverage: dict[str, Any],
+    stakeholder_engagement: dict[str, Any],
+    window_scorecards: list[dict[str, Any]],
+    missed_opportunities: list[dict[str, Any]],
+    reference_path_diff: dict[str, Any] | None,
+    merged_action_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    missed_lines = [line for line in rubric_lines if float(line["weight"]) > float(line["awarded"])]
+    critical_missed_ids = [str(line["id"]) for line in missed_lines if _is_critical_window_line(line)]
+    missing_signal_ids = list(signal_coverage.get("summary_metrics", {}).get("critical_unsurfaced", []))
+    stakeholder_metrics = stakeholder_engagement.get("summary_metrics", {})
+    findings: list[dict[str, Any]] = []
+    if diagnostics["counts"]["approval_before_preconditions"] > 0:
+        impacted_ids = _unique_refs(critical_missed_ids + [line_id for line_id in ("commitment_quality",) if any(line.get("id") == line_id for line in rubric_lines)])
+        lost_points_total = round(sum(item["lost_points"] for item in _impacted_rubric_rows(rubric_lines, impacted_ids)), 2)
+        signal_refs = _unique_refs(
+            row.get("surface_event_ref")
+            for row in signal_coverage.get("signals", [])
+            if row.get("signal_id") == "approval_required" and row.get("surface_event_ref")
+        )
+        action_refs = _sample_action_refs(
+            merged_action_rows,
+            deadline_at=None,
+            predicate=lambda row: row.get("act_id") == "request.approval",
+        )
+        findings.append(
+            {
+                "id": "wrong_precondition_sequence",
+                "title": "Wrong Precondition Sequence",
+                "severity": _severity_from_lost_points(lost_points_total),
+                "headline": "The TPM asked for approval before scope and intake were ready, turning the approval path into churn.",
+                "what_happened": "The run repeatedly requested approval before the staged path and complete intake were in place.",
+                "why_it_mattered": "This consumed the approval window without creating an approvable request, which kept every downstream milestone unstable.",
+                "impacted_rubric_lines": _impacted_rubric_rows(rubric_lines, impacted_ids),
+                "impacted_milestones": _impacted_milestones_for_lines(rubric_lines, impacted_ids),
+                "lost_points_total": lost_points_total,
+                "supporting_metrics": {
+                    "premature_approval_asks": int(diagnostics["counts"]["approval_before_preconditions"]),
+                    "approval_loop_action_refs": action_refs,
+                },
+                "signal_refs": signal_refs,
+                "action_refs": action_refs,
+                "counterfactual_step": "Align the staged scope with Dana and Leo, then bring Ivy a complete staged-review request before the cutoff.",
+                "counterfactual_refs": _unique_refs(signal_refs[:1] + ([f"action:{merged_action_rows[0]['action_id']}"] if merged_action_rows and merged_action_rows[0].get("action_id") else [])),
+            }
+        )
+    top_contacted_actor_id = stakeholder_metrics.get("top_contacted_actor_id")
+    top_contacted_actor_share = float(stakeholder_metrics.get("top_contacted_actor_share") or 0.0)
+    if top_contacted_actor_id and top_contacted_actor_share >= 0.6:
+        impacted_ids = _unique_refs(critical_missed_ids)
+        lost_points_total = round(sum(item["lost_points"] for item in _impacted_rubric_rows(rubric_lines, impacted_ids)), 2)
+        action_refs = _sample_action_refs(
+            merged_action_rows,
+            deadline_at=None,
+            predicate=lambda row: row.get("action_type") == "chat.send" and _row_target_actor_id(row) == top_contacted_actor_id,
+        )
+        findings.append(
+            {
+                "id": "single_threaded_approver_loop",
+                "title": "Single-Threaded Approver Loop",
+                "severity": _severity_from_lost_points(lost_points_total),
+                "headline": f"The TPM concentrated {round(top_contacted_actor_share * 100)}% of outbound coordination on {top_contacted_actor_id}, instead of prosecuting the full critical path.",
+                "what_happened": "Most outbound coordination stayed on one actor while critical decision-makers remained untouched or under-engaged.",
+                "why_it_mattered": "A TPM needs sponsor, engineer, and approver alignment in parallel; concentrating on the approver turned the run into a low-leverage loop.",
+                "impacted_rubric_lines": _impacted_rubric_rows(rubric_lines, impacted_ids),
+                "impacted_milestones": _impacted_milestones_for_lines(rubric_lines, impacted_ids),
+                "lost_points_total": lost_points_total,
+                "supporting_metrics": {
+                    "top_contacted_actor_id": top_contacted_actor_id,
+                    "top_contacted_actor_share": top_contacted_actor_share,
+                    "critical_actors_never_contacted": stakeholder_metrics.get("critical_actors_never_contacted", []),
+                },
+                "signal_refs": _unique_refs(
+                    item["cue_ref"]
+                    for item in missed_opportunities
+                    if item.get("cue_ref", "").startswith("message:") and top_contacted_actor_id in " ".join(item.get("expected_actors", []))
+                ),
+                "action_refs": action_refs,
+                "counterfactual_step": "Redistribute the next coordination cycle to Dana and Leo, and return to Ivy only after the staged path is concrete.",
+                "counterfactual_refs": [],
+            }
+        )
+    if stakeholder_metrics.get("critical_actors_never_contacted") or stakeholder_metrics.get("direct_questions_left_unanswered"):
+        impacted_ids = _unique_refs(
+            critical_missed_ids
+            + [
+                str(line["id"])
+                for line in missed_lines
+                if "stakeholder_alignment_communication" in line.get("competency_tags", [])
+                or "decision_tradeoff_management" in line.get("competency_tags", [])
+            ]
+        )
+        lost_points_total = round(sum(item["lost_points"] for item in _impacted_rubric_rows(rubric_lines, impacted_ids)), 2)
+        signal_refs = _unique_refs(
+            list(stakeholder_metrics.get("direct_questions_left_unanswered", []))
+            + [
+                row.get("surface_event_ref")
+                for row in signal_coverage.get("signals", [])
+                if row.get("signal_id") == "dana_accepts_staged_if_early" and row.get("surface_event_ref")
+            ]
+        )
+        action_refs = _unique_refs(
+            action["action_ref"]
+            for item in missed_opportunities
+            for action in item.get("observed_next_actions", [])
+            if action.get("action_ref")
+        )[:3]
+        findings.append(
+            {
+                "id": "critical_decision_owner_omission",
+                "title": "Critical Decision Owners Omitted",
+                "severity": _severity_from_lost_points(lost_points_total),
+                "headline": "The TPM failed to engage the sponsor and engineer strongly enough to land the real decision path.",
+                "what_happened": "Critical actors either were never contacted or had direct questions left unanswered while the run kept circling the approver.",
+                "why_it_mattered": "The scenario required sponsor-backed scope alignment and engineer realism before approval could become credible.",
+                "impacted_rubric_lines": _impacted_rubric_rows(rubric_lines, impacted_ids),
+                "impacted_milestones": _impacted_milestones_for_lines(rubric_lines, impacted_ids),
+                "lost_points_total": lost_points_total,
+                "supporting_metrics": {
+                    "critical_actors_never_contacted": stakeholder_metrics.get("critical_actors_never_contacted", []),
+                    "direct_questions_left_unanswered": stakeholder_metrics.get("direct_questions_left_unanswered", []),
+                },
+                "signal_refs": signal_refs,
+                "action_refs": action_refs,
+                "counterfactual_step": "Answer Dana's sponsor question directly and engage Leo on the staged tradeoff before pushing Ivy again.",
+                "counterfactual_refs": signal_refs[:2],
+            }
+        )
+    if missed_opportunities:
+        impacted_ids = _unique_refs(critical_missed_ids)
+        lost_points_total = round(sum(item["lost_points"] for item in _impacted_rubric_rows(rubric_lines, impacted_ids)), 2)
+        findings.append(
+            {
+                "id": "cue_not_converted_to_plan_change",
+                "title": "Cue Not Converted To Plan Change",
+                "severity": _severity_from_lost_points(lost_points_total),
+                "headline": "The TPM saw high-value cues but the following actions did not change the plan in the direction those cues implied.",
+                "what_happened": "Signals such as sponsor support, approver completeness blockers, or direct stakeholder questions did not trigger the next best move.",
+                "why_it_mattered": "The run kept learning without converting that learning into scope, decision, or dependency movement.",
+                "impacted_rubric_lines": _impacted_rubric_rows(rubric_lines, impacted_ids),
+                "impacted_milestones": _impacted_milestones_for_lines(rubric_lines, impacted_ids),
+                "lost_points_total": lost_points_total,
+                "supporting_metrics": {"missed_opportunity_count": len(missed_opportunities)},
+                "signal_refs": _unique_refs(item["cue_ref"] for item in missed_opportunities),
+                "action_refs": _unique_refs(
+                    action["action_ref"]
+                    for item in missed_opportunities
+                    for action in item.get("observed_next_actions", [])
+                    if action.get("action_ref")
+                )[:3],
+                "counterfactual_step": "Turn the next high-value cue into an explicit decision or dependency move instead of another low-leverage follow-up.",
+                "counterfactual_refs": [],
+            }
+        )
+    if missing_signal_ids:
+        impacted_ids = _unique_refs(
+            [
+                str(line["id"])
+                for line in missed_lines
+                if "discovery_situation_awareness" in line.get("competency_tags", []) or _is_critical_window_line(line)
+            ]
+        )
+        lost_points_total = round(sum(item["lost_points"] for item in _impacted_rubric_rows(rubric_lines, impacted_ids)), 2)
+        findings.append(
+            {
+                "id": "critical_signal_not_surfaced",
+                "title": "Critical Signal Not Surfaced",
+                "severity": _severity_from_lost_points(lost_points_total),
+                "headline": "The TPM never surfaced some of the scenario's most important feasibility signals.",
+                "what_happened": f"Critical signals remained unsurfaced: {', '.join(missing_signal_ids)}.",
+                "why_it_mattered": "Without surfacing the real feasibility gap, the run could not pivot early enough onto the credible path.",
+                "impacted_rubric_lines": _impacted_rubric_rows(rubric_lines, impacted_ids),
+                "impacted_milestones": _impacted_milestones_for_lines(rubric_lines, impacted_ids),
+                "lost_points_total": lost_points_total,
+                "supporting_metrics": {"critical_unsurfaced_signals": missing_signal_ids},
+                "signal_refs": [],
+                "action_refs": [],
+                "counterfactual_step": "Read and engage the artifacts and owners that surface the real feasibility gap before spending the key windows on coordination loops.",
+                "counterfactual_refs": [reference_path_diff["first_divergence_action_ref"]] if reference_path_diff and reference_path_diff.get("first_divergence_action_ref") else [],
+            }
+        )
+    findings.sort(
+        key=lambda item: (
+            float(item["lost_points_total"]),
+            len(item.get("impacted_milestones", [])),
+            len(item.get("signal_refs", [])) + len(item.get("action_refs", [])),
+        ),
+        reverse=True,
+    )
+    deduped: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for finding in findings:
+        if finding["id"] in seen_ids:
+            continue
+        seen_ids.add(finding["id"])
+        deduped.append(finding)
+    return deduped[:4]
+
+
+def _build_capability_assessment(
+    report: dict[str, Any],
+    *,
+    outcome_verdict: dict[str, Any],
+    critical_path: dict[str, Any],
+    root_cause_findings: list[dict[str, Any]],
+    stakeholder_engagement: dict[str, Any],
+    signal_coverage: dict[str, Any],
+    window_scorecards: list[dict[str, Any]],
+) -> dict[str, Any]:
+    score = float(report.get("total_score", 0.0))
+    if critical_path.get("status") == "critical_path_moved" and score >= 75:
+        rating = "strong"
+    elif score >= 45:
+        rating = "mixed"
+    else:
+        rating = "poor"
+    top_root_causes = [item["title"] for item in root_cause_findings[:3]]
+    missed_windows = [row["window_id"] for row in window_scorecards if not row.get("state_achieved", {}).get("achieved")]
+    top_contacted_actor_id = stakeholder_engagement.get("summary_metrics", {}).get("top_contacted_actor_id")
+    top_contacted_actor_share = float(stakeholder_engagement.get("summary_metrics", {}).get("top_contacted_actor_share") or 0.0)
+    critical_unsurfaced = signal_coverage.get("summary_metrics", {}).get("critical_unsurfaced", [])
+    if rating == "strong":
+        headline = "Strong TPM performance for this scenario."
+        direct_answer = "This model performed strongly as a TPM in this scenario: it moved the critical path and converted signals into coordinated execution."
+    elif rating == "mixed":
+        headline = "Mixed TPM performance for this scenario."
+        direct_answer = "This model showed some TPM instincts here, but it did not consistently turn signals into the right decisions and commitments."
+    else:
+        headline = "Poor TPM performance for this scenario."
+        direct_answer = (
+            "This model performed poorly as a TPM in this scenario: it surfaced some cues, but it did not drive the real scope/approval path and over-focused on low-leverage approver coordination."
+        )
+    return {
+        "rating": rating,
+        "headline": headline,
+        "direct_answer": direct_answer,
+        "confidence_scope": "single_run_directional",
+        "primary_root_causes": top_root_causes,
+        "key_supporting_metrics": {
+            "score": score,
+            "critical_path_status": critical_path.get("status"),
+            "missed_windows": missed_windows,
+            "top_contacted_actor_id": top_contacted_actor_id,
+            "top_contacted_actor_share": top_contacted_actor_share,
+            "critical_actors_never_contacted": stakeholder_engagement.get("summary_metrics", {}).get("critical_actors_never_contacted", []),
+            "critical_unsurfaced_signals": critical_unsurfaced,
+        },
+    }
+
+
+def _collect_evidence_refs(value: Any) -> set[str]:
+    refs: set[str] = set()
+    if isinstance(value, dict):
+        for item in value.values():
+            refs |= _collect_evidence_refs(item)
+    elif isinstance(value, list):
+        for item in value:
+            refs |= _collect_evidence_refs(item)
+    elif isinstance(value, str) and re.match(r"^(event|action|message|doc):", value):
+        refs.add(value)
+    return refs
+
+
+def _build_evidence_catalog(
+    summary: dict[str, Any],
+    *,
+    visible_trace: list[dict[str, Any]],
+    omniscient_trace: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
+    message_rows: list[dict[str, Any]],
+    document_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    refs = sorted(_collect_evidence_refs(summary))
+    event_index = {
+        f"event:{row['id']}": row
+        for row in _unique_event_rows(visible_trace + omniscient_trace)
+        if row.get("id") is not None
+    }
+    action_index = {str(row["action_ref"]): row for row in merged_action_rows if row.get("action_ref")}
+    message_index = {f"message:{row['id']}": row for row in message_rows if row.get("id") is not None}
+    document_index = {f"doc:{row['id']}": row for row in document_rows if row.get("id")}
+    catalog: list[dict[str, Any]] = []
+    for ref in refs:
+        if ref in event_index:
+            row = event_index[ref]
+            catalog.append(
+                {
+                    "evidence_ref": ref,
+                    "kind": "event",
+                    "at": row.get("at"),
+                    "actor_id": row.get("actor_id"),
+                    "target_actor_id": None,
+                    "summary": row.get("summary"),
+                    "excerpt": _normalize_excerpt(json.dumps(row.get("payload") or {}, sort_keys=True)),
+                }
+            )
+            continue
+        if ref in action_index:
+            row = action_index[ref]
+            catalog.append(
+                {
+                    "evidence_ref": ref,
+                    "kind": "action",
+                    "at": row.get("time"),
+                    "actor_id": "tpm",
+                    "target_actor_id": _row_target_actor_id(row),
+                    "summary": _action_summary(row),
+                    "excerpt": _normalize_excerpt(row.get("body")),
+                }
+            )
+            continue
+        if ref in message_index:
+            row = message_index[ref]
+            catalog.append(
+                {
+                    "evidence_ref": ref,
+                    "kind": "message",
+                    "at": row.get("created_at"),
+                    "actor_id": row.get("sender_id"),
+                    "target_actor_id": "tpm" if row.get("sender_id") != "tpm" else row.get("thread_id"),
+                    "summary": f"{row.get('sender_id')} [{row.get('act_id') or 'message'}]",
+                    "excerpt": _normalize_excerpt(row.get("body")),
+                }
+            )
+            continue
+        if ref in document_index:
+            row = document_index[ref]
+            catalog.append(
+                {
+                    "evidence_ref": ref,
+                    "kind": "doc_excerpt",
+                    "at": row.get("updated_at"),
+                    "actor_id": row.get("author_id"),
+                    "target_actor_id": None,
+                    "summary": row.get("title"),
+                    "excerpt": _normalize_excerpt(row.get("content")),
+                }
+            )
+    catalog.sort(key=lambda row: (str(row.get("at") or ""), row["evidence_ref"]))
+    return catalog
+
+
+def _unique_event_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    deduped: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows:
+        ref = f"event:{row['id']}" if row.get("id") is not None else None
+        if not ref or ref in seen:
+            continue
+        seen.add(ref)
+        deduped.append(row)
+    return deduped
+
+
 def _decisive_timeline(report: dict[str, Any], trace_rows: list[dict[str, Any]], rubric_lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_event_id = {f"event:{row['id']}": row for row in trace_rows if row.get("id") is not None}
     timeline: list[dict[str, Any]] = []
@@ -703,9 +3107,15 @@ def _outcome_verdict(critical_path: dict[str, Any], dimension_scores: dict[str, 
     timing = dimension_scores["timing_optionality_preservation"]["score"]
     decision = dimension_scores["decision_tradeoff_management"]["score"]
     commitment = dimension_scores["commitment_dependency_management"]["score"]
-    if run_health["protocol_failure"]:
+    if run_health.get("overall_status") == "protocol_failure":
         status = "interrupted"
         headline = "Run was interrupted before the TPM converted visible state into enough progress."
+    elif run_health.get("termination_reason") == "max_turns_reached":
+        status = "turn_budget_exhausted"
+        if discovery >= 60 and outcome < 40:
+            headline = "Exhausted the turn budget after discovering important risks, but before converting them into coordinated execution."
+        else:
+            headline = "Exhausted the turn budget before moving the critical path enough."
     elif critical_path["status"] == "critical_path_moved":
         status = "moved_critical_path"
         headline = "Moved the critical path and landed the scenario’s key outcomes."
@@ -734,26 +3144,116 @@ def _outcome_verdict(critical_path: dict[str, Any], dimension_scores: dict[str, 
     }
 
 
+def _render_termination_reason(reason: str | None) -> str:
+    labels = {
+        "protocol_failure": "protocol failure",
+        "max_turns_reached": "turn budget exhausted",
+        "scenario_horizon_reached": "scenario horizon reached",
+        "completed": "completed",
+    }
+    return labels.get(reason or "completed", reason or "completed")
+
+
+def _normalized_termination_reason(run_record: dict[str, Any]) -> str:
+    explicit = run_record.get("termination_reason")
+    if explicit:
+        return explicit
+    if run_record.get("protocol_failure"):
+        return "protocol_failure"
+    turns_taken = run_record.get("turns_taken")
+    max_turns = run_record.get("max_turns")
+    if turns_taken is not None and max_turns is not None and int(turns_taken) >= int(max_turns):
+        return "max_turns_reached"
+    return "completed"
+
+
 def _deterministic_narrative(
-    outcome_verdict: dict[str, Any],
+    capability_assessment: dict[str, Any],
+    root_cause_findings: list[dict[str, Any]],
+    stakeholder_engagement: dict[str, Any],
+    signal_coverage: dict[str, Any],
+    window_scorecards: list[dict[str, Any]],
+    reference_path_diff: dict[str, Any] | None,
     key_successes: list[dict[str, Any]],
-    key_failures: list[dict[str, Any]],
-    improvements: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    supporting_data = []
+    stakeholder_metrics = stakeholder_engagement.get("summary_metrics", {})
+    if stakeholder_metrics.get("critical_actors_never_contacted"):
+        supporting_data.append(
+            {
+                "title": "Critical actors were omitted",
+                "explanation": f"Critical actors never contacted: {', '.join(stakeholder_metrics['critical_actors_never_contacted'])}.",
+                "evidence_refs": [],
+            }
+        )
+    if stakeholder_metrics.get("direct_questions_left_unanswered"):
+        supporting_data.append(
+            {
+                "title": "Direct stakeholder questions were left unanswered",
+                "explanation": "At least one critical stakeholder asked a direct question that never received a TPM response.",
+                "evidence_refs": stakeholder_metrics["direct_questions_left_unanswered"][:3],
+            }
+        )
+    critical_unsurfaced = signal_coverage.get("summary_metrics", {}).get("critical_unsurfaced", [])
+    if critical_unsurfaced:
+        supporting_data.append(
+            {
+                "title": "Critical signals remained unsurfaced",
+                "explanation": f"Critical unsurfaced signals: {', '.join(critical_unsurfaced)}.",
+                "evidence_refs": [],
+            }
+        )
+    missed_windows = [row["window_id"] for row in window_scorecards if not row.get("state_achieved", {}).get("achieved")]
+    if missed_windows:
+        supporting_data.append(
+            {
+                "title": "Critical windows were missed",
+                "explanation": f"Missed windows: {', '.join(missed_windows)}.",
+                "evidence_refs": [],
+            }
+        )
+    counterfactual_path = [
+        {
+            "title": finding["title"],
+            "explanation": finding["counterfactual_step"],
+            "evidence_refs": finding.get("counterfactual_refs", []),
+        }
+        for finding in root_cause_findings[:3]
+        if finding.get("counterfactual_step")
+    ]
+    if reference_path_diff and reference_path_diff.get("missed_expected_steps_before_deadline"):
+        for step in reference_path_diff["missed_expected_steps_before_deadline"][:3]:
+            counterfactual_path.append(
+                {
+                    "title": "Reference path",
+                    "explanation": step,
+                    "evidence_refs": [],
+                }
+            )
     return {
         "source": "deterministic_template",
-        "executive_summary": outcome_verdict["headline"],
-        "top_strengths": [
-            {"title": item["title"], "explanation": item["summary"], "evidence_refs": item.get("evidence_refs", [])}
-            for item in key_successes[:2]
+        "direct_answer": capability_assessment["direct_answer"],
+        "executive_summary": capability_assessment["headline"],
+        "top_findings": [
+            {
+                "title": item["title"],
+                "explanation": item["headline"],
+                "evidence_refs": _unique_refs(item.get("signal_refs", []) + item.get("action_refs", [])),
+            }
+            for item in root_cause_findings[:4]
         ],
-        "top_failures": [
+        "counterfactual_path": counterfactual_path[:4],
+        "supporting_data": supporting_data[:4]
+        + [
             {"title": item["title"], "explanation": item["summary"], "evidence_refs": item.get("evidence_refs", [])}
-            for item in key_failures[:3]
+            for item in key_successes[:1]
         ],
-        "improvement_opportunities": [
-            {"title": item["title"], "explanation": item["summary"], "evidence_refs": []}
-            for item in improvements[:3]
+        "limitations": [
+            {
+                "title": "Single-seed directional readout",
+                "explanation": "This run-level diagnosis is deterministic and auditable, but it is still only a single-seed directional readout.",
+                "evidence_refs": [],
+            }
         ],
     }
 
@@ -764,41 +3264,51 @@ def _build_judge_input_bundle(
     decisive_timeline: list[dict[str, Any]],
     omniscient_trace: list[dict[str, Any]],
     agent_trace: list[dict[str, Any]],
+    merged_action_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    allowed_evidence_refs = sorted(
-        {
-            ref
-            for line in summary["evidence_appendix"]["rubric_lines"]
-            for ref in line.get("evidence_refs", [])
-        }
-    )
+    allowed_evidence_refs = sorted({item["evidence_ref"] for item in summary.get("evidence_catalog", [])})
     trace_excerpt = []
-    event_index = {f"event:{row['id']}": row for row in omniscient_trace if row.get("id") is not None}
-    for ref in allowed_evidence_refs[:15]:
-        row = event_index.get(ref)
-        if row:
-            trace_excerpt.append(
-                {
-                    "evidence_ref": ref,
-                    "at": row["at"],
-                    "actor_id": row["actor_id"],
-                    "event_type": row["event_type"],
-                    "summary": row["summary"],
-                }
-            )
+    evidence_by_ref = {item["evidence_ref"]: item for item in summary.get("evidence_catalog", [])}
+    for ref in allowed_evidence_refs[:20]:
+        item = evidence_by_ref.get(ref)
+        if not item:
+            continue
+        trace_excerpt.append(
+            {
+                "evidence_ref": ref,
+                "at": item.get("at"),
+                "actor_id": item.get("actor_id"),
+                "event_type": item.get("kind"),
+                "summary": item.get("summary"),
+                "excerpt": item.get("excerpt"),
+            }
+        )
     return {
         "scenario_context": summary["scenario_context"],
         "competency_definitions": DIMENSION_DEFINITIONS,
         "run_header": summary["run_header"],
+        "capability_assessment": summary["capability_assessment"],
         "outcome_verdict": summary["outcome_verdict"],
         "critical_path_result": summary["critical_path_result"],
+        "root_cause_findings": summary.get("root_cause_findings", []),
+        "stakeholder_engagement": summary.get("stakeholder_engagement", {}),
+        "signal_coverage": summary.get("signal_coverage", {}),
+        "window_scorecards": summary.get("window_scorecards", []),
+        "missed_opportunities": summary.get("missed_opportunities", []),
+        "reference_path_diff": summary.get("reference_path_diff"),
+        "evidence_catalog": summary.get("evidence_catalog", []),
+        "rubric_failure_appendix": summary.get("rubric_failure_appendix", []),
         "tpm_competency_profile": summary["tpm_competency_profile"],
         "outcome_profile": summary["outcome_profile"],
         "key_successes": summary["key_successes"],
         "key_failures": summary["key_failures"],
         "improvement_opportunities": summary["improvement_opportunities"],
         "run_health": summary["run_health"],
-        "behavior_diagnostics": diagnostics,
+        "behavior_diagnostics": {
+            key: value
+            for key, value in diagnostics.items()
+            if key != "private_note_audit_rows"
+        },
         "decisive_timeline": decisive_timeline,
         "allowed_evidence_refs": allowed_evidence_refs,
         "trace_excerpt": trace_excerpt,
@@ -889,6 +3399,7 @@ def _find_repeated_action_loops(action_rows: list[dict[str, Any]]) -> list[dict[
                 break
             end += 1
         if end - index >= 3:
+            loop_rows = action_rows[index:end]
             loops.append(
                 {
                     "signature": {
@@ -900,6 +3411,8 @@ def _find_repeated_action_loops(action_rows: list[dict[str, Any]]) -> list[dict[
                     },
                     "turn_range": [row["turn"], action_rows[end - 1]["turn"]],
                     "count": end - index,
+                    "action_refs": [item["action_ref"] for item in loop_rows if item.get("action_ref")][:3],
+                    "action_times": [item["time"] for item in loop_rows if item.get("time")],
                 }
             )
         index = end

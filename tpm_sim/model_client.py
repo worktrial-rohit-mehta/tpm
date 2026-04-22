@@ -73,6 +73,11 @@ class FixtureModelClient:
         return response
 
 
+def _supports_sampling_controls(model: str) -> bool:
+    normalized = (model or "").strip().lower()
+    return not normalized.startswith("gpt-5")
+
+
 class OpenAIResponsesModelClient:
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -96,10 +101,12 @@ class OpenAIResponsesModelClient:
             "store": False,
             "metadata": prompt_spec.get("metadata") or {},
         }
-        if "temperature" in config:
+        if "temperature" in config and _supports_sampling_controls(str(config.get("model", ""))):
             request["temperature"] = config["temperature"]
-        if "top_p" in config:
+        if "top_p" in config and _supports_sampling_controls(str(config.get("model", ""))):
             request["top_p"] = config["top_p"]
+        if config.get("reasoning_effort"):
+            request["reasoning"] = {"effort": config["reasoning_effort"]}
         started = time.perf_counter()
         response = self.client.responses.create(**request)
         latency_ms = int((time.perf_counter() - started) * 1000)
@@ -132,10 +139,12 @@ class OpenAIResponsesModelClient:
                 }
             },
         }
-        if "temperature" in config:
+        if "temperature" in config and _supports_sampling_controls(str(config.get("model", ""))):
             request["temperature"] = config["temperature"]
-        if "top_p" in config:
+        if "top_p" in config and _supports_sampling_controls(str(config.get("model", ""))):
             request["top_p"] = config["top_p"]
+        if config.get("reasoning_effort"):
+            request["reasoning"] = {"effort": config["reasoning_effort"]}
         started = time.perf_counter()
         response = self.client.responses.create(**request)
         latency_ms = int((time.perf_counter() - started) * 1000)
@@ -188,7 +197,7 @@ def _extract_output_text(raw: dict[str, Any]) -> str:
     for item in output:
         if item.get("type") != "message":
             continue
-        for content in item.get("content", []):
+        for content in item.get("content") or []:
             if content.get("type") == "output_text":
                 chunks.append(content.get("text", ""))
     return "".join(chunks)
@@ -197,7 +206,7 @@ def _extract_output_text(raw: dict[str, Any]) -> str:
 def _extract_refusal(raw: dict[str, Any]) -> Optional[str]:
     output = raw.get("output", [])
     for item in output:
-        for content in item.get("content", []):
+        for content in item.get("content") or []:
             if content.get("type") == "refusal":
                 return content.get("refusal") or content.get("text") or ""
     return None

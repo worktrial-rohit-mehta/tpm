@@ -7,7 +7,7 @@ from typing import Any
 from tpm_sim.environment import ACTION_SCHEMA, ALLOWED_ACT_IDS
 
 
-PROMPT_PACK_VERSION = "tpm_agent_prompt_v5"
+PROMPT_PACK_VERSION = "tpm_agent_prompt_v8"
 
 
 ACTION_DECISION_SCHEMA: dict[str, Any] = {
@@ -26,6 +26,10 @@ ACTION_DECISION_SCHEMA: dict[str, Any] = {
                 "doc_type": {"type": ["string", "null"]},
                 "title": {"type": ["string", "null"]},
                 "body": {"type": ["string", "null"]},
+                "refs": {
+                    "type": ["array", "null"],
+                    "items": {"type": "string"},
+                },
                 "note": {"type": ["string", "null"]},
                 "owner_id": {"type": ["string", "null"]},
                 "target_at": {"type": ["string", "null"]},
@@ -69,6 +73,7 @@ ACTION_DECISION_SCHEMA: dict[str, Any] = {
                 "doc_type",
                 "title",
                 "body",
+                "refs",
                 "note",
                 "owner_id",
                 "target_at",
@@ -98,7 +103,7 @@ def build_agent_prompt(observation: dict[str, Any], *, repair_feedback: str | No
 
         How to read the state:
         - observation is the current visible world state: time, project state, unread threads, meetings, tasks, and listed docs
-        - working_memory is extractive only: surfaced facts, open commitments, blockers, windows, pending meetings, milestones, task summaries, actor directory, pending replies, visible preconditions, and open coordination needs. It is a recap, not advice
+        - working_memory is extractive only: surfaced facts, open commitments, blockers, windows, pending meetings, milestones, task summaries, actor directory, thread_state, actor_constraints, pending replies, visible preconditions, approval_readiness, and open coordination needs. It is a recap, not advice
         - recent_history shows what the TPM recently did and what agent-visible events just happened, so you can avoid redundant or low-leverage repeats
 
         Operating principles:
@@ -106,11 +111,17 @@ def build_agent_prompt(observation: dict[str, Any], *, repair_feedback: str | No
         - infer stakeholder incentives, sensitivities, and likely private drivers only from visible cues; adapt your coordination accordingly, but do not claim hidden motives as facts without evidence
         - prefer direct coordination with the actual owner, approver, or blocker before editing trackers
         - before requesting approval, verify that the underlying scope, feasibility, and dependency preconditions are in place
+        - when a stakeholder states a blocker or precondition, switch to satisfying that blocker or getting the missing decision; do not keep repeating the blocked request
+        - do not repeat request.approval, request.review, request.eta, or similar asks to the same stakeholder unless something material changed since their last response
+        - if an approver says intake, scope, or feasibility is incomplete, focus on making the request approval-ready instead of asking for approval again
+        - if thread_state shows a pending reply on a thread, assume another ping is usually low-value unless new visible information changed the situation
+        - use actor_constraints and approval_readiness to understand what the visible blocker actually is before sending another message
         - use the actor directory and canonical chat thread ids from working_memory instead of inventing target names
         - ask for concrete feasibility, risks, approvals, ownership, and decisions when those are the missing ingredients
         - use docs and tracker updates to support coordination, not replace it
         - escalate when normal coordination is not enough and a real window or dependency is at risk, not as a default move
         - wait only when a concrete upcoming event or reply is more valuable than any proactive move right now
+        - turn budget is limited; repeated low-information coordination is a real failure mode
 
         Avoid low-leverage busywork:
         - repetitive task-note churn
@@ -119,6 +130,12 @@ def build_agent_prompt(observation: dict[str, Any], *, repair_feedback: str | No
         - changing task owners or dates without securing a real commitment
         - private-note stuffing instead of coordination
         - scheduling meetings for status theater rather than a concrete decision, blocker, or tradeoff
+
+        Short examples:
+        - bad: Ivy says the intake is incomplete, then you send request.approval again
+        - good: clarify the missing intake, align the staged path, or read the blocking artifact first; only then ask for approval again
+        - bad: Leo asks for clarification, then you send request.clarification or request.scope_tradeoff repeatedly without new evidence
+        - good: read the latest response, satisfy the missing decision or blocker, switch to the owner who can unblock it, or wait for the pending reply
 
         Tool surface meanings:
         - read.thread: read a stakeholder thread to gather current context, responses, surfaced facts, and changed beliefs
@@ -130,7 +147,7 @@ def build_agent_prompt(observation: dict[str, Any], *, repair_feedback: str | No
         - meeting.act: use only inside an active meeting, and make each act count. Meetings allow only a small number of decisive TPM interventions
         - docs.write: create a shared artifact only when it materially improves alignment or directly unblocks execution. Do not draft documents as a substitute for stakeholder work
         - task.note, task.set_owner, task.set_target: tracker hygiene only. These update visible bookkeeping, not ground-truth ownership, feasibility, or commitment
-        - notes.write: private scratchpad only. Rarely the best move, with no coordination effect
+        - notes.write: private scratchpad only. Rarely the best move, with no coordination effect. If you use it, add exact refs when helpful so later follow-through can be audited deterministically
         - wait.duration, wait.until_next_event: strategic pause only when proactive work is currently lower leverage than letting the next response or event arrive
 
         State changes come from tool actions and structured acts, not from persuasive prose alone. Free text is non-authoritative for runtime semantics. Prefer high-leverage actions over busywork. Return only a structured action object that matches the provided schema, and set irrelevant argument fields to null instead of omitting them.

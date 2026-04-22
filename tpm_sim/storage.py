@@ -796,6 +796,13 @@ class StateStore:
         )
         return int(cursor.lastrowid)
 
+    def update_pending_event(self, event_id: int, **fields: Any) -> None:
+        if not fields:
+            return
+        assignments = ", ".join(f"{column} = ?" for column in fields)
+        params = list(fields.values()) + [event_id]
+        self.execute(f"UPDATE pending_events SET {assignments} WHERE id = ?", params)
+
     def due_events(self, target_time: str) -> list[sqlite3.Row]:
         return self.fetchall(
             """

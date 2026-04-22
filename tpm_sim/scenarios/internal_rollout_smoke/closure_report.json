@@ -1,9 +1,50 @@
 {
-  "deterministic_scripted_suite": [],
+  "deterministic_scripted_suite": [
+    {
+      "error": null,
+      "score": 25.0,
+      "script": "smoke.tpm",
+      "seed": 11
+    },
+    {
+      "error": null,
+      "score": 19.5,
+      "script": "smoke.tpm",
+      "seed": 29
+    },
+    {
+      "error": null,
+      "score": 19.5,
+      "script": "smoke.tpm",
+      "seed": 47
+    }
+  ],
   "live_agent_suite": {
-    "model": "gpt-4o",
+    "model": "gpt-5.4",
     "repeats": 1,
-    "runs": [],
+    "runs": [
+      {
+        "protocol_failure": false,
+        "protocol_failure_reason": null,
+        "repeat": 1,
+        "score": 22.0,
+        "seed": 11
+      },
+      {
+        "protocol_failure": false,
+        "protocol_failure_reason": null,
+        "repeat": 1,
+        "score": 25.0,
+        "seed": 29
+      },
+      {
+        "protocol_failure": false,
+        "protocol_failure_reason": null,
+        "repeat": 1,
+        "score": 20.0,
+        "seed": 47
+      }
+    ],
     "status": "executed"
   },
   "pass_criteria": {

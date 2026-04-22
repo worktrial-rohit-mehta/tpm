@@ -35,126 +35,35 @@
       "why_reachable": "Extracted from legacy compiled coverage."
     },
     {
-      "criticality": "critical",
-      "id": "leo.feasibility.high",
-      "priority": 30,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.feasibility",
-        "pressure_band": "high",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
       "criticality": "important",
-      "id": "leo.feasibility.low",
+      "id": "dana.clarification.generic",
       "priority": 20,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.feasibility",
-        "pressure_band": "low",
+        "actor_id": "dana",
+        "incoming_act_id": "request.clarification",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
     },
     {
-      "criticality": "important",
-      "id": "leo.scope_tradeoff",
-      "priority": 22,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "leo.negotiate.scope",
-      "priority": 22,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "negotiate.scope",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.blocker",
-      "priority": 16,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.blocker",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.decision",
-      "priority": 16,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.decision",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.status_update",
-      "priority": 16,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.status_update",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform.availability",
-      "priority": 16,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.availability",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "leo.inform_risk",
-      "priority": 18,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "inform.risk",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "dana.inform_risk",
-      "priority": 15,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "criticality": "critical",
+      "id": "dana.escalate_to_sponsor.early.gap1",
+      "priority": 20,
+      "rationale": "Covers sponsor escalations before the TPM has fully grounded the feasibility gap; the sponsor should redirect toward the explicit rollout tradeoff regardless of whether the dependency state is still blocked or merely unknown, regardless of whether the TPM raises it early or after the first decision window has already slipped, and regardless of whether sponsor trust has already dipped from the escalation itself.",
       "selector": {
         "actor_id": "dana",
-        "incoming_act_id": "inform.risk",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "sponsor",
+        "incoming_act_id": "escalate.to_sponsor",
+        "launch_scope": "undecided",
+        "org_role": "director_product",
+        "pressure_band": "medium",
         "surface": "chat"
       },
-      "why_reachable": "Extracted from legacy compiled coverage."
+      "why_reachable": "Added from an observed coverage gap during closure or live-agent execution."
     },
     {
       "criticality": "important",
@@ -182,15 +91,39 @@
     },
     {
       "criticality": "important",
-      "id": "dana.clarification.generic",
-      "priority": 20,
+      "id": "dana.inform_risk",
+      "priority": 15,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
         "actor_id": "dana",
-        "incoming_act_id": "request.clarification",
+        "incoming_act_id": "inform.risk",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "dana.inform_status_update",
+      "priority": 19,
+      "rationale": "Deterministically promoted from a concrete canonical context that the benchmark reached.",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "inform.status_update",
+        "surface": "chat"
+      },
+      "why_reachable": "Added from an observed coverage gap during closure or live-agent execution."
+    },
+    {
+      "criticality": "important",
+      "id": "dana.negotiate_scope",
+      "priority": 21,
+      "rationale": "Deterministically promoted from a concrete canonical context that the benchmark reached.",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "negotiate.scope",
+        "surface": "chat"
+      },
+      "why_reachable": "Added from an observed coverage gap during closure or live-agent execution."
     },
     {
       "criticality": "important",
@@ -205,26 +138,34 @@
       "why_reachable": "Sponsors can receive premature approval asks from the TPM while the team is still converging on the feasible path."
     },
     {
-      "criticality": "important",
-      "id": "leo.clarification.blocked",
-      "priority": 25,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "id": "dana.request_ownership.staged_rollout.gap1",
+      "criticality": "secondary",
       "selector": {
-        "actor_id": "leo",
-        "dependency_band": "blocked",
-        "incoming_act_id": "request.clarification",
+        "actor_id": "dana",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "sponsor",
+        "incoming_act_id": "request.ownership",
+        "launch_scope": "staged_rollout",
+        "org_role": "director_product",
+        "pressure_band": "medium",
         "surface": "chat"
       },
-      "why_reachable": "Extracted from legacy compiled coverage."
+      "why_reachable": "A live TPM may ask Dana to clarify ownership after staged rollout is visible and the sponsor is engaged on the tradeoff.",
+      "rationale": "Dana should clarify sponsor-vs-execution ownership boundaries without taking operational ownership; this reply should not vary by short timing, trust, or unresolved dependency state."
     },
     {
-      "criticality": "important",
-      "id": "leo.clarification.generic",
-      "priority": 15,
+      "criticality": "critical",
+      "guard": {
+        "surfaced": "full_rollout_infeasible"
+      },
+      "id": "dana.scope_tradeoff.ready",
+      "priority": 30,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.clarification",
+        "actor_id": "dana",
+        "incoming_act_id": "request.scope_tradeoff",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
@@ -247,92 +188,32 @@
       "why_reachable": "Extracted from legacy compiled coverage."
     },
     {
-      "criticality": "critical",
-      "guard": {
-        "surfaced": "full_rollout_infeasible"
-      },
-      "id": "dana.scope_tradeoff.ready",
-      "priority": 30,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "dana",
-        "incoming_act_id": "request.scope_tradeoff",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "leo.eta.high",
-      "priority": 40,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.eta",
-        "pressure_band": "high",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
       "criticality": "important",
       "guard": {
-        "not": {
-          "all_of": [
-            {
-              "milestone_state": {
-                "equals": "done",
-                "field": "status",
-                "milestone_id": "scope_aligned"
-              }
-            },
-            {
-              "milestone_state": {
-                "equals": "done",
-                "field": "status",
-                "milestone_id": "approval_secured"
-              }
-            }
-          ]
-        }
-      },
-      "id": "leo.eta.blocked",
-      "priority": 20,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.eta",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "guard": {
-        "all_of": [
+        "any_of": [
           {
-            "milestone_state": {
-              "equals": "done",
-              "field": "status",
-              "milestone_id": "scope_aligned"
+            "window_state": {
+              "equals": true,
+              "field": "closed",
+              "window_id": "approval_cutoff"
             }
           },
           {
-            "milestone_state": {
-              "equals": "done",
-              "field": "status",
-              "milestone_id": "approval_secured"
+            "not": {
+              "project_state": {
+                "equals": "staged_rollout",
+                "field": "launch_scope"
+              }
             }
           }
         ]
       },
-      "id": "leo.eta.ready",
-      "priority": 30,
+      "id": "ivy.approval.defer",
+      "priority": 10,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
-        "actor_id": "leo",
-        "incoming_act_id": "request.eta",
-        "pressure_band": "low",
+        "actor_id": "ivy",
+        "incoming_act_id": "request.approval",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
@@ -412,24 +293,24 @@
     },
     {
       "criticality": "important",
-      "id": "ivy.inform.status_update",
-      "priority": 11,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "inform.status_update",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
       "id": "ivy.inform.risk",
       "priority": 11,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
         "actor_id": "ivy",
         "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "ivy.inform.status_update",
+      "priority": 11,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "inform.status_update",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
@@ -448,12 +329,36 @@
     },
     {
       "criticality": "important",
-      "id": "ivy.request.eta",
+      "id": "ivy.negotiate.ownership",
       "priority": 11,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
         "actor_id": "ivy",
-        "incoming_act_id": "request.eta",
+        "incoming_act_id": "negotiate.ownership",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "ivy.negotiate.scope",
+      "priority": 11,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "negotiate.scope",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "ivy.negotiate.timeline",
+      "priority": 11,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "negotiate.timeline",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
@@ -472,19 +377,24 @@
     },
     {
       "criticality": "important",
-      "guard": {
-        "project_state": {
-          "equals": "staged_rollout",
-          "field": "launch_scope"
-        }
-      },
-      "id": "ivy.scope_tradeoff.clear",
-      "priority": 18,
+      "id": "ivy.request.eta",
+      "priority": 11,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
         "actor_id": "ivy",
-        "dependency_band": "clear",
-        "incoming_act_id": "request.scope_tradeoff",
+        "incoming_act_id": "request.eta",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "ivy.request.feasibility",
+      "priority": 11,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.feasibility",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
@@ -497,31 +407,6 @@
       "selector": {
         "actor_id": "ivy",
         "incoming_act_id": "request.ownership",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "critical",
-      "guard": {
-        "all_of": [
-          {
-            "critical_window_open": "approval_cutoff"
-          },
-          {
-            "project_state": {
-              "equals": "staged_rollout",
-              "field": "launch_scope"
-            }
-          }
-        ]
-      },
-      "id": "ivy.request.review.ready",
-      "priority": 30,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.review",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
@@ -558,49 +443,26 @@
       "why_reachable": "Extracted from legacy compiled coverage."
     },
     {
-      "criticality": "important",
-      "id": "ivy.request.feasibility",
-      "priority": 11,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.feasibility",
-        "surface": "chat"
+      "criticality": "critical",
+      "guard": {
+        "all_of": [
+          {
+            "critical_window_open": "approval_cutoff"
+          },
+          {
+            "project_state": {
+              "equals": "staged_rollout",
+              "field": "launch_scope"
+            }
+          }
+        ]
       },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.scope",
-      "priority": 11,
+      "id": "ivy.request.review.ready",
+      "priority": 30,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
         "actor_id": "ivy",
-        "incoming_act_id": "negotiate.scope",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.timeline",
-      "priority": 11,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "negotiate.timeline",
-        "surface": "chat"
-      },
-      "why_reachable": "Extracted from legacy compiled coverage."
-    },
-    {
-      "criticality": "important",
-      "id": "ivy.negotiate.ownership",
-      "priority": 11,
-      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
-      "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "negotiate.ownership",
+        "incoming_act_id": "request.review",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
@@ -608,30 +470,250 @@
     {
       "criticality": "important",
       "guard": {
-        "any_of": [
+        "project_state": {
+          "equals": "staged_rollout",
+          "field": "launch_scope"
+        }
+      },
+      "id": "ivy.scope_tradeoff.clear",
+      "priority": 18,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "ivy",
+        "incoming_act_id": "request.scope_tradeoff",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.clarification.blocked",
+      "priority": 25,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "dependency_band": "blocked",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.clarification.generic",
+      "priority": 15,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "all_of": [
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "scope_aligned"
+              }
+            },
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "approval_secured"
+              }
+            }
+          ]
+        }
+      },
+      "id": "leo.eta.blocked",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.eta",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.eta.high",
+      "priority": 40,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.eta",
+        "pressure_band": "high",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "all_of": [
           {
-            "window_state": {
-              "equals": true,
-              "field": "closed",
-              "window_id": "approval_cutoff"
+            "milestone_state": {
+              "equals": "done",
+              "field": "status",
+              "milestone_id": "scope_aligned"
             }
           },
           {
-            "not": {
-              "project_state": {
-                "equals": "staged_rollout",
-                "field": "launch_scope"
-              }
+            "milestone_state": {
+              "equals": "done",
+              "field": "status",
+              "milestone_id": "approval_secured"
             }
           }
         ]
       },
-      "id": "ivy.approval.defer",
-      "priority": 10,
+      "id": "leo.eta.ready",
+      "priority": 30,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
       "selector": {
-        "actor_id": "ivy",
-        "incoming_act_id": "request.approval",
+        "actor_id": "leo",
+        "incoming_act_id": "request.eta",
+        "pressure_band": "low",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "critical",
+      "id": "leo.feasibility.high",
+      "priority": 30,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.feasibility",
+        "pressure_band": "high",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.feasibility.low",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.feasibility",
+        "pressure_band": "low",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.inform.availability",
+      "priority": 16,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.availability",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.inform.blocker",
+      "priority": 16,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.inform.decision",
+      "priority": 16,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.inform.status_update",
+      "priority": 16,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.status_update",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.inform_risk",
+      "priority": 18,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.negotiate.scope",
+      "priority": 22,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "negotiate.scope",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.request_ownership.blocked_short.gap1",
+      "priority": 12,
+      "rationale": "Covers the case where the TPM asks the critical path owner to take ownership while staged scope is still undecided and approval is still blocking progress. The realistic response is to clarify that Leo owns engineering execution, but ownership does not unlock the path until scope and approval are grounded.",
+      "selector": {
+        "actor_id": "leo",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "critical_path_owner",
+        "dependency_band": "blocked",
+        "incoming_act_id": "request.ownership",
+        "launch_scope": "undecided",
+        "org_role": "engineer",
+        "pressure_band": "low",
+        "surface": "chat",
+        "timing_band": "short",
+        "trust_band": "medium"
+      },
+      "why_reachable": "Added from an observed coverage gap during closure or live-agent execution."
+    },
+    {
+      "criticality": "important",
+      "id": "leo.scope_tradeoff",
+      "priority": 22,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "leo",
+        "incoming_act_id": "request.scope_tradeoff",
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
@@ -647,6 +729,28 @@
         "surface": "chat"
       },
       "why_reachable": "A TPM can plausibly check with the operations ally on whether the staged path is operationally supportable before final alignment."
+    },
+    {
+      "criticality": "important",
+      "id": "mia.request_clarification.early.gap1",
+      "priority": 10,
+      "rationale": "Deterministically promoted from a concrete canonical context that the benchmark reached.",
+      "selector": {
+        "actor_id": "mia",
+        "alignment_band": "high",
+        "available_for_meeting": true,
+        "commitment_band": "none",
+        "coordination_template": "ally",
+        "dependency_band": "clear",
+        "incoming_act_id": "request.clarification",
+        "launch_scope": "undecided",
+        "org_role": "operations",
+        "pressure_band": "medium",
+        "surface": "chat",
+        "timing_band": "early",
+        "trust_band": "high"
+      },
+      "why_reachable": "Added from an observed coverage gap during closure or live-agent execution."
     }
   ],
   "version": "coverage_contract_v1"

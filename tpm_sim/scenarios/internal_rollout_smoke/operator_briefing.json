@@ -98,7 +98,7 @@
     "Good TPM behavior here means moving before windows close; finding the real blockers and stakeholder drivers early; making grounded commitments instead of fake green."
   ],
   "premise": "A lightweight internal rollout scenario focused on approval timing, staged-scope alignment, and a small non-gating runbook distraction.",
-  "project_name": "Internal Rollout Project",
+  "project_name": "Internal Config Rollout",
   "project_summary": "A lightweight internal rollout focused on approval timing and staged-scope alignment.",
   "proposal_status": null,
   "run_context": null,

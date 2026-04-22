@@ -1,22 +1,22 @@
 {
-  "bundle_digest": "90700e4cd7ef7ecbced7ae231c03d688632b123518f1c893aa94a8295efcdb32",
+  "bundle_digest": "152caa7902e639480dfd2e944a58697246513fb79177f370cc7a76c286ee00f4",
   "compile_report": {
-    "compiled_family_count": 40,
-    "compiled_from_digest": "90700e4cd7ef7ecbced7ae231c03d688632b123518f1c893aa94a8295efcdb32",
-    "contract_cell_count": 40,
+    "compiled_family_count": 45,
+    "compiled_from_digest": "152caa7902e639480dfd2e944a58697246513fb79177f370cc7a76c286ee00f4",
+    "contract_cell_count": 45,
     "duplicate_selector_guard_collisions": [],
     "errors": [],
     "missing_semantic_cells": [],
     "orphan_semantic_cells": [],
-    "renderer_count": 39,
-    "semantic_entry_count": 40
+    "renderer_count": 44,
+    "semantic_entry_count": 45
   },
-  "compiled_coverage_digest": "90700e4cd7ef7ecbced7ae231c03d688632b123518f1c893aa94a8295efcdb32",
+  "compiled_coverage_digest": "152caa7902e639480dfd2e944a58697246513fb79177f370cc7a76c286ee00f4",
   "coverage_report": {
     "coverage": 1.0,
-    "covered_reachable_cells": 40,
+    "covered_reachable_cells": 45,
     "critical_uncovered": 0,
-    "total_reachable_cells": 40,
+    "total_reachable_cells": 45,
     "uncovered": []
   },
   "errors": [],
@@ -24,7 +24,7 @@
   "smoke_results": [
     {
       "error": null,
-      "score": 100.0,
+      "score": 25.0,
       "script": "smoke.tpm"
     }
   ],

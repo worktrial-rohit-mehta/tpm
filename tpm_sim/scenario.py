@@ -25,6 +25,72 @@ SPEC_FILES = [
 ]
 
 
+def validate_runtime_scenario(scenario: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(scenario, dict):
+        return ["scenario.json must be a JSON object"]
+    for key in ("id", "name", "timezone", "start_at", "end_at"):
+        value = scenario.get(key)
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"scenario.{key} must be a non-empty string")
+
+    world = scenario.get("world")
+    if not isinstance(world, dict):
+        errors.append("scenario.world must be an object")
+        return errors
+    if not isinstance(world.get("project"), dict):
+        errors.append("scenario.world.project must be an object")
+
+    _validate_runtime_id_collection(world, "actors", errors)
+    _validate_runtime_id_collection(world, "documents", errors)
+    _validate_runtime_id_collection(world, "tasks", errors)
+    milestone_ids = _validate_runtime_id_collection(world, "milestones", errors)
+    _validate_runtime_id_collection(world, "threads", errors)
+    _validate_runtime_id_collection(world, "meetings", errors)
+    _validate_runtime_id_collection(world, "commitments", errors)
+    for key in ("relationships", "windows", "dependencies", "facts", "beliefs", "messages", "pending_events"):
+        if key in world and not isinstance(world.get(key), list):
+            errors.append(f"scenario.world.{key} must be a list")
+
+    policy = scenario.get("policy")
+    if not isinstance(policy, dict):
+        errors.append("scenario.policy must be an object")
+    else:
+        requirements = policy.get("external_commitment_requirements")
+        if not isinstance(requirements, list) or not requirements:
+            errors.append("policy.external_commitment_requirements must be a non-empty list")
+        else:
+            string_items = [item for item in requirements if isinstance(item, str) and item.strip()]
+            object_items = [item for item in requirements if isinstance(item, dict)]
+            if string_items and len(string_items) == len(requirements):
+                for item in string_items:
+                    if milestone_ids and item not in milestone_ids:
+                        errors.append(f"policy.external_commitment_requirements references unknown milestone '{item}'")
+            elif object_items and len(object_items) == len(requirements):
+                for item in object_items:
+                    requirement_id = item.get("id")
+                    if not isinstance(requirement_id, str) or not requirement_id.strip():
+                        errors.append("policy.external_commitment_requirements objects must include non-empty string ids")
+            else:
+                errors.append(
+                    "policy.external_commitment_requirements must use a consistent shape: either milestone id strings or requirement objects"
+                )
+
+    evaluation = scenario.get("evaluation")
+    if not isinstance(evaluation, dict):
+        errors.append("scenario.evaluation must be an object")
+    else:
+        seeds = evaluation.get("official_seeds")
+        if not isinstance(seeds, list) or not seeds:
+            errors.append("evaluation.official_seeds must be a non-empty list of integers")
+        else:
+            for seed in seeds:
+                if not isinstance(seed, int) or isinstance(seed, bool):
+                    errors.append("evaluation.official_seeds must contain only integers")
+                    break
+    return errors
+
+
 def available_scenarios() -> list[str]:
     package = resources.files("tpm_sim.scenarios")
     return sorted(path.name for path in package.iterdir() if path.is_dir())
@@ -59,6 +125,9 @@ def load_bundle_from_paths(
 ) -> dict[str, Any]:
     scenario_bytes = Path(scenario_path).read_bytes()
     scenario = json.loads(scenario_bytes)
+    scenario_errors = validate_runtime_scenario(scenario)
+    if scenario_errors:
+        raise RuntimeError(f"scenario.json failed validation: {'; '.join(scenario_errors)}")
     contract_file = Path(contract_path) if contract_path else Path(scenario_path).with_name("coverage_contract.json")
     semantics_file = Path(semantics_path) if semantics_path else Path(scenario_path).with_name("coverage_semantics.json")
     spec_parts = [path.read_bytes() for path in SPEC_FILES]
@@ -120,6 +189,27 @@ def load_bundle_from_paths(
         "scenario_bytes": scenario_bytes,
         "coverage_bytes": coverage_bytes,
     }
+
+
+def _validate_runtime_id_collection(world: dict[str, Any], key: str, errors: list[str]) -> set[str]:
+    items = world.get(key, [])
+    if not isinstance(items, list):
+        errors.append(f"scenario.world.{key} must be a list")
+        return set()
+    ids: set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            errors.append(f"scenario.world.{key} must contain only objects")
+            continue
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or not item_id.strip():
+            errors.append(f"scenario.world.{key} entries must include non-empty string ids")
+            continue
+        if item_id in ids:
+            errors.append(f"scenario.world.{key} contains duplicate id '{item_id}'")
+            continue
+        ids.add(item_id)
+    return ids
 
 
 def load_bundle_from_store(store: StateStore) -> dict[str, Any]:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from difflib import SequenceMatcher
 import json
 from importlib import resources
 from pathlib import Path
+import re
 from typing import Any
 
 from tpm_sim.authoring.briefs import AuthoringBrief, load_brief
@@ -254,7 +256,7 @@ def render_operator_briefing(briefing: dict[str, Any], *, compact: bool) -> str:
     if briefing.get("project_name"):
         lines.append(f"Project: {briefing['project_name']}")
     lines.append(f"Premise: {briefing['premise']}")
-    if briefing.get("project_summary") and briefing["project_summary"] != briefing["premise"]:
+    if _should_render_project_detail(briefing.get("premise"), briefing.get("project_summary")):
         lines.append(f"Project Detail: {briefing['project_summary']}")
     window = briefing.get("window", {})
     if window.get("start_display") and window.get("end_display"):
@@ -504,6 +506,25 @@ def _join_sentences(values: list[str]) -> str:
     if len(values) == 1:
         return values[0]
     return "; ".join(values[:2])
+
+
+def _should_render_project_detail(premise: Any, project_summary: Any) -> bool:
+    if not isinstance(project_summary, str) or not project_summary.strip():
+        return False
+    if not isinstance(premise, str) or not premise.strip():
+        return True
+
+    normalized_premise = _normalize_summary_text(premise)
+    normalized_detail = _normalize_summary_text(project_summary)
+    if not normalized_detail or normalized_detail == normalized_premise:
+        return False
+    if normalized_detail in normalized_premise or normalized_premise in normalized_detail:
+        return False
+    return SequenceMatcher(a=normalized_premise, b=normalized_detail).ratio() < 0.65
+
+
+def _normalize_summary_text(value: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", value.lower())).strip()
 
 
 def _humanize(value: str) -> str:

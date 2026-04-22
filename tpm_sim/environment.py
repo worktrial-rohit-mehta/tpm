@@ -11,7 +11,7 @@ from tpm_sim.scenario import load_bundle_from_store, load_scenario_bundle, seed_
 from tpm_sim.storage import open_store
 
 
-ACTION_SCHEMA_VERSION = "tpm_action_v1"
+ACTION_SCHEMA_VERSION = "tpm_action_v2"
 
 READ_ACTIONS = {"read.thread", "read.doc", "read.tasks", "read.calendar"}
 WRITE_ACTIONS = {
@@ -58,6 +58,7 @@ ALLOWED_ACT_IDS = (
     "request.review",
     "request.scope_tradeoff",
 )
+NOTE_REF_KINDS = ("actor", "thread", "task", "doc", "meeting")
 
 
 ACTION_SCHEMA: dict[str, Any] = {
@@ -70,7 +71,7 @@ ACTION_SCHEMA: dict[str, Any] = {
         "read.calendar": {"required": [], "optional": []},
         "chat.send": {"required": ["target", "act_id"], "optional": ["slots", "body"]},
         "docs.write": {"required": ["doc_type", "title", "body"], "optional": []},
-        "notes.write": {"required": ["title", "body"], "optional": []},
+        "notes.write": {"required": ["title", "body"], "optional": ["refs"]},
         "task.note": {"required": ["task_id", "note"], "optional": []},
         "task.set_owner": {"required": ["task_id", "owner_id"], "optional": []},
         "task.set_target": {"required": ["task_id", "target_at"], "optional": []},
@@ -134,6 +135,31 @@ class EnvironmentSession:
             path.unlink()
         store = open_store(db_path)
         bundle = load_scenario_bundle(scenario_id)
+        try:
+            seed_store(store, bundle, seed, coverage_enforcement=coverage_enforcement)
+            engine = SimulationEngine(store, bundle)
+            evaluator = Evaluator(engine)
+            return cls(db_path, engine, evaluator)
+        except Exception:
+            store.close()
+            raise
+
+    @classmethod
+    def create_from_bundle(
+        cls,
+        db_path: str,
+        bundle: dict[str, Any],
+        seed: int,
+        *,
+        coverage_enforcement: str = "strict",
+        force: bool = False,
+    ) -> "EnvironmentSession":
+        path = Path(db_path)
+        if path.exists() and not force:
+            raise RuntimeError(f"{db_path} already exists. Re-run with force=True to overwrite it.")
+        if path.exists():
+            path.unlink()
+        store = open_store(db_path)
         try:
             seed_store(store, bundle, seed, coverage_enforcement=coverage_enforcement)
             engine = SimulationEngine(store, bundle)
@@ -241,7 +267,11 @@ class EnvironmentSession:
         if kind == "docs.write":
             return self.engine.write_doc(args["doc_type"], args["title"], args["body"])
         if kind == "notes.write":
-            return self.engine.write_private_note(args["title"], args["body"])
+            return self.engine.write_private_note(
+                args["title"],
+                args["body"],
+                refs=self._validate_note_refs(args.get("refs")),
+            )
         if kind == "task.note":
             return self.engine.add_task_note(args["task_id"], args["note"])
         if kind == "task.set_owner":
@@ -268,6 +298,30 @@ class EnvironmentSession:
         if kind == "wait.until_next_event":
             return self.engine.wait_until_next_event(int(args["max_minutes"]))
         raise ActionValidationError(f"Unsupported action_type '{kind}'.")
+
+    def _validate_note_refs(self, raw_refs: Any) -> list[str]:
+        if raw_refs is None:
+            return []
+        if not isinstance(raw_refs, list):
+            raise ActionValidationError("notes.write expects 'refs' to be a list of note references.")
+        validated: list[str] = []
+        for raw_ref in raw_refs:
+            kind, ref_id = _split_note_ref(raw_ref)
+            try:
+                if kind == "actor":
+                    self.engine.store.get_actor(ref_id)
+                elif kind == "thread":
+                    self.engine.store.get_thread(ref_id)
+                elif kind == "task":
+                    self.engine.store.get_task(ref_id)
+                elif kind == "doc":
+                    self.engine.store.get_document(ref_id)
+                elif kind == "meeting":
+                    self.engine.store.get_meeting(ref_id)
+            except KeyError as exc:
+                raise ActionValidationError(f"notes.write references unknown {kind} '{ref_id}'.") from exc
+            validated.append(f"{kind}:{ref_id}")
+        return validated
 
     def _recent_history(self, action_limit: int = 6, event_limit: int = 10) -> dict[str, Any]:
         actions = self.engine.store.actions()[-action_limit:]
@@ -417,6 +471,7 @@ class EnvironmentSession:
             )
 
         pending_replies = []
+        pending_reply_by_thread: dict[str, dict[str, Any]] = {}
         for row in self.engine.store.pending_events():
             if row["type"] != "npc.respond_message":
                 continue
@@ -436,6 +491,7 @@ class EnvironmentSession:
                     "incoming_act_id": payload.get("incoming_act_id"),
                 }
             )
+            pending_reply_by_thread[thread_id] = pending_replies[-1]
 
         last_responses = []
         for actor_id, thread_id in sorted(dm_thread_by_actor.items()):
@@ -453,6 +509,74 @@ class EnvironmentSession:
                     "body": latest["body"][:180],
                 }
             )
+
+        thread_state = []
+        actor_constraints = []
+        approval_readiness = []
+        latest_actor_response = {item["actor_id"]: item for item in last_responses}
+        for actor in actor_directory:
+            thread_id = actor["chat_thread_id"]
+            messages = self.engine.store.thread_messages(thread_id, limit=30)
+            latest_inbound = next((message for message in reversed(messages) if message["sender_id"] != "tpm"), None)
+            latest_outbound = next((message for message in reversed(messages) if message["sender_id"] == "tpm"), None)
+            pending = pending_reply_by_thread.get(thread_id)
+            has_unread = any(bool(message["unread_for_tpm"]) for message in messages)
+            repeated_followup_risk = bool(
+                pending
+                or (
+                    latest_outbound is not None
+                    and (latest_inbound is None or latest_outbound["created_at"] > latest_inbound["created_at"])
+                )
+            )
+            thread_state.append(
+                {
+                    "thread_id": thread_id,
+                    "actor_id": actor["actor_id"],
+                    "last_inbound_act_id": latest_inbound["act_id"] if latest_inbound else None,
+                    "last_outbound_act_id": latest_outbound["act_id"] if latest_outbound else None,
+                    "pending_reply_due_at": pending["due_at"] if pending else None,
+                    "has_unread": has_unread,
+                    "repeated_followup_risk": repeated_followup_risk,
+                }
+            )
+
+            constraints: list[str] = []
+            inbound_act = latest_inbound["act_id"] if latest_inbound else None
+            if inbound_act in {"inform.blocker", "approve.defer"}:
+                constraints.append("Visible blocker remains unresolved before this stakeholder can move.")
+            if inbound_act == "request.clarification":
+                constraints.append("Stakeholder is explicitly asking for clarification before they can proceed.")
+            if inbound_act == "inform.decision":
+                constraints.append("Stakeholder has already stated a decision; follow up only if new information changes it.")
+            if inbound_act == "request.review":
+                constraints.append("Review request is pending specific intake or supporting detail.")
+            belief_prefix = f"actor.{actor['actor_id']}."
+            latest_beliefs: dict[str, Any] = {}
+            for belief_row in self.engine.store.beliefs_for_actor("tpm"):
+                belief_key = str(belief_row["belief_key"])
+                if not belief_key.startswith(belief_prefix):
+                    continue
+                if belief_key in latest_beliefs:
+                    continue
+                latest_beliefs[belief_key] = self.engine.deserialize(belief_row["belief_value_json"], None)
+            if latest_beliefs.get(f"{belief_prefix}requires_complete_intake") is True:
+                constraints.append("This stakeholder requires a complete intake before approval or review can proceed.")
+            if latest_beliefs.get(f"{belief_prefix}review_requirement"):
+                constraints.append(str(latest_beliefs[f"{belief_prefix}review_requirement"]))
+            if latest_beliefs.get(f"{belief_prefix}review_status"):
+                constraints.append(f"Latest visible review status: {latest_beliefs[f'{belief_prefix}review_status']}.")
+            if latest_beliefs.get(f"{belief_prefix}prefers_scope_before_eta") is True:
+                constraints.append("This owner prefers scope to be concrete before discussing ETA.")
+            if constraints:
+                actor_constraints.append(
+                    {
+                        "actor_id": actor["actor_id"],
+                        "actor_name": actor["name"],
+                        "thread_id": thread_id,
+                        "last_inbound_act_id": inbound_act,
+                        "constraints": constraints,
+                    }
+                )
 
         open_needs = []
         for milestone in precondition_summary:
@@ -487,12 +611,39 @@ class EnvironmentSession:
                     }
                 )
 
+        for milestone in precondition_summary:
+            lower = f"{milestone['milestone_id']} {milestone['title']}".lower()
+            if milestone["status"] == "done":
+                continue
+            if "approval" in lower or "security" in lower or "review" in lower:
+                approval_readiness.append(
+                    {
+                        "milestone_id": milestone["milestone_id"],
+                        "title": milestone["title"],
+                        "status": milestone["status"],
+                        "visible_conditions": milestone["visible_conditions"],
+                    }
+                )
+        for actor in actor_constraints:
+            for constraint in actor["constraints"]:
+                if "intake" in constraint.lower() or "approval" in constraint.lower() or "review" in constraint.lower():
+                    approval_readiness.append(
+                        {
+                            "milestone_id": None,
+                            "title": f"{actor['actor_name']} constraint",
+                            "status": "unresolved",
+                            "visible_conditions": [constraint],
+                        }
+                    )
+
         return {
             "surfaced_facts": facts,
             "actor_directory": actor_directory,
             "canonical_targets": {
                 "actor_chat_targets": {item["actor_id"]: item["chat_thread_id"] for item in actor_directory},
             },
+            "thread_state": thread_state,
+            "actor_constraints": actor_constraints,
             "open_commitments": commitments,
             "unresolved_blockers": blockers,
             "visible_windows": windows,
@@ -501,6 +652,7 @@ class EnvironmentSession:
             "open_needs": open_needs,
             "last_stakeholder_responses": last_responses,
             "visible_precondition_summary": precondition_summary,
+            "approval_readiness": approval_readiness,
             "milestones": milestones,
             "task_summaries": task_summaries,
         }
@@ -574,6 +726,13 @@ def validate_structured_action(action: StructuredAction) -> None:
             raise ActionValidationError(
                 f"Unknown act_id '{act_id}'. Known acts: {', '.join(ALLOWED_ACT_IDS)}"
             )
+    if action.action_type == "notes.write":
+        refs = args.get("refs")
+        if refs is not None:
+            if not isinstance(refs, list):
+                raise ActionValidationError("notes.write expects 'refs' to be a list of note references.")
+            for raw_ref in refs:
+                _split_note_ref(raw_ref)
     if action.action_type in {"wait.duration", "wait.until_next_event"}:
         field = "minutes" if action.action_type == "wait.duration" else "max_minutes"
         try:
@@ -582,6 +741,21 @@ def validate_structured_action(action: StructuredAction) -> None:
             raise ActionValidationError(f"{action.action_type} expects integer field '{field}'.") from exc
         if value < 0:
             raise ActionValidationError(f"{action.action_type} expects non-negative '{field}'.")
+
+
+def _split_note_ref(raw_ref: Any) -> tuple[str, str]:
+    if not isinstance(raw_ref, str):
+        raise ActionValidationError("notes.write expects refs to contain only strings.")
+    kind, separator, ref_id = raw_ref.partition(":")
+    if not separator or not kind or not ref_id:
+        raise ActionValidationError(
+            f"Invalid note ref '{raw_ref}'. Expected <kind>:<id> with kind in {', '.join(NOTE_REF_KINDS)}."
+        )
+    if kind not in NOTE_REF_KINDS:
+        raise ActionValidationError(
+            f"Invalid note ref kind '{kind}'. Expected one of: {', '.join(NOTE_REF_KINDS)}."
+        )
+    return kind, ref_id
 
 
 def render_step_result(step: StepResult) -> str:

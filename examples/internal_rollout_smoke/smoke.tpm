@@ -1,17 +1,17 @@
 # Lightweight smoke trajectory for the internal rollout generalization scenario.
 docs open DOC-BRIEF-100
-chat send leo | request.feasibility | task_id=config_rollout | Need the honest path for Wednesday.
+chat send leo | request.scope_tradeoff | task_id=config_rollout | If full rollout is not credible, what staged path is actually workable this week?
 wait next 180m
 chat open leo
-chat send dana | request.scope_tradeoff | task_id=config_rollout | If full rollout is not credible, will you back a staged rollout?
-wait next 180m
+chat send leo | negotiate.scope | proposed_scope=staged_rollout | Let's commit to staged rollout as the real path.
+chat send dana | request.scope_tradeoff | task_id=config_rollout | Engineering is saying full rollout is not credible. Will you back staged rollout today?
+wait next 240m
 chat open dana
-chat send ivy | request.approval | task_id=approval_review | Requesting approval for the staged rollout path.
+chat send leo | inform.decision | decision_key=launch_scope,decision_value=staged_rollout | We are aligning on staged rollout.
+chat send dana | inform.decision | decision_key=launch_scope,decision_value=staged_rollout | We are aligning on staged rollout and I need your support on that tradeoff.
+chat send ivy | request.review | task_id=approval_review | Staged rollout is the path. Please review the concrete staged request before noon.
 wait next 240m
 chat open ivy
-wait next 240m
-chat send leo | request.eta | task_id=config_rollout | What is the credible ETA for the staged rollout path?
-wait next 240m
-chat open leo
-docs write runbook | Rollout runbook | Drafted the staged rollout checklist, rollback plan, and owner notes.
+chat send mia | request.feasibility | task_id=runbook_readiness | If we go staged, is ops support feasible from your side?
+chat send leo | request.eta | task_id=config_rollout | With staged scope and approval ready, what is the credible ETA?
 wait 600m

@@ -371,21 +371,44 @@
   "name": "Internal Rollout Smoke",
   "policy": {
     "action_costs": {
+      "ask_discovery_question": 10,
+      "create_commitment": 10,
+      "follow_up_on_commitment": 10,
+      "hold_meeting": 30,
       "meeting_act": 1,
       "read_calendar": 1,
       "read_doc": 5,
       "read_task_board": 1,
       "read_thread": 2,
-      "schedule_meeting": 2,
+      "schedule_meeting": 10,
       "send_chat": 1,
+      "send_message": 5,
+      "status_push_without_new_information": 15,
       "task_edit": 3,
       "task_note": 3,
+      "update_document": 15,
       "write_doc": 15,
-      "write_note": 1
+      "write_note": 5
     },
-    "default_timing_band": "",
-    "external_commitment_requirements": [],
+    "default_timing_band": "short",
+    "external_commitment_requirements": [
+      {
+        "actor_id": "ivy",
+        "id": "req_ivy_commitment_quality",
+        "requirement": "A valid commitment from Ivy must specify deliverable, timing, and gating conditions.",
+        "valid_example": "I will approve by noon if the complete staged packet with risk summary and engineering contact is submitted before the cutoff."
+      },
+      {
+        "actor_id": "leo",
+        "id": "req_leo_commitment_quality",
+        "requirement": "A valid commitment from Leo must not force an unsupported full-rollout ETA; it should be bounded to staged scope or factual feasibility input.",
+        "valid_example": "I can confirm staged scope feasibility and provide the engineering contact for the approval packet by 10:30."
+      }
+    ],
     "meeting_defaults": {
+      "decision_capture_required": true,
+      "default_duration_minutes": 30,
+      "minimum_notice_minutes": 15,
       "tpm_max_acts": 2
     },
     "meeting_outcomes": [
@@ -651,8 +674,8 @@
         "traits": {
           "calendar_reply_delay_max": 10,
           "calendar_reply_delay_min": 5,
-          "chat_reply_delay_max": 15,
-          "chat_reply_delay_min": 8,
+          "chat_reply_delay_max": 30,
+          "chat_reply_delay_min": 15,
           "workday_end": "17:00",
           "workday_start": "09:00"
         }
@@ -677,8 +700,8 @@
         "traits": {
           "calendar_reply_delay_max": 20,
           "calendar_reply_delay_min": 10,
-          "chat_reply_delay_max": 28,
-          "chat_reply_delay_min": 18,
+          "chat_reply_delay_max": 45,
+          "chat_reply_delay_min": 25,
           "workday_end": "17:00",
           "workday_start": "09:00"
         }
@@ -703,8 +726,8 @@
         "traits": {
           "calendar_reply_delay_max": 20,
           "calendar_reply_delay_min": 10,
-          "chat_reply_delay_max": 18,
-          "chat_reply_delay_min": 10,
+          "chat_reply_delay_max": 40,
+          "chat_reply_delay_min": 20,
           "workday_end": "17:00",
           "workday_start": "09:00"
         }
@@ -728,8 +751,8 @@
         "traits": {
           "calendar_reply_delay_max": 10,
           "calendar_reply_delay_min": 5,
-          "chat_reply_delay_max": 10,
-          "chat_reply_delay_min": 5,
+          "chat_reply_delay_max": 20,
+          "chat_reply_delay_min": 10,
           "workday_end": "17:00",
           "workday_start": "09:00"
         }
@@ -924,7 +947,20 @@
         }
       }
     ],
-    "meetings": [],
+    "meetings": [
+      {
+        "agenda": "",
+        "attendee_ids": [],
+        "end_at": "2026-05-05T14:30:00",
+        "id": "meeting_dana_checkin",
+        "metadata": {},
+        "organizer_id": "tpm",
+        "start_at": "2026-05-05T14:00:00",
+        "status": "scheduled",
+        "title": "Dana daily check-in",
+        "transcript_doc_id": null
+      }
+    ],
     "messages": [],
     "milestones": [
       {
@@ -1237,17 +1273,35 @@
       }
     ],
     "project": {
+      "constraints": [
+        "Full rollout is infeasible in the current window.",
+        "Approval must enter Ivy's queue before the cutoff to be completed in time.",
+        "The runbook task is helpful but not gating for approval or scope alignment."
+      ],
+      "critical_path_task_ids": [
+        "task_scope_and_plan",
+        "task_security_approval"
+      ],
       "description": "A lightweight internal rollout focused on approval timing and staged-scope alignment.",
+      "id": "proj_internal_rollout",
+      "initial_state": "active",
       "metadata": {
         "benchmark_positioning": "lightweight_generalization_smoke"
       },
-      "name": "Internal Rollout Project",
+      "name": "Internal Config Rollout",
+      "objective": "Achieve staged-scope alignment, secure approval before the cutoff, and make the rollout operationally ready by the final milestone.",
       "state": {
         "coverage_miss": false,
         "invalid_external_commitments": 0,
         "launch_scope": "undecided",
         "stakeholder_confidence": "stable"
-      }
+      },
+      "success_conditions": [
+        "A staged rollout plan is explicitly aligned with Dana by 2026-05-05T15:00:00.",
+        "Security approval is secured from Ivy by 2026-05-05T12:00:00.",
+        "The rollout is ready by 2026-05-06T15:00:00."
+      ],
+      "summary": "Coordinate a staged internal rollout that requires security approval before a hard queue cutoff and enough operational readiness to execute on the following day."
     },
     "relationships": [
       {
