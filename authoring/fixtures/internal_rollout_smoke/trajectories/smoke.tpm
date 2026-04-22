@@ -1,0 +1,17 @@
+# Lightweight smoke trajectory for the internal rollout generalization scenario.
+docs open DOC-BRIEF-100
+chat send leo | request.feasibility | task_id=config_rollout | Need the honest path for Wednesday.
+wait next 180m
+chat open leo
+chat send dana | request.scope_tradeoff | task_id=config_rollout | If full rollout is not credible, will you back a staged rollout?
+wait next 180m
+chat open dana
+chat send ivy | request.approval | task_id=approval_review | Requesting approval for the staged rollout path.
+wait next 240m
+chat open ivy
+wait next 240m
+chat send leo | request.eta | task_id=config_rollout | What is the credible ETA for the staged rollout path?
+wait next 240m
+chat open leo
+docs write runbook | Rollout runbook | Drafted the staged rollout checklist, rollback plan, and owner notes.
+wait 600m

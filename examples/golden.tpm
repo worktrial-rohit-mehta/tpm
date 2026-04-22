@@ -1,0 +1,23 @@
+# Strong but bounded trajectory.
+docs open DOC-BRIEF-001
+docs open DOC-MAYA-LOAD-001
+docs open DOC-SUPPORT-001
+chat send maya | request.feasibility | task_id=backend_api | Need the honest path and blockers.
+wait next 600m
+chat open maya
+chat send rohit | inform.risk | decision_key=launch_scope,decision_value=descoped_pilot | Full scope is not real. I am pushing a descoped pilot.
+chat send rohit | request.approval | decision_key=launch_scope,decision_value=descoped_pilot | Approve the descoped pilot path.
+chat send nina | request.review | task_id=security_review | Need the earliest useful security review slot.
+wait next 240m
+chat open rohit
+chat open nina
+chat send maya | request.feasibility | task_id=backend_api | With descoped scope and security in flight, what backend path is credible?
+chat send rahul | request.approval | task_id=design_signoff | Support context is ready. Please review the descoped design path.
+chat send andrew | request.ownership | task_id=frontend_pilot | Please own the descoped frontend path.
+wait next 480m
+chat open maya
+chat open rahul
+chat open andrew
+chat send sara | inform.decision | decision_key=launch_scope,decision_value=descoped_pilot | We are locking the descoped pilot plan.
+wait 4320m
+score

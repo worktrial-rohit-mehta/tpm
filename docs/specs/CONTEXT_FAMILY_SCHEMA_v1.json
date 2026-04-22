@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CONTEXT_FAMILY_SCHEMA_v1",
+  "title": "Frozen NPC Context Family Schema v1",
+  "type": "object",
+  "required": ["version", "reachable_cells", "families", "renderers"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "CONTEXT_FAMILY_SCHEMA_v1"
+    },
+    "reachable_cells": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cell"
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/family"
+      }
+    },
+    "renderers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "selector": {
+      "type": "object",
+      "properties": {
+        "actor_id": { "type": "string" },
+        "coordination_template": { "type": "string" },
+        "org_role": { "type": "string" },
+        "surface": { "type": "string" },
+        "incoming_act_id": { "type": "string" },
+        "trust_band": { "type": "string" },
+        "pressure_band": { "type": "string" },
+        "alignment_band": { "type": "string" },
+        "timing_band": { "type": "string" },
+        "dependency_band": { "type": "string" },
+        "commitment_band": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "cell": {
+      "type": "object",
+      "required": ["id", "criticality", "reachable"],
+      "properties": {
+        "id": { "type": "string" },
+        "criticality": {
+          "type": "string",
+          "enum": ["critical", "important", "peripheral"]
+        },
+        "reachable": { "type": "boolean" },
+        "selector": { "$ref": "#/$defs/selector" },
+        "guard": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "object" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "responseEnvelope": {
+      "type": "object",
+      "required": ["id", "weight", "outgoing_act_id", "renderer_id"],
+      "properties": {
+        "id": { "type": "string" },
+        "weight": { "type": "number", "minimum": 0 },
+        "outgoing_act_id": { "type": "string" },
+        "outgoing_slots": {
+          "type": "object"
+        },
+        "surface_facts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "belief_signals": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "effects": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "renderer_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "family": {
+      "type": "object",
+      "required": ["id", "priority", "criticality", "response_envelopes"],
+      "properties": {
+        "id": { "type": "string" },
+        "extends": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        },
+        "priority": { "type": "integer" },
+        "criticality": {
+          "type": "string",
+          "enum": ["critical", "important", "peripheral"]
+        },
+        "selector": { "$ref": "#/$defs/selector" },
+        "guard": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "object" }
+          ]
+        },
+        "response_envelopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/responseEnvelope"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

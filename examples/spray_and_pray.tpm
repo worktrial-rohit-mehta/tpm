@@ -1,0 +1,12 @@
+# High-noise coordination with weak leverage.
+chat send maya | request.eta | task_id=backend_api | Need a date now.
+chat send rohit | request.approval | decision_key=launch_scope,decision_value=descoped_pilot | Please approve the descoped pilot.
+chat send andrew | request.ownership | task_id=frontend_pilot | Can you own frontend?
+chat send rahul | request.approval | task_id=design_signoff | Please approve the design now.
+chat send nina | request.review | task_id=security_review | Need security review now.
+calendar schedule 30m | maya,rohit | Alignment 1 | goal=alignment | Quick sync
+calendar schedule 30m | andrew,rahul | Alignment 2 | goal=alignment | Quick sync
+calendar schedule 30m | maya,nina | Alignment 3 | goal=alignment | Quick sync
+calendar schedule 30m | rohit,sara | Alignment 4 | goal=alignment | Quick sync
+wait 2880m
+score

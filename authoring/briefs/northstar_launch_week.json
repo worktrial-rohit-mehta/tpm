@@ -1,0 +1,116 @@
+{
+  "cast": [
+    {
+      "coordination_template": "sponsor",
+      "name": "Rohit Kapoor",
+      "notes": "Wants honest status and can authorize descoping if engaged early.",
+      "org_role": "director_product"
+    },
+    {
+      "coordination_template": "critical_path_owner",
+      "name": "Maya Chen",
+      "notes": "Overloaded backend owner who resists fake commitments.",
+      "org_role": "engineer"
+    },
+    {
+      "coordination_template": "ally",
+      "name": "Andrew Ortiz",
+      "notes": "Helpful frontend ally once scope is aligned.",
+      "org_role": "engineer"
+    },
+    {
+      "coordination_template": "cross_functional_dependency_owner",
+      "name": "Rahul Iyer",
+      "notes": "Designer who needs support context before approving the descoped path.",
+      "org_role": "designer"
+    },
+    {
+      "coordination_template": "cross_functional_dependency_owner",
+      "name": "Nina Patel",
+      "notes": "Security reviewer with a useful-slot cutoff.",
+      "org_role": "security_engineer"
+    },
+    {
+      "coordination_template": "customer_facing_bridge",
+      "name": "Sara Feldman",
+      "notes": "Needs stable messaging for the customer-facing story.",
+      "org_role": "solutions_engineer"
+    }
+  ],
+  "critical_path": [
+    "backend_api",
+    "security_review",
+    "frontend_pilot"
+  ],
+  "end_at": "2026-05-08T17:00:00",
+  "failure_classes": [
+    "timing",
+    "discovery",
+    "commitment"
+  ],
+  "hidden_facts": [
+    {
+      "id": "backend_infeasible_for_friday",
+      "summary": "The current backend path is not credible for Friday."
+    },
+    {
+      "id": "security_review_required",
+      "summary": "The descoped pilot still needs security review."
+    },
+    {
+      "id": "rohit_accepts_descoping_if_early",
+      "summary": "The sponsor will support descoping if engaged early."
+    },
+    {
+      "id": "rahul_needs_support_context",
+      "summary": "Design approval depends on support context."
+    },
+    {
+      "id": "sara_needs_plan_by_wed_noon",
+      "summary": "Customer-facing messaging destabilizes by Wednesday noon without a stable plan."
+    }
+  ],
+  "milestones": [
+    {
+      "deadline": "2026-05-05T16:00:00",
+      "id": "scope_aligned",
+      "summary": "A descoped pilot plan is aligned."
+    },
+    {
+      "deadline": "2026-05-05T12:00:00",
+      "id": "security_slot_secured",
+      "summary": "Security is engaged before the safe-slot cutoff."
+    },
+    {
+      "deadline": "2026-05-06T12:00:00",
+      "id": "customer_plan_locked",
+      "summary": "Customer-facing plan is locked before the messaging window closes."
+    },
+    {
+      "deadline": "2026-05-08T15:00:00",
+      "id": "pilot_ready",
+      "summary": "The pilot is actually ready."
+    }
+  ],
+  "non_goals": [
+    "Open-ended company simulation",
+    "Frontier-model calibration claims from one scenario"
+  ],
+  "realism_notes": [
+    "Pressure should come from timing, not melodrama.",
+    "The distraction path should be mildly useful but not gating.",
+    "Coworkers should have rational local incentives."
+  ],
+  "reference_scenario_id": null,
+  "scenario_id": "northstar_launch_week",
+  "scoring_emphasis": {
+    "commitment_quality": 15,
+    "discovery": 20,
+    "milestones": 40,
+    "prioritization": 10
+  },
+  "start_at": "2026-05-04T09:00:00",
+  "summary": "A first-week TPM benchmark around rescuing a credible Friday customer pilot under hidden dependency and stakeholder pressure.",
+  "timezone": "America/Los_Angeles",
+  "title": "Northstar Launch Week"
+}

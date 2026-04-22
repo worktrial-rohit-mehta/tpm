@@ -1,0 +1,5 @@
+# Prematurely signals confidence without grounding it in delivery reality.
+chat send sara | inform.decision | decision_key=launch_scope,decision_value=descoped_pilot | We are fully on track for the descoped pilot path.
+chat send rohit | request.approval | decision_key=launch_scope,decision_value=descoped_pilot | Approve the descoped pilot path.
+wait 2880m
+score

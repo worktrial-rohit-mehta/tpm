@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.artifacts/
+runs/
+*.sqlite
+*.sqlite-checkpoint
+*.sqlite-wal
+*.coverage_gaps.jsonl
+.env
+.env.*
+!.env.example
+.DS_Store

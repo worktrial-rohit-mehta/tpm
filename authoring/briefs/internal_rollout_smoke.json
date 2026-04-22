@@ -1,0 +1,91 @@
+{
+  "cast": [
+    {
+      "coordination_template": "sponsor",
+      "name": "Dana Brooks",
+      "notes": "Wants a stable internal rollout plan and will support staged rollout if told early.",
+      "org_role": "director_product"
+    },
+    {
+      "coordination_template": "critical_path_owner",
+      "name": "Leo Park",
+      "notes": "Overloaded engineer who knows full rollout is not credible.",
+      "org_role": "engineer"
+    },
+    {
+      "coordination_template": "cross_functional_dependency_owner",
+      "name": "Ivy Shah",
+      "notes": "Approval owner with a hard queue cutoff.",
+      "org_role": "security_engineer"
+    },
+    {
+      "coordination_template": "ally",
+      "name": "Mia Torres",
+      "notes": "Operations ally who can help tidy the runbook quickly.",
+      "org_role": "operations"
+    }
+  ],
+  "critical_path": [
+    "config_rollout",
+    "approval_review"
+  ],
+  "end_at": "2026-05-06T17:00:00",
+  "failure_classes": [
+    "timing",
+    "discovery",
+    "commitment"
+  ],
+  "hidden_facts": [
+    {
+      "id": "full_rollout_infeasible",
+      "summary": "Full rollout is not credible in the current window."
+    },
+    {
+      "id": "approval_required",
+      "summary": "The rollout needs approval before the cutoff."
+    },
+    {
+      "id": "dana_accepts_staged_if_early",
+      "summary": "Dana will back a staged rollout if engaged before the scope window closes."
+    }
+  ],
+  "milestones": [
+    {
+      "deadline": "2026-05-05T15:00:00",
+      "id": "scope_aligned",
+      "summary": "A staged rollout plan is aligned."
+    },
+    {
+      "deadline": "2026-05-05T12:00:00",
+      "id": "approval_secured",
+      "summary": "Approval is secured before the queue cutoff."
+    },
+    {
+      "deadline": "2026-05-06T15:00:00",
+      "id": "rollout_ready",
+      "summary": "The staged rollout is ready."
+    }
+  ],
+  "non_goals": [
+    "Official calibration scenario",
+    "Large multi-team company simulation"
+  ],
+  "realism_notes": [
+    "Keep the cast small and the horizon short.",
+    "This is a smoke/generalization scenario, not a second deep benchmark.",
+    "The runbook path should offer a small real benefit without gating the critical path."
+  ],
+  "reference_scenario_id": "northstar_launch_week",
+  "scenario_id": "internal_rollout_smoke",
+  "scoring_emphasis": {
+    "commitment_quality": 10,
+    "discovery": 10,
+    "milestones": 70,
+    "relationship": 5,
+    "runbook_bonus": 5
+  },
+  "start_at": "2026-05-05T09:00:00",
+  "summary": "A lightweight internal rollout scenario focused on approval timing, staged-scope alignment, and a small non-gating runbook distraction.",
+  "timezone": "America/Los_Angeles",
+  "title": "Internal Rollout Smoke"
+}

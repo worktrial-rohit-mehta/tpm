@@ -1,0 +1,23 @@
+[project]
+name = "tpm-sim"
+version = "0.1.0"
+description = "A discrete-event simulation environment for evaluating TPM agents."
+requires-python = ">=3.9"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+  { name = "OpenAI Codex" }
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.30.0"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["tpm_sim*"]
+
+[tool.setuptools.package-data]
+tpm_sim = ["scenarios/*.json", "scenarios/*/*.json"]

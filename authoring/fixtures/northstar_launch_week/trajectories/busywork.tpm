@@ -1,0 +1,9 @@
+# Busy and artifact-heavy, but low leverage.
+docs open DOC-BRIEF-001
+docs write runbook | Pilot runbook | Drafted the runbook and launch checklist.
+notes write Tuesday plan | Keep moving the visible artifacts.
+tasks
+task note runbook_readiness | Runbook draft is moving.
+docs write status_update | Status memo | Team is continuing to make progress on readiness artifacts.
+wait 2880m
+score
