@@ -2,6 +2,7 @@
   "cast": [
     {
       "coordination_template": "sponsor",
+      "id": "dana",
       "name": "Dana Brooks",
       "notes": "Wants a stable internal rollout plan and will support staged rollout if told early.",
       "org_role": "director_product",
@@ -20,6 +21,7 @@
     },
     {
       "coordination_template": "critical_path_owner",
+      "id": "leo",
       "name": "Leo Park",
       "notes": "Overloaded engineer who knows full rollout is not credible.",
       "org_role": "engineer",
@@ -38,6 +40,7 @@
     },
     {
       "coordination_template": "cross_functional_dependency_owner",
+      "id": "ivy",
       "name": "Ivy Shah",
       "notes": "Approval owner with a hard queue cutoff.",
       "org_role": "security_engineer",
@@ -45,6 +48,7 @@
     },
     {
       "coordination_template": "ally",
+      "id": "mia",
       "name": "Mia Torres",
       "notes": "Operations ally who can help tidy the runbook quickly.",
       "org_role": "operations",

@@ -1,5 +1,5 @@
 {
-  "compiled_from_digest": "e4fb4ca189f883a99f5ede66b029713288366bfb6f43a6782c0a5607e6b21c6d",
+  "compiled_from_digest": "ff693d1095248e919748dd3e0f4e598e68752e56285d88adcac5df7d40c8ceef",
   "families": [
     {
       "criticality": "important",
@@ -535,6 +535,54 @@
       "selector": {
         "actor_id": "dana",
         "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "dana.request.approval",
+      "priority": 20,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "project.sponsor_needs_tradeoff",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "dana.request.approval",
+          "outgoing_act_id": "approve.defer",
+          "outgoing_slots": {
+            "reason": "need_tradeoff"
+          },
+          "renderer_id": "dana.request.approval",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.approval",
         "surface": "chat"
       }
     },
@@ -1548,6 +1596,30 @@
         "incoming_act_id": "request.approval",
         "surface": "chat"
       }
+    },
+    {
+      "criticality": "important",
+      "id": "mia.request.feasibility",
+      "priority": 15,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "mia.request.feasibility",
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "reason": "ops_supports_staged_if_locked"
+          },
+          "renderer_id": "mia.request.feasibility",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "mia",
+        "incoming_act_id": "request.feasibility",
+        "surface": "chat"
+      }
     }
   ],
   "reachable_cells": [
@@ -1710,6 +1782,16 @@
       "selector": {
         "actor_id": "dana",
         "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "dana.request.approval",
+      "reachable": true,
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.approval",
         "surface": "chat"
       }
     },
@@ -2092,6 +2174,16 @@
         "incoming_act_id": "request.approval",
         "surface": "chat"
       }
+    },
+    {
+      "criticality": "important",
+      "id": "mia.request.feasibility",
+      "reachable": true,
+      "selector": {
+        "actor_id": "mia",
+        "incoming_act_id": "request.feasibility",
+        "surface": "chat"
+      }
     }
   ],
   "renderers": {
@@ -2112,6 +2204,9 @@
     ],
     "dana.inform_risk": [
       "Thanks for surfacing it early. If full rollout is not real, come back with the staged tradeoff."
+    ],
+    "dana.request.approval": [
+      "I am not approving a vague plan. If full rollout is not credible, bring me the staged tradeoff clearly and I will back that path."
     ],
     "dana.scope_tradeoff.ready": [
       "Call it a staged rollout. I would rather commit to the smaller credible plan than fake full scope."
@@ -2214,6 +2309,9 @@
     ],
     "leo.scope_tradeoff": [
       "The real tradeoff is staged rollout versus slipping everything. If you want something credible this week, stage it and get approval moving."
+    ],
+    "mia.request.feasibility": [
+      "From ops, the staged rollout is feasible. If you lock that path, I can support the runbook and launch prep quickly."
     ]
   },
   "version": "CONTEXT_FAMILY_SCHEMA_v1"

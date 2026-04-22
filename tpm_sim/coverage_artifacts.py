@@ -29,6 +29,17 @@ ALLOWED_SELECTOR_FIELDS = {
     "launch_scope",
 }
 
+ALLOWED_EFFECT_TYPES = {
+    "relationship_delta",
+    "project_state_patch",
+    "actor_state_patch",
+    "belief_signal",
+    "fact_signal",
+    "create_or_update_commitment",
+    "task_state_patch",
+    "meeting_schedule_hint",
+}
+
 
 ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
     "critical_path_owner": {
@@ -59,6 +70,7 @@ ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
     },
     "sponsor": {
         "chat": [
+            "request.approval",
             "request.scope_tradeoff",
             "request.clarification",
             "inform.blocker",
@@ -67,8 +79,18 @@ ACT_AFFORDANCE_LIBRARY_V1: dict[str, dict[str, list[str]]] = {
             "escalate.to_sponsor",
         ]
     },
+    "ally": {
+        "chat": [
+            "request.feasibility",
+            "request.eta",
+            "request.ownership",
+            "request.clarification",
+            "inform.status_update",
+        ]
+    },
     "ally_accelerator": {
         "chat": [
+            "request.feasibility",
             "request.eta",
             "request.ownership",
             "request.clarification",
@@ -149,7 +171,11 @@ def build_starter_contract(scenario: dict[str, Any]) -> dict[str, Any]:
     seen_ids = {cell["id"] for cell in cells}
     for actor in scenario.get("world", {}).get("actors", []):
         actor_id = actor["id"]
-        template = actor.get("traits", {}).get("coordination_template") or actor.get("traits", {}).get("coordination_template_id")
+        template = (
+            actor.get("coordination_template")
+            or actor.get("traits", {}).get("coordination_template")
+            or actor.get("traits", {}).get("coordination_template_id")
+        )
         chat_acts = ACT_AFFORDANCE_LIBRARY_V1.get(template or "", {}).get("chat", DEFAULT_CHAT_AFFORDANCES)
         for act_id in chat_acts:
             cell_id = f"{actor_id}.{act_id.replace('.', '_')}"
@@ -244,6 +270,19 @@ def validate_semantics(contract: dict[str, Any], semantics: dict[str, Any]) -> l
             variants = envelope.get("renderer_variants")
             if not isinstance(variants, list) or not variants:
                 errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' missing renderer_variants")
+            effects = envelope.get("effects", [])
+            if not isinstance(effects, list):
+                errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has non-list effects")
+                continue
+            for effect in effects:
+                if not isinstance(effect, dict):
+                    errors.append(f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has non-object effect")
+                    continue
+                effect_type = effect.get("type")
+                if effect_type not in ALLOWED_EFFECT_TYPES:
+                    errors.append(
+                        f"semantics entry '{cell_id}' envelope '{envelope.get('id', '?')}' has unsupported effect type: {effect_type}"
+                    )
     missing = sorted(contract_ids - seen)
     for cell_id in missing:
         errors.append(f"coverage contract cell '{cell_id}' missing semantics")

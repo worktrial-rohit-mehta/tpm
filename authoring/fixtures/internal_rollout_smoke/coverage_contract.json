@@ -194,6 +194,18 @@
     },
     {
       "criticality": "important",
+      "id": "dana.request.approval",
+      "priority": 20,
+      "rationale": "Covers the plausible but invalid path where the TPM asks the sponsor for approval before the staged tradeoff is fully locked.",
+      "selector": {
+        "actor_id": "dana",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "Sponsors can receive premature approval asks from the TPM while the team is still converging on the feasible path."
+    },
+    {
+      "criticality": "important",
       "id": "leo.clarification.blocked",
       "priority": 25,
       "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
@@ -623,6 +635,18 @@
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "criticality": "important",
+      "id": "mia.request.feasibility",
+      "priority": 15,
+      "rationale": "Operations allies can be asked whether the narrowed rollout path is supportable, even before the decision is fully locked.",
+      "selector": {
+        "actor_id": "mia",
+        "incoming_act_id": "request.feasibility",
+        "surface": "chat"
+      },
+      "why_reachable": "A TPM can plausibly check with the operations ally on whether the staged path is operationally supportable before final alignment."
     }
   ],
   "version": "coverage_contract_v1"

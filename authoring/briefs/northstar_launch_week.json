@@ -2,6 +2,7 @@
   "cast": [
     {
       "coordination_template": "sponsor",
+      "id": "rohit",
       "name": "Rohit Kapoor",
       "notes": "Wants honest status and can authorize descoping if engaged early.",
       "org_role": "director_product",
@@ -20,6 +21,7 @@
     },
     {
       "coordination_template": "critical_path_owner",
+      "id": "maya",
       "name": "Maya Chen",
       "notes": "Overloaded backend owner who resists fake commitments.",
       "org_role": "engineer",
@@ -38,6 +40,7 @@
     },
     {
       "coordination_template": "ally",
+      "id": "andrew",
       "name": "Andrew Ortiz",
       "notes": "Helpful frontend ally once scope is aligned.",
       "org_role": "engineer",
@@ -45,6 +48,7 @@
     },
     {
       "coordination_template": "cross_functional_dependency_owner",
+      "id": "rahul",
       "name": "Rahul Iyer",
       "notes": "Designer who needs support context before approving the descoped path.",
       "org_role": "designer",
@@ -52,6 +56,7 @@
     },
     {
       "coordination_template": "cross_functional_dependency_owner",
+      "id": "nina",
       "name": "Nina Patel",
       "notes": "Security reviewer with a useful-slot cutoff.",
       "org_role": "security_engineer",
@@ -59,6 +64,7 @@
     },
     {
       "coordination_template": "customer_facing_bridge",
+      "id": "sara",
       "name": "Sara Feldman",
       "notes": "Needs stable messaging for the customer-facing story.",
       "org_role": "solutions_engineer",

@@ -466,6 +466,50 @@
       ]
     },
     {
+      "cell_id": "dana.request.approval",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "project.sponsor_needs_tradeoff",
+              "belief_value": true,
+              "confidence": 0.95,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "dana",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "dana.request.approval",
+          "outgoing_act_id": "approve.defer",
+          "outgoing_slots": {
+            "reason": "need_tradeoff"
+          },
+          "renderer_id": "dana.request.approval",
+          "renderer_variants": [
+            "I am not approving a vague plan. If full rollout is not credible, bring me the staged tradeoff clearly and I will back that path."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
       "cell_id": "leo.clarification.blocked",
       "response_envelopes": [
         {
@@ -1246,6 +1290,26 @@
           "renderer_id": "ivy.approval.defer",
           "renderer_variants": [
             "I can't grant that yet. I either need the staged scope locked or you missed the useful queue window."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "mia.request.feasibility",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "mia.request.feasibility",
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "reason": "ops_supports_staged_if_locked"
+          },
+          "renderer_id": "mia.request.feasibility",
+          "renderer_variants": [
+            "From ops, the staged rollout is feasible. If you lock that path, I can support the runbook and launch prep quickly."
           ],
           "surface_facts": [],
           "weight": 1.0

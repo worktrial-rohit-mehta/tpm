@@ -10,6 +10,12 @@ from typing import Any
 
 from tpm_sim.agent import AgentRunner, OpenAIResponsesAgentAdapter
 from tpm_sim.authoring.briefs import AuthoringBrief, load_brief
+from tpm_sim.briefing import (
+    build_authoring_briefing,
+    build_proposal_status,
+    proposal_briefing_paths,
+    write_operator_briefing_artifacts,
+)
 from tpm_sim.authoring.prompts import (
     build_gap_fill_semantics_prompt,
     build_semantics_prompt,
@@ -50,6 +56,10 @@ def init_proposal(brief_path: str, proposal_dir: str) -> dict[str, Any]:
         "generated_artifacts": {},
     }
     paths["manifest"].write_text(json.dumps(manifest, indent=2, sort_keys=True))
+    refreshed = _refresh_operator_briefing(proposal_dir)
+    manifest = json.loads(paths["manifest"].read_text())
+    manifest["operator_briefing_json_path"] = refreshed["json_path"]
+    manifest["operator_briefing_markdown_path"] = refreshed["markdown_path"]
     return manifest
 
 
@@ -80,8 +90,15 @@ def synthesize_world(
     if accepted_full is not None:
         scenario_candidate = _merge_authoring_candidate(scenario_candidate, accepted_full)
         baseline_seeds = accepted_full.get("evaluation", {}).get("official_seeds", [])
-        if baseline_seeds and not scenario_candidate.get("evaluation", {}).get("official_seeds"):
-            scenario_candidate.setdefault("evaluation", {})["official_seeds"] = list(baseline_seeds)
+        normalized_seeds = _normalize_official_seeds(scenario_candidate.get("evaluation", {}).get("official_seeds", []))
+        if baseline_seeds and not normalized_seeds:
+            normalized_seeds = list(baseline_seeds)
+        scenario_candidate.setdefault("evaluation", {})["official_seeds"] = normalized_seeds
+    else:
+        scenario_candidate.setdefault("evaluation", {})["official_seeds"] = _normalize_official_seeds(
+            scenario_candidate.get("evaluation", {}).get("official_seeds", [])
+        )
+    scenario_candidate = _normalize_world_candidate(scenario_candidate)
     _require_nested_mapping_keys(
         scenario_candidate,
         "world",
@@ -128,7 +145,10 @@ def synthesize_world(
     paths = _proposal_paths(proposal_dir)
     paths["scenario"].write_text(json.dumps(scenario_candidate, indent=2, sort_keys=True))
     _update_manifest(proposal_dir, status="world_synthesized", generated_artifacts={"scenario": str(paths["scenario"])})
-    return {"scenario_path": str(paths["scenario"]), "latency_ms": response.latency_ms}
+    return _with_operator_briefing(
+        {"scenario_path": str(paths["scenario"]), "latency_ms": response.latency_ms},
+        proposal_dir,
+    )
 
 
 def compile_contract(proposal_dir: str) -> dict[str, Any]:
@@ -163,7 +183,10 @@ def compile_contract(proposal_dir: str) -> dict[str, Any]:
         status="contract_compiled",
         generated_artifacts={"coverage_contract": str(paths["contract"])},
     )
-    return {"coverage_contract_path": str(paths["contract"]), "cell_count": len(contract.get("cells", []))}
+    return _with_operator_briefing(
+        {"coverage_contract_path": str(paths["contract"]), "cell_count": len(contract.get("cells", []))},
+        proposal_dir,
+    )
 
 
 def synthesize_semantics(
@@ -212,7 +235,14 @@ def synthesize_semantics(
         status="semantics_synthesized",
         generated_artifacts={"coverage_semantics": str(paths["semantics"])},
     )
-    return {"coverage_semantics_path": str(paths["semantics"]), "latency_ms": response.latency_ms}
+    return _with_operator_briefing(
+        {
+            "coverage_semantics_path": str(paths["semantics"]),
+            "latency_ms": response.latency_ms,
+            "cell_count": len(semantics_candidate.get("cells", [])),
+        },
+        proposal_dir,
+    )
 
 
 def compile_coverage_artifact(proposal_dir: str) -> dict[str, Any]:
@@ -234,7 +264,14 @@ def compile_coverage_artifact(proposal_dir: str) -> dict[str, Any]:
             "coverage_compile_report": str(paths["coverage_compile_report"]),
         },
     )
-    return {"coverage_path": str(paths["coverage"]), "compile_report_path": str(paths["coverage_compile_report"]), "report": report}
+    return _with_operator_briefing(
+        {
+            "coverage_path": str(paths["coverage"]),
+            "compile_report_path": str(paths["coverage_compile_report"]),
+            "report": report,
+        },
+        proposal_dir,
+    )
 
 
 def synthesize_coverage(
@@ -293,7 +330,10 @@ def synthesize_trajectories(
         target.write_text(content)
         written.append(str(target))
     _update_manifest(proposal_dir, status="trajectories_synthesized", generated_artifacts={"trajectories": written})
-    return {"trajectories": written, "latency_ms": response.latency_ms}
+    return _with_operator_briefing(
+        {"trajectories": written, "latency_ms": response.latency_ms},
+        proposal_dir,
+    )
 
 
 def validate_proposal(proposal_dir: str, *, smoke_seed: int = 11) -> dict[str, Any]:
@@ -310,7 +350,8 @@ def validate_proposal(proposal_dir: str, *, smoke_seed: int = 11) -> dict[str, A
     if errors:
         report = {"valid": False, "errors": errors}
         paths["validation"].write_text(json.dumps(report, indent=2, sort_keys=True))
-        return report
+        _update_manifest(proposal_dir, status="validation_failed")
+        return _with_operator_briefing(report, proposal_dir)
 
     compile_result = compile_coverage_artifact(proposal_dir)
     compile_report = compile_result["report"]
@@ -374,7 +415,7 @@ def validate_proposal(proposal_dir: str, *, smoke_seed: int = 11) -> dict[str, A
     paths["validation"].write_text(json.dumps(report, indent=2, sort_keys=True))
     paths["review_summary"].write_text(_render_validation_summary(report))
     _update_manifest(proposal_dir, status="validated" if report["valid"] else "validation_failed")
-    return report
+    return _with_operator_briefing(report, proposal_dir)
 
 
 def run_closure_suite(
@@ -497,7 +538,7 @@ def run_closure_suite(
     }
     paths["closure_report"].write_text(json.dumps(report, indent=2, sort_keys=True))
     _update_manifest(proposal_dir, status="closure_passed" if report["passed"] else "closure_failed")
-    return report
+    return _with_operator_briefing(report, proposal_dir)
 
 
 def diff_proposal(
@@ -517,7 +558,7 @@ def diff_proposal(
             "summary": f"No accepted scenario exists for {brief.scenario_id}. Proposal is net-new.",
         }
         paths["diff"].write_text(json.dumps(summary, indent=2, sort_keys=True))
-        return summary
+        return _with_operator_briefing(summary, proposal_dir)
 
     current_scenario = json.loads((current_dir / "scenario.json").read_text())
     current_contract = json.loads((current_dir / "coverage_contract.json").read_text())
@@ -529,7 +570,7 @@ def diff_proposal(
         "coverage_semantics_changes": _semantics_diff(current_semantics, candidate_semantics),
     }
     paths["diff"].write_text(json.dumps(diff, indent=2, sort_keys=True))
-    return diff
+    return _with_operator_briefing(diff, proposal_dir)
 
 
 def gap_fill_proposal(
@@ -567,15 +608,18 @@ def gap_fill_proposal(
     paths["semantics"].write_text(json.dumps(updated_semantics, indent=2, sort_keys=True))
     compile_result = compile_coverage_artifact(proposal_dir)
     _update_manifest(proposal_dir, status="gap_filled")
-    return {
-        "coverage_contract_path": str(paths["contract"]),
-        "coverage_semantics_path": str(paths["semantics"]),
-        "coverage_path": str(paths["coverage"]),
-        "added_cells": added_cells,
-        "compile_report": compile_result["report"],
-        "latency_ms": response.latency_ms,
-        "gap_count": len(gaps),
-    }
+    return _with_operator_briefing(
+        {
+            "coverage_contract_path": str(paths["contract"]),
+            "coverage_semantics_path": str(paths["semantics"]),
+            "coverage_path": str(paths["coverage"]),
+            "added_cells": added_cells,
+            "compile_report": compile_result["report"],
+            "latency_ms": response.latency_ms,
+            "gap_count": len(gaps),
+        },
+        proposal_dir,
+    )
 
 
 def accept_proposal(
@@ -594,12 +638,23 @@ def accept_proposal(
     brief = _load_proposal_brief(proposal_dir)
     scenario_dir = Path(scenarios_root) / brief.scenario_id
     scenario_dir.mkdir(parents=True, exist_ok=True)
+    refreshed = _refresh_operator_briefing(proposal_dir)
+    accepted_briefing = build_authoring_briefing(
+        brief,
+        scenario=json.loads(paths["scenario"].read_text()),
+        source_kind="accepted_scenario",
+    )
     shutil.copyfile(paths["scenario"], scenario_dir / "scenario.json")
     shutil.copyfile(paths["contract"], scenario_dir / "coverage_contract.json")
     shutil.copyfile(paths["semantics"], scenario_dir / "coverage_semantics.json")
     shutil.copyfile(paths["coverage"], scenario_dir / "npc_coverage.json")
     shutil.copyfile(paths["validation"], scenario_dir / "validation.json")
     shutil.copyfile(paths["closure_report"], scenario_dir / "closure_report.json")
+    accepted_briefing_paths = write_operator_briefing_artifacts(
+        accepted_briefing,
+        json_path=scenario_dir / "operator_briefing.json",
+        markdown_path=scenario_dir / "operator_briefing.md",
+    )
     copied_examples: list[str] = []
     if examples_root:
         target_dir = Path(examples_root) / brief.scenario_id
@@ -612,6 +667,10 @@ def accept_proposal(
     return {
         "scenario_dir": str(scenario_dir),
         "copied_examples": copied_examples,
+        "proposal_operator_briefing_json_path": refreshed["json_path"],
+        "proposal_operator_briefing_markdown_path": refreshed["markdown_path"],
+        "operator_briefing_json_path": accepted_briefing_paths["json_path"],
+        "operator_briefing_markdown_path": accepted_briefing_paths["markdown_path"],
     }
 
 
@@ -633,6 +692,8 @@ def _proposal_paths(proposal_dir: str) -> dict[str, Path]:
         "closure_report": reports / "closure_report.json",
         "coverage_compile_report": reports / "coverage_compile_report.json",
         "diff": reports / "diff.json",
+        "operator_briefing_json": proposal_briefing_paths(root)["json"],
+        "operator_briefing_markdown": proposal_briefing_paths(root)["markdown"],
         "review_summary": reports / "review_summary.md",
     }
 
@@ -702,6 +763,217 @@ def _summarize_semantics(payload: dict[str, Any]) -> dict[str, Any]:
             }
         ),
     }
+
+
+def _normalize_world_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(candidate)
+    world = normalized.setdefault("world", {})
+    beliefs = world.get("beliefs", [])
+    if isinstance(beliefs, list):
+        world["beliefs"] = _normalize_initial_beliefs(beliefs, normalized.get("start_at"))
+    commitments = world.get("commitments", [])
+    if isinstance(commitments, list):
+        world["commitments"] = _normalize_initial_commitments(commitments, normalized.get("start_at"))
+    meetings = world.get("meetings", [])
+    if isinstance(meetings, list):
+        world["meetings"] = _normalize_initial_meetings(meetings)
+    messages = world.get("messages", [])
+    if isinstance(messages, list):
+        world["messages"] = _normalize_initial_messages(messages, world.get("threads", []))
+    return normalized
+
+
+def _normalize_official_seeds(raw_seeds: Any) -> list[int]:
+    normalized: list[int] = []
+    if not isinstance(raw_seeds, list):
+        return normalized
+    for item in raw_seeds:
+        if isinstance(item, int):
+            normalized.append(item)
+            continue
+        if isinstance(item, str):
+            try:
+                normalized.append(int(item))
+            except ValueError:
+                continue
+            continue
+        if isinstance(item, dict):
+            value = item.get("seed") or item.get("value") or item.get("id")
+            if isinstance(value, int):
+                normalized.append(value)
+                continue
+            if isinstance(value, str):
+                try:
+                    normalized.append(int(value))
+                except ValueError:
+                    continue
+    return normalized
+
+
+def _normalize_initial_beliefs(raw_beliefs: list[Any], default_updated_at: str | None) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for entry in raw_beliefs:
+        if not isinstance(entry, dict):
+            continue
+        if "belief_key" in entry:
+            row = dict(entry)
+            row.setdefault("updated_at", default_updated_at)
+            row.setdefault("source_ref", row.get("id", "authoring.initial_belief"))
+            normalized.append(row)
+            continue
+
+        actor_id = entry.get("actor_id")
+        bundle_id = entry.get("id", f"authoring.initial_belief.{len(normalized)}")
+        nested = entry.get("beliefs", [])
+        if not actor_id or not isinstance(nested, list):
+            continue
+        for index, belief in enumerate(nested, 1):
+            if not isinstance(belief, dict):
+                continue
+            belief_key = belief.get("belief_key") or belief.get("topic")
+            if not belief_key:
+                continue
+            normalized.append(
+                {
+                    "actor_id": actor_id,
+                    "belief_key": belief_key,
+                    "belief_value": belief.get("belief_value", belief.get("value")),
+                    "confidence": belief.get("confidence", 0.5),
+                    "freshness_window_min": belief.get("freshness_window_min", 240),
+                    "updated_at": belief.get("updated_at", entry.get("updated_at", default_updated_at)),
+                    "source_ref": belief.get("source_ref", f"{bundle_id}#{index}"),
+                    "metadata": {
+                        "generated_from_bundle_id": bundle_id,
+                        **belief.get("metadata", {}),
+                    },
+                }
+            )
+    return normalized
+
+
+def _normalize_initial_commitments(raw_commitments: list[Any], default_updated_at: str | None) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for entry in raw_commitments:
+        if not isinstance(entry, dict):
+            continue
+        if "owner_id" in entry and "subject" in entry:
+            row = dict(entry)
+            row.setdefault("last_updated_at", default_updated_at)
+            row.setdefault("source_ref", row.get("id", "authoring.initial_commitment"))
+            normalized.append(row)
+            continue
+
+        owner_id = entry.get("owner_id") or entry.get("owner_actor_id")
+        if not owner_id:
+            continue
+        audience_id = entry.get("counterparty_actor_id") or entry.get("audience_actor_id")
+        original_state = entry.get("state", "available_if_requested")
+        original_type = entry.get("type", "informal_support")
+        effect = entry.get("effect_if_met")
+        conditions = entry.get("conditions", [])
+        if not isinstance(conditions, list):
+            conditions = [conditions]
+        status_map = {
+            "available_if_requested": "tentative",
+            "offered": "tentative",
+            "conditional": "tentative",
+            "committed": "committed",
+        }
+        normalized.append(
+            {
+                "id": entry.get("id", f"authoring.initial_commitment.{len(normalized)}"),
+                "owner_id": owner_id,
+                "audience_ids": [audience_id] if audience_id else [],
+                "subject": original_type,
+                "scope": {
+                    "effect_if_met": effect,
+                    "original_state": original_state,
+                },
+                "status": status_map.get(original_state, "tentative"),
+                "confidence": float(entry.get("confidence", 0.5)),
+                "due_at": entry.get("due_at"),
+                "ground_truth_feasibility": float(entry.get("ground_truth_feasibility", 0.5)),
+                "perceived_feasibility": float(entry.get("perceived_feasibility", 0.5)),
+                "preconditions": conditions,
+                "source_ref": entry.get("source_ref", entry.get("id", "authoring.initial_commitment")),
+                "last_updated_at": entry.get("last_updated_at", entry.get("created_at", default_updated_at)),
+                "metadata": {
+                    "generated_from_authoring": True,
+                    "effect_if_met": effect,
+                    **entry.get("metadata", {}),
+                },
+            }
+        )
+    return normalized
+
+
+def _normalize_initial_meetings(raw_meetings: list[Any]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for entry in raw_meetings:
+        if not isinstance(entry, dict):
+            continue
+        if "organizer_id" in entry and "attendee_ids" in entry:
+            normalized.append(dict(entry))
+            continue
+        participants = entry.get("attendee_ids", entry.get("participant_actor_ids", []))
+        if not isinstance(participants, list):
+            participants = []
+        organizer_id = entry.get("organizer_id")
+        if not organizer_id:
+            organizer_id = "tpm" if "tpm" in participants else (participants[0] if participants else "tpm")
+        normalized.append(
+            {
+                "id": entry["id"],
+                "title": entry["title"],
+                "organizer_id": organizer_id,
+                "start_at": entry["start_at"],
+                "end_at": entry["end_at"],
+                "status": entry.get("status", "scheduled"),
+                "attendee_ids": participants,
+                "agenda": entry.get("agenda", entry.get("objective", "")),
+                "transcript_doc_id": entry.get("transcript_doc_id"),
+                "metadata": deepcopy(entry.get("metadata", {})),
+            }
+        )
+    return normalized
+
+
+def _normalize_initial_messages(raw_messages: list[Any], threads: list[Any]) -> list[dict[str, Any]]:
+    thread_surface = {
+        item.get("id"): item.get("surface", "chat")
+        for item in threads
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    normalized: list[dict[str, Any]] = []
+    for entry in raw_messages:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("sender_id") and entry.get("created_at") and entry.get("thread_id"):
+            normalized.append(dict(entry))
+            continue
+        thread_id = entry.get("thread_id")
+        surface = entry.get("surface") or thread_surface.get(thread_id, "chat")
+        sender_id = entry.get("sender_id", entry.get("sender_actor_id"))
+        created_at = entry.get("created_at", entry.get("sent_at"))
+        if not thread_id or not sender_id or not created_at:
+            continue
+        normalized.append(
+            {
+                "thread_id": thread_id,
+                "surface": surface,
+                "sender_id": sender_id,
+                "act_id": entry.get("act_id"),
+                "slots": deepcopy(entry.get("slots", {})),
+                "body": entry.get("body", ""),
+                "created_at": created_at,
+                "unread_for_tpm": bool(entry.get("unread_for_tpm", entry.get("sender_actor_id") != "tpm")),
+                "metadata": {
+                    "tags": deepcopy(entry.get("tags", [])),
+                    **deepcopy(entry.get("metadata", {})),
+                },
+            }
+        )
+    return normalized
 
 
 def _normalize_semantics_candidate(
@@ -774,7 +1046,10 @@ def _normalize_semantic_envelopes(
                 ),
                 "surface_facts": deepcopy(candidate_env.get("surface_facts", baseline_env.get("surface_facts", []))),
                 "belief_signals": deepcopy(candidate_env.get("belief_signals", baseline_env.get("belief_signals", []))),
-                "effects": deepcopy(candidate_env.get("effects", baseline_env.get("effects", []))),
+                "effects": _normalize_effects(
+                    candidate_env.get("effects", baseline_env.get("effects", [])),
+                    baseline_env.get("effects", []),
+                ),
                 "renderer_id": candidate_env.get("renderer_id") or baseline_env.get("renderer_id") or candidate_env.get("id") or baseline_env.get("id") or f"{cell_id}.{index + 1}",
                 "renderer_variants": renderer_variants,
             }
@@ -832,6 +1107,45 @@ def _default_renderer_variant(outgoing_act_id: str) -> str:
         "commit.retract": "I cannot stand behind that commitment as stated.",
     }
     return defaults.get(outgoing_act_id, "Acknowledged.")
+
+
+def _normalize_effects(candidate_effects: Any, baseline_effects: Any) -> list[dict[str, Any]]:
+    if not isinstance(candidate_effects, list):
+        candidate_effects = baseline_effects if isinstance(baseline_effects, list) else []
+    normalized: list[dict[str, Any]] = []
+    for effect in candidate_effects:
+        if not isinstance(effect, dict):
+            continue
+        kind = effect.get("type")
+        if kind == "relationship_patch":
+            patch = effect.get("patch", {})
+            if isinstance(patch, dict) and len(patch) == 1:
+                field, delta = next(iter(patch.items()))
+                if isinstance(delta, (int, float)):
+                    normalized.append(
+                        {
+                            "type": "relationship_delta",
+                            "actor_id": effect.get("actor_id"),
+                            "target_actor_id": effect.get("target_actor_id"),
+                            "field": field,
+                            "delta": float(delta),
+                        }
+                    )
+                    continue
+        if kind in {
+            "relationship_delta",
+            "project_state_patch",
+            "actor_state_patch",
+            "belief_signal",
+            "fact_signal",
+            "create_or_update_commitment",
+            "task_state_patch",
+            "meeting_schedule_hint",
+        }:
+            normalized.append(deepcopy(effect))
+    if not normalized and isinstance(baseline_effects, list):
+        return deepcopy(baseline_effects)
+    return normalized
 
 
 def _load_accepted_full_artifact(scenario_id: str, filename: str) -> dict[str, Any] | None:
@@ -967,8 +1281,49 @@ def _load_proposal_brief(proposal_dir: str) -> AuthoringBrief:
 def _update_manifest(proposal_dir: str, **patch: Any) -> None:
     manifest_path = _proposal_paths(proposal_dir)["manifest"]
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    if "generated_artifacts" in patch and isinstance(manifest.get("generated_artifacts"), dict) and isinstance(patch["generated_artifacts"], dict):
+        merged_artifacts = dict(manifest["generated_artifacts"])
+        merged_artifacts.update(patch["generated_artifacts"])
+        patch = {**patch, "generated_artifacts": merged_artifacts}
     manifest.update(patch)
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True))
+
+
+def _with_operator_briefing(result: dict[str, Any], proposal_dir: str) -> dict[str, Any]:
+    refreshed = _refresh_operator_briefing(proposal_dir)
+    payload = dict(result)
+    payload["operator_briefing_json_path"] = refreshed["json_path"]
+    payload["operator_briefing_markdown_path"] = refreshed["markdown_path"]
+    return payload
+
+
+def _refresh_operator_briefing(proposal_dir: str) -> dict[str, str]:
+    paths = _proposal_paths(proposal_dir)
+    brief = _load_proposal_brief(proposal_dir)
+    scenario = json.loads(paths["scenario"].read_text()) if paths["scenario"].exists() else None
+    manifest = json.loads(paths["manifest"].read_text()) if paths["manifest"].exists() else {}
+    validation = json.loads(paths["validation"].read_text()) if paths["validation"].exists() else None
+    closure = json.loads(paths["closure_report"].read_text()) if paths["closure_report"].exists() else None
+    diff = json.loads(paths["diff"].read_text()) if paths["diff"].exists() else None
+    briefing = build_authoring_briefing(
+        brief,
+        scenario=scenario,
+        proposal_status=build_proposal_status(manifest, validation=validation, closure=closure, diff=diff),
+        source_kind="proposal_candidate" if scenario is not None else "authoring_brief",
+    )
+    written = write_operator_briefing_artifacts(
+        briefing,
+        json_path=paths["operator_briefing_json"],
+        markdown_path=paths["operator_briefing_markdown"],
+    )
+    _update_manifest(
+        proposal_dir,
+        generated_artifacts={
+            "operator_briefing_json": written["json_path"],
+            "operator_briefing_markdown": written["markdown_path"],
+        },
+    )
+    return written
 
 
 def _smoke_scripts(trajectory_dir: Path) -> list[Path]:

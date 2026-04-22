@@ -1,0 +1,150 @@
+{
+  "cast": [
+    {
+      "coordination_template": "sponsor",
+      "decision_rights": [
+        "approve scope"
+      ],
+      "hidden_drivers": [
+        "Wants honest constraints early and will back a narrower credible pilot when the TPM brings the real tradeoff quickly."
+      ],
+      "id": "rohit",
+      "name": "Rohit Kapoor",
+      "org_role": "director_product",
+      "visible_goal": "Wants honest status and can authorize descoping if engaged early."
+    },
+    {
+      "coordination_template": "critical_path_owner",
+      "decision_rights": [
+        "block launch",
+        "commit ETA"
+      ],
+      "hidden_drivers": [
+        "Low trust plus overload makes Maya push back hard on date pressure before the scope is real."
+      ],
+      "id": "maya",
+      "name": "Maya Chen",
+      "org_role": "backend_engineer",
+      "visible_goal": "Overloaded backend owner who resists fake commitments."
+    },
+    {
+      "coordination_template": "ally",
+      "decision_rights": [
+        "commit ETA"
+      ],
+      "hidden_drivers": [],
+      "id": "andrew",
+      "name": "Andrew Ortiz",
+      "org_role": "frontend_engineer",
+      "visible_goal": "Helpful frontend ally once scope is aligned."
+    },
+    {
+      "coordination_template": "cross_functional_dependency_owner",
+      "decision_rights": [
+        "approve design",
+        "block launch"
+      ],
+      "hidden_drivers": [],
+      "id": "rahul",
+      "name": "Rahul Iyer",
+      "org_role": "product_designer",
+      "visible_goal": "Designer who needs support context before approving the descoped path."
+    },
+    {
+      "coordination_template": "cross_functional_dependency_owner",
+      "decision_rights": [
+        "approve review slots",
+        "veto launch"
+      ],
+      "hidden_drivers": [],
+      "id": "nina",
+      "name": "Nina Patel",
+      "org_role": "security_engineer",
+      "visible_goal": "Security reviewer with a useful-slot cutoff."
+    },
+    {
+      "coordination_template": "customer_facing_bridge",
+      "decision_rights": [
+        "update customer context"
+      ],
+      "hidden_drivers": [
+        "Needs a stable plan early so customer-facing messaging stays credible."
+      ],
+      "id": "sara",
+      "name": "Sara Feldman",
+      "org_role": "solutions_engineer",
+      "visible_goal": "Needs stable messaging for the customer-facing story."
+    }
+  ],
+  "critical_path": [
+    "backend_api",
+    "security_review",
+    "frontend_pilot"
+  ],
+  "deadlines": [
+    {
+      "at": "2026-05-05T12:00:00",
+      "display_at": "Tue 2026-05-05 12:00",
+      "id": "security_slot_secured",
+      "summary": "Security is engaged before the safe-slot cutoff."
+    },
+    {
+      "at": "2026-05-05T16:00:00",
+      "display_at": "Tue 2026-05-05 16:00",
+      "id": "scope_aligned",
+      "summary": "A descoped pilot plan is aligned."
+    },
+    {
+      "at": "2026-05-06T12:00:00",
+      "display_at": "Wed 2026-05-06 12:00",
+      "id": "customer_plan_locked",
+      "summary": "Customer-facing plan is locked before the messaging window closes."
+    },
+    {
+      "at": "2026-05-08T15:00:00",
+      "display_at": "Fri 2026-05-08 15:00",
+      "id": "pilot_ready",
+      "summary": "The pilot is actually ready."
+    }
+  ],
+  "focus_areas": [
+    "milestones (40)",
+    "discovery (20)",
+    "commitment quality (15)",
+    "prioritization (10)",
+    "timing",
+    "discovery",
+    "commitment"
+  ],
+  "hidden_landscape": [
+    "The current backend path is not credible for Friday.",
+    "The descoped pilot still needs security review.",
+    "Design approval depends on support context."
+  ],
+  "how_to_fail": [
+    "This scenario punishes timing, discovery, commitment failures.",
+    "Key hidden pressure: The current backend path is not credible for Friday.; The descoped pilot still needs security review.",
+    "Actor traps: Wants honest constraints early and will back a narrower credible pilot when the TPM brings the real tradeoff quickly.; Low trust plus overload makes Maya push back hard on date pressure before the scope is real."
+  ],
+  "how_to_win": [
+    "Move the critical path early: backend_api, security_review, frontend_pilot.",
+    "Protect the milestone windows, starting with security_slot_secured by Tue 2026-05-05 12:00 and ending with pilot_ready by Fri 2026-05-08 15:00.",
+    "Scoring leans on milestones (40), discovery (20), commitment quality (15), prioritization (10).",
+    "Good TPM behavior here means moving before windows close; finding the real blockers and stakeholder drivers early; making grounded commitments instead of fake green."
+  ],
+  "premise": "A first-week TPM benchmark around rescuing a credible Friday customer pilot under hidden dependency and stakeholder pressure.",
+  "project_name": "Northstar Admin Hub Pilot",
+  "project_summary": "A first-week TPM benchmark around rescuing a credible Friday pilot for Northstar.",
+  "proposal_status": null,
+  "run_context": null,
+  "scenario_id": "northstar_launch_week",
+  "schema_version": "operator_briefing_v1",
+  "source_kind": "accepted_scenario",
+  "title": "Northstar Pilot Week",
+  "window": {
+    "end_at": "2026-05-08T17:00:00",
+    "end_display": "Fri 2026-05-08 17:00",
+    "start_at": "2026-05-04T09:00:00",
+    "start_display": "Mon 2026-05-04 09:00"
+  }
+}

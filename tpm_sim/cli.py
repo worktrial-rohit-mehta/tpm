@@ -23,6 +23,7 @@ from tpm_sim.authoring import (
     synthesize_world,
     validate_proposal,
 )
+from tpm_sim.briefing import build_run_context, load_scenario_briefing, render_operator_briefing
 from tpm_sim.common import csv_ids, parse_duration, parse_slot_map, split_pipe_args
 from tpm_sim.engine import CoverageMissError, SimulationEngine
 from tpm_sim.environment import EnvironmentSession, StructuredAction, render_step_result
@@ -234,16 +235,253 @@ def init_db(db_path: str, scenario_id: str, seed: int, coverage_enforcement: str
     path = Path(db_path)
     if path.exists() and not force:
         raise RuntimeError(f"{db_path} already exists. Re-run with --force to overwrite it.")
+    bundle = load_scenario_bundle(scenario_id)
+    _emit_auxiliary_text(
+        render_operator_briefing(
+            load_scenario_briefing(
+                scenario_id,
+                bundle=bundle,
+                run_context=build_run_context(
+                    "init",
+                    [
+                        ("command", "init"),
+                        ("db", db_path),
+                        ("seed", seed),
+                        ("coverage enforcement", coverage_enforcement),
+                    ],
+                ),
+            ),
+            compact=True,
+        ),
+        as_json_output=False,
+    )
     if path.exists():
         path.unlink()
     store = open_store(db_path)
-    bundle = load_scenario_bundle(scenario_id)
     try:
         seed_store(store, bundle, seed, coverage_enforcement=coverage_enforcement)
     finally:
         store.close()
     print(f"Initialized {db_path} with scenario {scenario_id} (seed={seed}, coverage={coverage_enforcement}).")
     return 0
+
+
+def _emit_auxiliary_text(text: str, *, as_json_output: bool) -> None:
+    if not text.strip():
+        return
+    target = sys.stderr if as_json_output else sys.stdout
+    print(text, file=target)
+
+
+def _render_stage_summary(title: str, details: list[str], *, operator_briefing_path: str | None = None) -> str:
+    lines = [title]
+    for detail in details:
+        lines.append(f"- {detail}")
+    if operator_briefing_path:
+        lines.append(f"- operator briefing: {operator_briefing_path}")
+    return "\n".join(lines)
+
+
+def _render_stage_with_briefing(title: str, details: list[str], *, operator_briefing_path: str) -> str:
+    briefing_text = Path(operator_briefing_path).read_text()
+    lines = [title]
+    for detail in details:
+        lines.append(f"- {detail}")
+    lines.extend(["", briefing_text, "", f"Operator briefing: {operator_briefing_path}"])
+    return "\n".join(lines)
+
+
+def _emit_preflight(
+    scenario_id: str,
+    *,
+    run_context: dict[str, Any],
+    as_json_output: bool,
+    bundle: dict[str, Any] | None = None,
+) -> None:
+    briefing = load_scenario_briefing(scenario_id, run_context=run_context, bundle=bundle)
+    _emit_auxiliary_text(render_operator_briefing(briefing, compact=True), as_json_output=as_json_output)
+
+
+def _summarize_semantics_file(path: str) -> tuple[int, list[str]]:
+    payload = json.loads(Path(path).read_text())
+    acts = sorted(
+        {
+            envelope.get("outgoing_act_id")
+            for cell in payload.get("cells", [])
+            for envelope in cell.get("response_envelopes", [])
+            if envelope.get("outgoing_act_id")
+        }
+    )
+    return len(payload.get("cells", [])), acts[:6]
+
+
+def _summarize_trajectory_files(paths: list[str]) -> list[str]:
+    summaries = []
+    for raw_path in paths[:4]:
+        path = Path(raw_path)
+        first_commands = [line.strip() for line in path.read_text().splitlines() if line.strip() and not line.strip().startswith("#")][:2]
+        suffix = f" -> {' | '.join(first_commands)}" if first_commands else ""
+        summaries.append(f"{path.name}{suffix}")
+    if len(paths) > 4:
+        summaries.append(f"+{len(paths) - 4} more trajectories")
+    return summaries
+
+
+def _render_validation_summary_text(result: dict[str, Any]) -> str:
+    details = [f"valid: {'yes' if result.get('valid') else 'no'}"]
+    coverage = result.get("coverage_report")
+    if coverage:
+        details.append(
+            "coverage: "
+            f"{coverage['covered_reachable_cells']} / {coverage['total_reachable_cells']} "
+            f"({coverage['coverage']:.2%}), critical_uncovered={coverage['critical_uncovered']}"
+        )
+    smoke_results = result.get("smoke_results", [])
+    if smoke_results:
+        smoke_bits = []
+        for item in smoke_results[:3]:
+            status = f"score={item['score']}" if item.get("error") is None else f"error={item['error']}"
+            smoke_bits.append(f"{item['script']} ({status})")
+        details.append("smoke: " + "; ".join(smoke_bits))
+    if result.get("errors"):
+        details.append("errors: " + "; ".join(result["errors"][:3]))
+    return _render_stage_summary(
+        f"Validated proposal for {result.get('scenario_id', 'unknown')}.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
+
+
+def _render_diff_summary_text(result: dict[str, Any]) -> str:
+    details: list[str] = []
+    if not result.get("scenario_exists"):
+        details.append(result.get("summary", "net-new scenario"))
+    else:
+        top_level = result.get("scenario_changes", {}).get("top_level_changed", [])
+        details.append(f"top-level scenario changes: {len(top_level)}")
+        details.append(f"contract cells added: {len(result.get('coverage_contract_changes', {}).get('added', []))}")
+        details.append(f"semantic cells changed: {len(result.get('coverage_semantics_changes', {}).get('changed', {}))}")
+    return _render_stage_summary(
+        "Diffed proposal against the accepted scenario.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
+
+
+def _render_closure_summary_text(result: dict[str, Any]) -> str:
+    live_suite = result.get("live_agent_suite", {})
+    details = [
+        f"passed: {'yes' if result.get('passed') else 'no'}",
+        f"deterministic scripted runs: {len(result.get('deterministic_scripted_suite', []))}",
+        f"live suite: {live_suite.get('status', 'unknown')}",
+    ]
+    if live_suite.get("runs"):
+        failures = sum(1 for item in live_suite["runs"] if item.get("protocol_failure"))
+        details.append(f"live protocol failures: {failures}")
+    return _render_stage_summary(
+        f"Ran closure suite for {result.get('scenario_id', 'unknown')}.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
+
+
+def _render_accept_summary_text(result: dict[str, Any]) -> str:
+    details = [
+        f"accepted scenario dir: {result['scenario_dir']}",
+        f"copied examples: {len(result.get('copied_examples', []))}",
+    ]
+    return _render_stage_summary(
+        "Accepted proposal into the official scenario artifacts.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
+
+
+def _render_author_init_text(result: dict[str, Any], proposal_dir: str) -> str:
+    return _render_stage_with_briefing(
+        f"Initialized proposal at {proposal_dir} for scenario {result['scenario_id']}.",
+        [],
+        operator_briefing_path=result["operator_briefing_markdown_path"],
+    )
+
+
+def _render_author_world_text(result: dict[str, Any]) -> str:
+    details = [
+        f"candidate scenario: {result['scenario_path']}",
+        f"model latency: {result['latency_ms']} ms",
+    ]
+    return _render_stage_with_briefing(
+        "Synthesized candidate world.",
+        details,
+        operator_briefing_path=result["operator_briefing_markdown_path"],
+    )
+
+
+def _render_author_semantics_text(result: dict[str, Any]) -> str:
+    cell_count, acts = _summarize_semantics_file(result["coverage_semantics_path"])
+    details = [
+        f"semantic cells: {cell_count}",
+        f"sample outgoing acts: {', '.join(acts) if acts else 'none'}",
+        f"model latency: {result['latency_ms']} ms",
+    ]
+    return _render_stage_summary(
+        "Synthesized coverage semantics.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
+
+
+def _render_author_trajectories_text(result: dict[str, Any]) -> str:
+    details = [f"trajectory files: {len(result.get('trajectories', []))}"]
+    details.extend(_summarize_trajectory_files(result.get("trajectories", [])))
+    details.append(f"model latency: {result['latency_ms']} ms")
+    return _render_stage_summary(
+        "Synthesized example trajectories.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
+
+
+def _render_author_contract_text(result: dict[str, Any]) -> str:
+    details = [
+        f"coverage cells: {result['cell_count']}",
+        f"contract: {result['coverage_contract_path']}",
+    ]
+    return _render_stage_summary(
+        "Compiled coverage contract.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
+
+
+def _render_author_coverage_text(result: dict[str, Any]) -> str:
+    report = result["report"]
+    details = [
+        f"contract cells: {report['contract_cell_count']}",
+        f"semantic entries: {report['semantic_entry_count']}",
+        f"compiled families: {report['compiled_family_count']}",
+        f"renderer count: {report['renderer_count']}",
+    ]
+    if report.get("errors"):
+        details.append("errors: " + "; ".join(report["errors"][:3]))
+    return _render_stage_summary(
+        "Compiled runtime coverage artifact.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
+
+
+def _render_author_gap_fill_text(result: dict[str, Any]) -> str:
+    details = [
+        f"gap count: {result['gap_count']}",
+        f"added cells: {len(result.get('added_cells', []))}",
+        f"model latency: {result['latency_ms']} ms",
+    ]
+    return _render_stage_summary(
+        "Filled proposal coverage gaps.",
+        details,
+        operator_briefing_path=result.get("operator_briefing_markdown_path"),
+    )
 
 
 def run_shell(db_path: str) -> int:
@@ -334,6 +572,20 @@ def run_benchmark(scenario_id: str, script_path: str, out_dir: Optional[str], se
     bundle = load_scenario_bundle(scenario_id)
     seed_bundle = seeds or list(bundle["scenario"]["evaluation"].get("official_seeds", [11, 29, 47]))
     out_path = Path(out_dir) if out_dir else None
+    _emit_preflight(
+        scenario_id,
+        run_context=build_run_context(
+            "benchmark",
+            [
+                ("command", "benchmark"),
+                ("script", str(Path(script_path))),
+                ("seed bundle", ", ".join(str(seed) for seed in seed_bundle)),
+                ("output dir", str(out_path) if out_path else "(none)"),
+            ],
+        ),
+        as_json_output=as_json_output,
+        bundle=bundle,
+    )
     results = [_run_scripted_seed(scenario_id, seed, Path(script_path), out_path, coverage_enforcement="strict") for seed in seed_bundle]
     scores = [float(item["score"]) for item in results]
     aggregate = {
@@ -468,9 +720,27 @@ def run_agent(
     as_json_output: bool,
 ) -> int:
     resolved_model = _resolve_model_name(model)
+    outdir = Path(output_dir) if output_dir else _default_agent_output_dir(scenario_id, seed, resolved_model)
+    bundle = load_scenario_bundle(scenario_id)
+    _emit_preflight(
+        scenario_id,
+        run_context=build_run_context(
+            "agent run",
+            [
+                ("command", "agent run"),
+                ("model", resolved_model),
+                ("seed", seed),
+                ("max turns", max_turns),
+                ("coverage enforcement", coverage_enforcement),
+                ("stream events", stream_events),
+                ("output dir", str(outdir)),
+            ],
+        ),
+        as_json_output=as_json_output,
+        bundle=bundle,
+    )
     client = build_model_client("openai")
     adapter = OpenAIResponsesAgentAdapter(client, model=resolved_model, temperature=0, top_p=1)
-    outdir = Path(output_dir) if output_dir else _default_agent_output_dir(scenario_id, seed, resolved_model)
     session = EnvironmentSession.create(str(outdir / "run.sqlite"), scenario_id, seed, coverage_enforcement=coverage_enforcement, force=True)
     try:
         runner = AgentRunner(adapter, max_turns=max_turns)
@@ -514,6 +784,21 @@ def run_agent_bundle_eval(
     bundle = load_scenario_bundle(scenario_id)
     seed_bundle = list(bundle["scenario"]["evaluation"].get("official_seeds", [11, 29, 47]))
     base_dir = Path(output_dir) if output_dir else Path(".artifacts") / "agent_bundle_eval" / scenario_id / resolved_model.replace("/", "_")
+    _emit_preflight(
+        scenario_id,
+        run_context=build_run_context(
+            "agent bundle-eval",
+            [
+                ("command", "agent bundle-eval"),
+                ("model", resolved_model),
+                ("seed bundle", ", ".join(str(seed) for seed in seed_bundle)),
+                ("max turns", max_turns),
+                ("output dir", str(base_dir)),
+            ],
+        ),
+        as_json_output=as_json_output,
+        bundle=bundle,
+    )
     run_summaries = []
     for seed in seed_bundle:
         seed_dir = base_dir / f"seed{seed}"
@@ -642,10 +927,12 @@ def _render_trace_events(trace_path: str, *, limit: Optional[int]) -> list[str]:
 
 def run_author_init(brief_path: str, proposal_dir: str, as_json_output: bool) -> int:
     manifest = init_proposal(brief_path, proposal_dir)
+    text = _render_author_init_text(manifest, proposal_dir)
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(manifest, indent=2, sort_keys=True))
     else:
-        print(f"Initialized proposal at {proposal_dir} for scenario {manifest['scenario_id']}.")
+        print(text)
     return 0
 
 
@@ -666,54 +953,67 @@ def run_author_synthesize(
     }
     if kind == "world":
         result = synthesize_world(**kwargs)
+        text = _render_author_world_text(result)
     elif kind == "semantics":
         result = synthesize_semantics(**kwargs)
+        text = _render_author_semantics_text(result)
     elif kind == "coverage":
         result = synthesize_coverage(**kwargs)
+        text = _render_author_semantics_text(result)
     elif kind == "trajectories":
         result = synthesize_trajectories(**kwargs)
+        text = _render_author_trajectories_text(result)
     else:
         raise RuntimeError(f"Unknown synthesis kind '{kind}'.")
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(text)
     return 0
 
 
 def run_author_compile_contract(proposal_dir: str, as_json_output: bool) -> int:
     result = compile_contract(proposal_dir)
+    text = _render_author_contract_text(result)
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(text)
     return 0
 
 
 def run_author_compile_coverage(proposal_dir: str, as_json_output: bool) -> int:
     result = compile_coverage_artifact(proposal_dir)
+    text = _render_author_coverage_text(result)
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(text)
     return 0
 
 
 def run_author_validate(proposal_dir: str, as_json_output: bool) -> int:
     result = validate_proposal(proposal_dir)
+    text = _render_validation_summary_text(result)
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(text)
     return 0
 
 
 def run_author_diff(proposal_dir: str, scenarios_root: str, as_json_output: bool) -> int:
     result = diff_proposal(proposal_dir, scenarios_root=scenarios_root)
+    text = _render_diff_summary_text(result)
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(text)
     return 0
 
 
@@ -732,10 +1032,12 @@ def run_author_gap_fill(
         model=_resolve_authoring_model(adapter, model),
         fixtures_root=fixtures_root,
     )
+    text = _render_author_gap_fill_text(result)
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(text)
     return 0
 
 
@@ -755,10 +1057,12 @@ def run_author_closure_suite(
         fixtures_root=fixtures_root,
         repeats=repeats,
     )
+    text = _render_closure_summary_text(result)
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(text)
     return 0
 
 
@@ -769,10 +1073,12 @@ def run_author_accept(
     as_json_output: bool,
 ) -> int:
     result = accept_proposal(proposal_dir, scenarios_root=scenarios_root, examples_root=examples_root)
+    text = _render_accept_summary_text(result)
     if as_json_output:
+        _emit_auxiliary_text(text, as_json_output=True)
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(json.dumps(result, indent=2, sort_keys=True))
+        print(text)
     return 0
 
 

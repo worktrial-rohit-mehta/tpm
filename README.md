@@ -186,6 +186,8 @@ python3 -m tpm_sim agent run \
   --seed 11
 ```
 
+Before execution starts, the CLI now prints a compact scenario preflight so you can scan the premise, cast, hidden pressures, deadlines, and run configuration in the terminal.
+
 `agent run` now streams the live event timeline to `stderr` by default while the episode is running, including omniscient simulation events beyond just the TPM agent. Use `--stream-events none` to silence it or `--stream-events agent` to limit the stream to agent-visible events.
 
 Run the live TPM agent across the official seed bundle:
@@ -243,6 +245,8 @@ python3 -m tpm_sim author init \
   --brief authoring/briefs/internal_rollout_smoke.json \
   --proposal-dir .artifacts/proposals/internal_rollout_smoke
 ```
+
+`author init` now prints the full brief-level scenario overview. After `author synthesize-world`, the CLI prints the full candidate overview of what the synthesized world actually built. The other authoring commands refresh the derived operator briefing artifacts and print concise stage summaries unless `--json` is used.
 
 Use the default offline fixture-backed synthesis path:
 

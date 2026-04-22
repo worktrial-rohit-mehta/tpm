@@ -1,0 +1,115 @@
+{
+  "cast": [
+    {
+      "coordination_template": "sponsor",
+      "decision_rights": [
+        "approve scope"
+      ],
+      "hidden_drivers": [
+        "Dana will back the staged rollout if the TPM brings the real tradeoff early instead of defending fake full scope."
+      ],
+      "id": "dana",
+      "name": "Dana Brooks",
+      "org_role": "director_product",
+      "visible_goal": "Wants a stable internal rollout plan and will support staged rollout if told early."
+    },
+    {
+      "coordination_template": "critical_path_owner",
+      "decision_rights": [
+        "commit ETA",
+        "update tracker"
+      ],
+      "hidden_drivers": [
+        "Leo is skeptical of rollout-date pressure until scope and approval are real."
+      ],
+      "id": "leo",
+      "name": "Leo Park",
+      "org_role": "engineer",
+      "visible_goal": "Overloaded engineer who knows full rollout is not credible."
+    },
+    {
+      "coordination_template": "cross_functional_dependency_owner",
+      "decision_rights": [
+        "grant review",
+        "update tracker"
+      ],
+      "hidden_drivers": [],
+      "id": "ivy",
+      "name": "Ivy Shah",
+      "org_role": "security_engineer",
+      "visible_goal": "Approval owner with a hard queue cutoff."
+    },
+    {
+      "coordination_template": "ally",
+      "decision_rights": [],
+      "hidden_drivers": [],
+      "id": "mia",
+      "name": "Mia Torres",
+      "org_role": "operations",
+      "visible_goal": "Operations ally who can help tidy the runbook quickly."
+    }
+  ],
+  "critical_path": [
+    "config_rollout",
+    "approval_review"
+  ],
+  "deadlines": [
+    {
+      "at": "2026-05-05T12:00:00",
+      "display_at": "Tue 2026-05-05 12:00",
+      "id": "approval_secured",
+      "summary": "Approval is secured before the queue cutoff."
+    },
+    {
+      "at": "2026-05-05T15:00:00",
+      "display_at": "Tue 2026-05-05 15:00",
+      "id": "scope_aligned",
+      "summary": "A staged rollout plan is aligned."
+    },
+    {
+      "at": "2026-05-06T15:00:00",
+      "display_at": "Wed 2026-05-06 15:00",
+      "id": "rollout_ready",
+      "summary": "The staged rollout is ready."
+    }
+  ],
+  "focus_areas": [
+    "milestones (70)",
+    "commitment quality (10)",
+    "discovery (10)",
+    "relationship (5)",
+    "timing",
+    "discovery",
+    "commitment"
+  ],
+  "hidden_landscape": [
+    "Full rollout is not credible in the current window.",
+    "The rollout needs approval before the cutoff."
+  ],
+  "how_to_fail": [
+    "This scenario punishes timing, discovery, commitment failures.",
+    "Key hidden pressure: Full rollout is not credible in the current window.; The rollout needs approval before the cutoff.",
+    "Actor traps: Dana will back the staged rollout if the TPM brings the real tradeoff early instead of defending fake full scope.; Leo is skeptical of rollout-date pressure until scope and approval are real."
+  ],
+  "how_to_win": [
+    "Move the critical path early: config_rollout, approval_review.",
+    "Protect the milestone windows, starting with approval_secured by Tue 2026-05-05 12:00 and ending with rollout_ready by Wed 2026-05-06 15:00.",
+    "Scoring leans on milestones (70), commitment quality (10), discovery (10), relationship (5).",
+    "Good TPM behavior here means moving before windows close; finding the real blockers and stakeholder drivers early; making grounded commitments instead of fake green."
+  ],
+  "premise": "A lightweight internal rollout scenario focused on approval timing, staged-scope alignment, and a small non-gating runbook distraction.",
+  "project_name": "Internal Rollout Project",
+  "project_summary": "A lightweight internal rollout focused on approval timing and staged-scope alignment.",
+  "proposal_status": null,
+  "run_context": null,
+  "scenario_id": "internal_rollout_smoke",
+  "schema_version": "operator_briefing_v1",
+  "source_kind": "accepted_scenario",
+  "title": "Internal Rollout Smoke",
+  "window": {
+    "end_at": "2026-05-06T17:00:00",
+    "end_display": "Wed 2026-05-06 17:00",
+    "start_at": "2026-05-05T09:00:00",
+    "start_display": "Tue 2026-05-05 09:00"
+  }
+}
