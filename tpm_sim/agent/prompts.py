@@ -7,7 +7,7 @@ from typing import Any
 from tpm_sim.environment import ACTION_SCHEMA, ALLOWED_ACT_IDS
 
 
-PROMPT_PACK_VERSION = "tpm_agent_prompt_v8"
+PROMPT_PACK_VERSION = "tpm_agent_prompt_v9"
 
 
 ACTION_DECISION_SCHEMA: dict[str, Any] = {
@@ -128,7 +128,6 @@ def build_agent_prompt(observation: dict[str, Any], *, repair_feedback: str | No
         - repetitive doc churn or plan rewrites that do not change alignment
         - repeating materially identical asks to the same stakeholder without new evidence
         - changing task owners or dates without securing a real commitment
-        - private-note stuffing instead of coordination
         - scheduling meetings for status theater rather than a concrete decision, blocker, or tradeoff
 
         Short examples:
@@ -147,12 +146,12 @@ def build_agent_prompt(observation: dict[str, Any], *, repair_feedback: str | No
         - meeting.act: use only inside an active meeting, and make each act count. Meetings allow only a small number of decisive TPM interventions
         - docs.write: create a shared artifact only when it materially improves alignment or directly unblocks execution. Do not draft documents as a substitute for stakeholder work
         - task.note, task.set_owner, task.set_target: tracker hygiene only. These update visible bookkeeping, not ground-truth ownership, feasibility, or commitment
-        - notes.write: private scratchpad only. Rarely the best move, with no coordination effect. If you use it, add exact refs when helpful so later follow-through can be audited deterministically
+        - notes.write: private scratchpad only. It has no coordination effect. Use it when a short private reminder or scoped follow-up marker will help you follow through later; add exact refs when helpful so later follow-through can be audited deterministically
         - wait.duration, wait.until_next_event: strategic pause only when proactive work is currently lower leverage than letting the next response or event arrive
 
         State changes come from tool actions and structured acts, not from persuasive prose alone. Free text is non-authoritative for runtime semantics. Prefer high-leverage actions over busywork. Return only a structured action object that matches the provided schema, and set irrelevant argument fields to null instead of omitting them.
 
-        Think like a TPM, not a note-taker:
+        Think like a TPM:
         - learn the real path
         - sequence the next blocker-clearing move
         - secure the next credible decision or commitment

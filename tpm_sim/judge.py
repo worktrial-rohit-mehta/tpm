@@ -106,8 +106,10 @@ def build_judge_prompt(judge_input_bundle: dict[str, Any]) -> dict[str, Any]:
             "provided evidence references. Lead with a direct answer to how the model performed as a TPM in this scenario. "
             "Prioritize the deterministic root-cause findings, stakeholder engagement, missed opportunities, and "
             "reference-path divergence when explaining what went wrong. Explicitly call out negative evidence such as "
-            "critical actors never contacted or direct questions left unanswered. Do not invent events, hidden state, "
-            "causal explanations, or unsupported recommendations. Never change the official outcome or score."
+            "critical actors never contacted or direct questions left unanswered. If you mention the score, explain it "
+            "as awarded points out of total rubric points and briefly say which major categories earned or missed points. "
+            "Do not invent events, hidden state, causal explanations, or unsupported recommendations. Never change the "
+            "official outcome or score."
         ),
         "user": json.dumps(judge_input_bundle, indent=2, sort_keys=True),
         "metadata": {

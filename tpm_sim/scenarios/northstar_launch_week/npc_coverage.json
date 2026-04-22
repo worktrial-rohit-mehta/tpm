@@ -1,5 +1,5 @@
 {
-  "compiled_from_digest": "b2a9c1aaaf21c9c06852c20bef53930e400fe82183f2c7b3fe499c5ec642fc93",
+  "compiled_from_digest": "27256b8385557721e5967b03678cdb7b4caecac87b7b47a993b8ba62e18d6660",
   "families": [
     {
       "criticality": "important",
@@ -189,6 +189,403 @@
       }
     },
     {
+      "criticality": "critical",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya.clarification.undecided",
+      "priority": 35,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "task.backend_api.true_risk",
+              "belief_value": "high",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.maya.private_driver.rejects_fake_dates_under_pressure",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "maya_rejects_fake_dates_under_pressure"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "maya",
+              "delta": 0.02,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "maya.clarification_pushback",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "reason": "full_scope_not_credible",
+            "task_id": "backend_api"
+          },
+          "renderer_id": "maya.clarification_pushback",
+          "surface_facts": [
+            "backend_infeasible_for_friday",
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya.clarification.descoped",
+      "priority": 36,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "commitment.backend_descoped_eta.status",
+              "belief_value": "tentative",
+              "confidence": 0.8,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "audience_ids": [
+                "tpm",
+                "rohit"
+              ],
+              "confidence": 0.78,
+              "due_at": "2026-05-07T12:00:00",
+              "id": "backend_descoped_eta",
+              "metadata": {
+                "fulfillment_predicate": {
+                  "task_true_state": {
+                    "equals": "done",
+                    "field": "checkpoint",
+                    "task_id": "backend_api"
+                  }
+                },
+                "milestone_ids": [
+                  "pilot_ready"
+                ],
+                "task_ids": [
+                  "backend_api"
+                ]
+              },
+              "owner_id": "maya",
+              "scope": {
+                "scope_variant": "descoped_pilot",
+                "task_id": "backend_api"
+              },
+              "status": "tentative",
+              "subject": "backend_descoped_eta",
+              "type": "create_or_update_commitment"
+            }
+          ],
+          "id": "maya.clarification_commitment",
+          "outgoing_act_id": "commit.propose",
+          "outgoing_slots": {
+            "commitment_id": "backend_descoped_eta",
+            "due_at": "2026-05-07T12:00:00",
+            "scope_variant": "descoped_pilot"
+          },
+          "renderer_id": "maya.clarification_commitment",
+          "surface_facts": [
+            "backend_infeasible_for_friday",
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "critical",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya.blocker.undecided",
+      "priority": 34,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "task.backend_api.true_risk",
+              "belief_value": "high",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.maya.private_driver.rejects_fake_dates_under_pressure",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "maya_rejects_fake_dates_under_pressure"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "maya",
+              "delta": 0.02,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "maya.blocker_pushback",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "reason": "full_scope_not_credible",
+            "task_id": "backend_api"
+          },
+          "renderer_id": "maya.blocker_pushback",
+          "surface_facts": [
+            "backend_infeasible_for_friday",
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya.blocker.descoped",
+      "priority": 37,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "commitment.backend_descoped_eta.status",
+              "belief_value": "tentative",
+              "confidence": 0.8,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "audience_ids": [
+                "tpm",
+                "rohit"
+              ],
+              "confidence": 0.78,
+              "due_at": "2026-05-07T12:00:00",
+              "id": "backend_descoped_eta",
+              "metadata": {
+                "fulfillment_predicate": {
+                  "task_true_state": {
+                    "equals": "done",
+                    "field": "checkpoint",
+                    "task_id": "backend_api"
+                  }
+                },
+                "milestone_ids": [
+                  "pilot_ready"
+                ],
+                "task_ids": [
+                  "backend_api"
+                ]
+              },
+              "owner_id": "maya",
+              "scope": {
+                "scope_variant": "descoped_pilot",
+                "task_id": "backend_api"
+              },
+              "status": "tentative",
+              "subject": "backend_descoped_eta",
+              "type": "create_or_update_commitment"
+            }
+          ],
+          "id": "maya.blocker_commitment",
+          "outgoing_act_id": "commit.propose",
+          "outgoing_slots": {
+            "commitment_id": "backend_descoped_eta",
+            "due_at": "2026-05-07T12:00:00",
+            "scope_variant": "descoped_pilot"
+          },
+          "renderer_id": "maya.blocker_commitment",
+          "surface_facts": [
+            "backend_infeasible_for_friday",
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya.generic.undecided",
+      "priority": 5,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "task.backend_api.true_risk",
+              "belief_value": "high",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.maya.private_driver.rejects_fake_dates_under_pressure",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "maya_rejects_fake_dates_under_pressure"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "maya",
+              "delta": 0.01,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "maya.generic_pushback",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "reason": "full_scope_not_credible",
+            "task_id": "backend_api"
+          },
+          "renderer_id": "maya.generic_pushback",
+          "surface_facts": [
+            "backend_infeasible_for_friday",
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "maya",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya.generic.descoped",
+      "priority": 6,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "commitment.backend_descoped_eta.status",
+              "belief_value": "tentative",
+              "confidence": 0.8,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "audience_ids": [
+                "tpm",
+                "rohit"
+              ],
+              "confidence": 0.78,
+              "due_at": "2026-05-07T12:00:00",
+              "id": "backend_descoped_eta",
+              "metadata": {
+                "fulfillment_predicate": {
+                  "task_true_state": {
+                    "equals": "done",
+                    "field": "checkpoint",
+                    "task_id": "backend_api"
+                  }
+                },
+                "milestone_ids": [
+                  "pilot_ready"
+                ],
+                "task_ids": [
+                  "backend_api"
+                ]
+              },
+              "owner_id": "maya",
+              "scope": {
+                "scope_variant": "descoped_pilot",
+                "task_id": "backend_api"
+              },
+              "status": "tentative",
+              "subject": "backend_descoped_eta",
+              "type": "create_or_update_commitment"
+            }
+          ],
+          "id": "maya.generic_commitment",
+          "outgoing_act_id": "commit.propose",
+          "outgoing_slots": {
+            "commitment_id": "backend_descoped_eta",
+            "due_at": "2026-05-07T12:00:00",
+            "scope_variant": "descoped_pilot"
+          },
+          "renderer_id": "maya.generic_commitment",
+          "surface_facts": [
+            "backend_infeasible_for_friday",
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "maya",
+        "surface": "chat"
+      }
+    },
+    {
       "criticality": "important",
       "id": "rohit.risk.early",
       "priority": 20,
@@ -218,6 +615,41 @@
       "selector": {
         "actor_id": "rohit",
         "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rohit.clarification.scope",
+      "priority": 22,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "rohit_accepts_descoping_if_early"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "rohit.ask_for_real_scope",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "launch_plan"
+          },
+          "renderer_id": "rohit.ask_for_real_scope",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rohit",
+        "incoming_act_id": "request.clarification",
         "surface": "chat"
       }
     },
@@ -386,6 +818,84 @@
           "field": "launch_scope"
         }
       },
+      "id": "rohit.generic.undecided",
+      "priority": 5,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "rohit_accepts_descoping_if_early"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "rohit.generic_need_tradeoff",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "real_constraints"
+          },
+          "renderer_id": "rohit.generic_need_tradeoff",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rohit",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rohit.generic.descoped",
+      "priority": 6,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "rohit_accepts_descoping_if_early"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "rohit.generic_ack_descoped",
+          "outgoing_act_id": "ack.received",
+          "outgoing_slots": {},
+          "renderer_id": "rohit.generic_ack_descoped",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rohit",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
       "id": "andrew.ownership.before_scope",
       "priority": 20,
       "response_envelopes": [
@@ -474,6 +984,281 @@
       }
     },
     {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew.clarification.before_scope",
+      "priority": 20,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "andrew.clarifies_need_scope",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "need_scope_and_design_alignment",
+            "task_id": "frontend_pilot"
+          },
+          "renderer_id": "andrew.clarifies_need_scope",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "andrew",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew.clarification.after_scope",
+      "priority": 25,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "project.launch_scope",
+              "belief_value": "descoped_pilot",
+              "confidence": 0.8,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "andrew.clarifies_remaining_dependencies",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "need_backend_and_design_constraints_locked",
+            "task_id": "frontend_pilot"
+          },
+          "renderer_id": "andrew.clarifies_remaining_dependencies",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "andrew",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew.generic.undecided",
+      "priority": 5,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "andrew.generic_status_undecided",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "waiting_on_scope_and_design",
+            "task_id": "frontend_pilot"
+          },
+          "renderer_id": "andrew.generic_status_undecided",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "andrew",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew.generic.descoped",
+      "priority": 6,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "project.launch_scope",
+              "belief_value": "descoped_pilot",
+              "confidence": 0.8,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "andrew.generic_status_descoped",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "ready_once_backend_and_design_locked",
+            "task_id": "frontend_pilot"
+          },
+          "renderer_id": "andrew.generic_status_descoped",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "andrew",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rahul.blocker.note",
+      "priority": 18,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.acknowledges_blocker",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_scope_and_context",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.acknowledges_blocker",
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rahul.decision.note",
+      "priority": 18,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.acknowledges_decision_note",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_scope_and_context",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.acknowledges_decision_note",
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rahul.clarification.scope_and_context",
+      "priority": 19,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.clarifies_scope_and_context",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_scope_and_context",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.clarifies_scope_and_context",
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rahul.review.scope_and_context",
+      "priority": 20,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.requests_scope_and_context_for_review",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "support_context_and_narrowed_path"
+          },
+          "renderer_id": "rahul.requests_scope_and_context_for_review",
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rahul.generic.undecided",
+      "priority": 10,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.generic_status_undecided",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_scope_and_context",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.generic_status_undecided",
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rahul",
+        "surface": "chat"
+      }
+    },
+    {
       "criticality": "critical",
       "guard": {
         "not": {
@@ -496,6 +1281,44 @@
           "surface_facts": [
             "rahul_needs_support_context"
           ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "critical",
+      "guard": {
+        "all_of": [
+          {
+            "surfaced": "support_context_available"
+          },
+          {
+            "project_state": {
+              "equals": "undecided",
+              "field": "launch_scope"
+            }
+          }
+        ]
+      },
+      "id": "rahul.approval.need_scope",
+      "priority": 25,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.denies_until_scope_decided",
+          "outgoing_act_id": "approve.deny",
+          "outgoing_slots": {
+            "reason": "need_scope_decision",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.denies_until_scope_decided",
+          "surface_facts": [],
           "weight": 1.0
         }
       ],
@@ -649,6 +1472,129 @@
     {
       "criticality": "important",
       "guard": {
+        "critical_window_open": "security_cutoff"
+      },
+      "id": "nina.approval.before_cutoff",
+      "priority": 18,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "nina.redirects_to_review",
+          "outgoing_act_id": "approve.defer",
+          "outgoing_slots": {
+            "reason": "need_exact_scope_and_artifact",
+            "task_id": "security_review"
+          },
+          "renderer_id": "nina.redirects_to_review",
+          "surface_facts": [
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "nina",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "security_cutoff"
+        }
+      },
+      "id": "nina.approval.after_cutoff",
+      "priority": 16,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "nina.redirects_late_approval",
+          "outgoing_act_id": "approve.defer",
+          "outgoing_slots": {
+            "available_after": "2026-05-07T14:00:00",
+            "reason": "late_request",
+            "task_id": "security_review"
+          },
+          "renderer_id": "nina.redirects_late_approval",
+          "surface_facts": [
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "nina",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "critical_window_open": "security_cutoff"
+      },
+      "id": "nina.generic.before_cutoff",
+      "priority": 10,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "nina.generic_status_before_cutoff",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_exact_scope_and_artifact",
+            "task_id": "security_review"
+          },
+          "renderer_id": "nina.generic_status_before_cutoff",
+          "surface_facts": [
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "nina",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "security_cutoff"
+        }
+      },
+      "id": "nina.generic.after_cutoff",
+      "priority": 8,
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "nina.generic_status_after_cutoff",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "safe_slot_passed_need_late_review",
+            "task_id": "security_review"
+          },
+          "renderer_id": "nina.generic_status_after_cutoff",
+          "surface_facts": [
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "nina",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
         "critical_window_open": "customer_plan_cutoff"
       },
       "id": "sara.decision.early",
@@ -768,6 +1714,91 @@
     {
       "criticality": "important",
       "guard": {
+        "critical_window_open": "customer_plan_cutoff"
+      },
+      "id": "sara.generic.early",
+      "priority": 10,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.sara.private_driver.needs_stable_plan_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "sara_needs_plan_by_wed_noon"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "sara.generic_need_stable_plan",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_stable_plan_first"
+          },
+          "renderer_id": "sara.generic_need_stable_plan",
+          "surface_facts": [
+            "support_context_available"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "sara",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "customer_plan_cutoff"
+        }
+      },
+      "id": "sara.generic.late",
+      "priority": 8,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.sara.private_driver.needs_stable_plan_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "sara_needs_plan_by_wed_noon"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "patch": {
+                "customer_confidence": "at_risk"
+              },
+              "type": "project_state_patch"
+            }
+          ],
+          "id": "sara.generic_late_pushback",
+          "outgoing_act_id": "ack.deferred",
+          "outgoing_slots": {
+            "reason": "late_customer_reset"
+          },
+          "renderer_id": "sara.generic_late_pushback",
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "sara",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
         "context_field": {
           "equals": true,
           "field": "available_for_meeting"
@@ -868,12 +1899,116 @@
       }
     },
     {
+      "criticality": "critical",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_clarification_undecided",
+      "reachable": true,
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_clarification_descoped",
+      "reachable": true,
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "critical",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_blocker_undecided",
+      "reachable": true,
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_blocker_descoped",
+      "reachable": true,
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_chat_fallback_undecided",
+      "reachable": true,
+      "selector": {
+        "actor_id": "maya",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_chat_fallback_descoped",
+      "reachable": true,
+      "selector": {
+        "actor_id": "maya",
+        "surface": "chat"
+      }
+    },
+    {
       "criticality": "important",
       "id": "rohit_risk",
       "reachable": true,
       "selector": {
         "actor_id": "rohit",
         "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rohit_clarification_scope",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rohit",
+        "incoming_act_id": "request.clarification",
         "surface": "chat"
       }
     },
@@ -935,6 +2070,36 @@
           "field": "launch_scope"
         }
       },
+      "id": "rohit_chat_fallback_undecided",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rohit",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rohit_chat_fallback_descoped",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rohit",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
       "id": "andrew_ownership_before_scope",
       "reachable": true,
       "selector": {
@@ -960,6 +2125,123 @@
       }
     },
     {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_clarification_before_scope",
+      "reachable": true,
+      "selector": {
+        "actor_id": "andrew",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_clarification_after_scope",
+      "reachable": true,
+      "selector": {
+        "actor_id": "andrew",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_chat_fallback_undecided",
+      "reachable": true,
+      "selector": {
+        "actor_id": "andrew",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_chat_fallback_descoped",
+      "reachable": true,
+      "selector": {
+        "actor_id": "andrew",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rahul_inform_blocker",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rahul_inform_decision",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rahul_clarification_scope_and_context",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "id": "rahul_review_scope_and_context",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rahul_chat_fallback_undecided",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rahul",
+        "surface": "chat"
+      }
+    },
+    {
       "criticality": "critical",
       "guard": {
         "not": {
@@ -967,6 +2249,29 @@
         }
       },
       "id": "rahul_without_context",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "critical",
+      "guard": {
+        "all_of": [
+          {
+            "surfaced": "support_context_available"
+          },
+          {
+            "project_state": {
+              "equals": "undecided",
+              "field": "launch_scope"
+            }
+          }
+        ]
+      },
+      "id": "rahul_need_scope_after_context",
       "reachable": true,
       "selector": {
         "actor_id": "rahul",
@@ -1028,6 +2333,60 @@
     {
       "criticality": "important",
       "guard": {
+        "critical_window_open": "security_cutoff"
+      },
+      "id": "nina_approval_before_cutoff",
+      "reachable": true,
+      "selector": {
+        "actor_id": "nina",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "security_cutoff"
+        }
+      },
+      "id": "nina_approval_after_cutoff",
+      "reachable": true,
+      "selector": {
+        "actor_id": "nina",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "critical_window_open": "security_cutoff"
+      },
+      "id": "nina_chat_fallback_before_cutoff",
+      "reachable": true,
+      "selector": {
+        "actor_id": "nina",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "security_cutoff"
+        }
+      },
+      "id": "nina_chat_fallback_after_cutoff",
+      "reachable": true,
+      "selector": {
+        "actor_id": "nina",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
         "critical_window_open": "customer_plan_cutoff"
       },
       "id": "sara_decision_early",
@@ -1050,6 +2409,32 @@
       "selector": {
         "actor_id": "sara",
         "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "critical_window_open": "customer_plan_cutoff"
+      },
+      "id": "sara_chat_fallback_early",
+      "reachable": true,
+      "selector": {
+        "actor_id": "sara",
+        "surface": "chat"
+      }
+    },
+    {
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "customer_plan_cutoff"
+        }
+      },
+      "id": "sara_chat_fallback_late",
+      "reachable": true,
+      "selector": {
+        "actor_id": "sara",
         "surface": "chat"
       }
     },
@@ -1085,6 +2470,22 @@
     }
   ],
   "renderers": {
+    "andrew.clarifies_need_scope": [
+      "I need the actual scope call and the design constraints before I can move the frontend path.",
+      "Right now the blocker is scope plus design alignment. Once that is real, I can take the frontend work."
+    ],
+    "andrew.clarifies_remaining_dependencies": [
+      "With the descoped pilot, I just need the backend contract and design constraints to stay stable so I can finish the frontend path.",
+      "If we keep the descoped scope, I can move. The remaining blocker is locking the backend and design edges."
+    ],
+    "andrew.generic_status_descoped": [
+      "If the descoped pilot is the plan, keep the backend contract and design constraints stable and I can move the frontend.",
+      "That works for me. On the narrowed pilot, I just need the backend edge and design constraints to stay locked."
+    ],
+    "andrew.generic_status_undecided": [
+      "I can work the frontend path once the actual scope and design edges are locked.",
+      "Thanks for the update. I still need the narrowed scope and design constraints before frontend can really move."
+    ],
     "andrew.owns_descoped_path": [
       "I\u2019ll own the descoped frontend path once we lock the backend and design constraints.",
       "Yes, I can take the frontend side for the descoped pilot."
@@ -1101,6 +2502,22 @@
       "I can\u2019t make {meeting_id} at that time.",
       "Declining {meeting_id}; I have a conflict."
     ],
+    "maya.blocker_commitment": [
+      "If we are truly staying descoped and Nina is engaged, I can still aim for Thursday noon on backend.",
+      "On the descoped path, the blocker is mostly security timing now. Thursday noon is the real backend target if that holds."
+    ],
+    "maya.blocker_pushback": [
+      "Yes, the blocker is still that full scope by Friday is not credible. Narrow the pilot and get Nina ready for review.",
+      "The blocker has not changed: full backend scope is fake for Friday, and the narrower path still needs security."
+    ],
+    "maya.clarification_commitment": [
+      "The clarification is that the descoped backend path is real if Nina clears it. I can aim for Thursday noon.",
+      "If we stay descoped and security is in motion, Thursday noon is the credible backend target."
+    ],
+    "maya.clarification_pushback": [
+      "The clarification is the same: full scope by Friday is not real. Narrow the pilot and get Nina lined up for review.",
+      "If you want the real blocker, it is scope credibility. Full scope is fake for Friday, and the narrower path still needs security."
+    ],
     "maya.descoped_commitment": [
       "If we stay on the descoped path and security clears, I can aim for Thursday noon on backend.",
       "With the descoped scope and Nina in the loop, Thursday noon is a real backend target."
@@ -1108,6 +2525,14 @@
     "maya.eta.defer": [
       "I\u2019m still on the Sev-1. I\u2019m not going to give you a fake ETA before {available_after}.",
       "Still tied up on checkout. Ask me again after {available_after} if you want something real."
+    ],
+    "maya.generic_commitment": [
+      "Status noted. If we stay on the descoped path and Nina clears it, Thursday noon is still the credible backend target.",
+      "The generic update does not change the backend path: descoped scope plus security gets you a real Thursday-noon target."
+    ],
+    "maya.generic_pushback": [
+      "I hear the update, but the answer is still the same: full scope is not credible for Friday. Narrow the pilot and keep security in the loop.",
+      "Status noted. The real issue has not changed: full backend scope is fake for Friday, and the smaller path still needs Nina."
     ],
     "maya.honest_pushback": [
       "Full scope by Friday isn\u2019t real. I\u2019m still in the Sev-1 and the new scope will need security.",
@@ -1117,17 +2542,57 @@
       "This landed after my useful slot. Earliest safe review is later than you want.",
       "Too late for the easy path this week. I can look later, but not in time for a clean Friday."
     ],
+    "nina.generic_status_after_cutoff": [
+      "Security still needs the exact scope and artifact, and the useful slot has already passed.",
+      "I can still look later, but the clean path is gone unless you bring a real review packet much earlier."
+    ],
+    "nina.generic_status_before_cutoff": [
+      "I still need the exact narrowed scope and artifact before security can review this.",
+      "Bring me the concrete scope and materials while the safe window is open, and I can actually assess it."
+    ],
+    "nina.redirects_late_approval": [
+      "I still need a real review packet, and the easy slot is gone. Earliest safe review is later than you want.",
+      "This is too late for the clean path. Security still requires the exact scope and artifact, and I can only look later."
+    ],
+    "nina.redirects_to_review": [
+      "I can\u2019t approve this off a status note. Send the exact narrowed scope and artifact, and I can review it while the safe window is still open.",
+      "Security still needs a real review request with the concrete scope and materials. Bring that today if you want the useful slot."
+    ],
     "nina.secures_slot": [
       "I can take the review tomorrow morning. Get me the exact scope and artifact today.",
       "You made the safe window. I can review the scope tomorrow morning."
+    ],
+    "rahul.acknowledges_blocker": [
+      "Understood. I still need the real support context tied to a concrete pilot scope before design is unblocked.",
+      "That helps, but design is still blocked until I see the customer context and the narrowed flow."
+    ],
+    "rahul.acknowledges_decision_note": [
+      "Noted. I still need the actual support context mapped to the pilot flow before I can move on design.",
+      "Thanks for the update. Design is still waiting on the customer context and the concrete narrowed path."
     ],
     "rahul.approves_descoped": [
       "Given the support context, I\u2019m okay with the descoped path.",
       "This is defensible with the customer context. I\u2019m approving the simpler flow."
     ],
+    "rahul.clarifies_scope_and_context": [
+      "What I still need is the support context tied to the actual narrowed pilot flow before design can move.",
+      "I can clarify the blocker: give me the customer context plus the concrete narrowed path, and then I can review design."
+    ],
+    "rahul.denies_until_scope_decided": [
+      "The support context helps, but I still need the actual narrowed scope decision before I can sign off on design.",
+      "I have the customer context now. Bring me the concrete descoped flow decision and then I can approve the design."
+    ],
     "rahul.denies_without_context": [
       "I\u2019m not approving a simplified design without the actual support context.",
       "I need the customer pain points before I sign off on a simpler flow."
+    ],
+    "rahul.generic_status_undecided": [
+      "I still need the customer context tied to a concrete narrowed flow before design can really move.",
+      "Keep me posted, but design is still waiting on the support context and the actual pilot shape."
+    ],
+    "rahul.requests_scope_and_context_for_review": [
+      "I can review once you tie the customer context to the concrete narrowed pilot path.",
+      "Before I sign off on design, show me the actual support context plus the specific narrowed flow you want reviewed."
     ],
     "rohit.accept_honesty": [
       "Good. Keep it honest and bring me the narrower pilot if full scope is fake.",
@@ -1137,13 +2602,33 @@
       "Approved. Take the descoped pilot and give me owners and times today.",
       "Yes. Run the descoped pilot, lock owners, and keep the story stable."
     ],
+    "rohit.ask_for_real_scope": [
+      "I need the honest version, not a vague blocker. What is actually launchable this week?",
+      "Tell me the real plan. If this needs a descoped pilot, say it clearly now."
+    ],
     "rohit.defer_late_scope": [
       "This is too late for me to bless cleanly today. Bring me the revised plan, but assume we lost some option value.",
       "You missed the easy window. I need the revised plan, but this is no longer a clean approval."
     ],
+    "rohit.generic_ack_descoped": [
+      "Understood. If the descoped pilot is the real path, lock the constraints and keep the customer story honest.",
+      "Okay. Keep the narrowed pilot concrete and bring me real changes, not tracker noise."
+    ],
+    "rohit.generic_need_tradeoff": [
+      "I hear the update, but I still need the real blocker and tradeoff. What is actually launchable this week?",
+      "If you want me aligned, bring me the concrete constraint set and the narrower pilot plan."
+    ],
     "rohit.needs_real_constraints": [
       "I\u2019m not approving a scope cut on vibes. Bring me the real blocker and the tradeoff.",
       "Give me the honest constraint set first. Then I can back the narrower pilot."
+    ],
+    "sara.generic_late_pushback": [
+      "I still need a steadier customer story than this, and we are already late to reset expectations cleanly.",
+      "The customer-facing plan is getting risky now. Bring me a stable narrowed story, not another partial update."
+    ],
+    "sara.generic_need_stable_plan": [
+      "The support context is already documented, but I need a stable narrowed plan early enough to keep the customer story credible.",
+      "I can help with the customer-facing context. Use the support notes as the baseline, and lock the descoped plan soon."
     ],
     "sara.late_plan": [
       "This is late for me to safely reset the customer. I need a steadier story than this.",

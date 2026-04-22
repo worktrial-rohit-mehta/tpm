@@ -195,6 +195,38 @@
       ]
     },
     {
+      "cell_id": "rohit_clarification_scope",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "rohit_accepts_descoping_if_early"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "rohit.ask_for_real_scope",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "launch_plan"
+          },
+          "renderer_id": "rohit.ask_for_real_scope",
+          "renderer_variants": [
+            "I need the honest version, not a vague blocker. What is actually launchable this week?",
+            "Tell me the real plan. If this needs a descoped pilot, say it clearly now."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
       "cell_id": "rohit_decision_need_context",
       "response_envelopes": [
         {
@@ -323,6 +355,183 @@
       ]
     },
     {
+      "cell_id": "rohit_chat_fallback_undecided",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "rohit_accepts_descoping_if_early"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "rohit.generic_need_tradeoff",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "real_constraints"
+          },
+          "renderer_id": "rohit.generic_need_tradeoff",
+          "renderer_variants": [
+            "I hear the update, but I still need the real blocker and tradeoff. What is actually launchable this week?",
+            "If you want me aligned, bring me the concrete constraint set and the narrower pilot plan."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "rohit_chat_fallback_descoped",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "rohit_accepts_descoping_if_early"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "rohit.generic_ack_descoped",
+          "outgoing_act_id": "ack.received",
+          "outgoing_slots": {},
+          "renderer_id": "rohit.generic_ack_descoped",
+          "renderer_variants": [
+            "Understood. If the descoped pilot is the real path, lock the constraints and keep the customer story honest.",
+            "Okay. Keep the narrowed pilot concrete and bring me real changes, not tracker noise."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "maya_blocker_undecided",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "task.backend_api.true_risk",
+              "belief_value": "high",
+              "confidence": 0.9,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.maya.private_driver.rejects_fake_dates_under_pressure",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "maya_rejects_fake_dates_under_pressure"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "actor_id": "maya",
+              "delta": 0.02,
+              "target_actor_id": "tpm",
+              "type": "relationship_delta"
+            }
+          ],
+          "id": "maya.blocker_pushback",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "reason": "full_scope_not_credible",
+            "task_id": "backend_api"
+          },
+          "renderer_id": "maya.blocker_pushback",
+          "renderer_variants": [
+            "Yes, the blocker is still that full scope by Friday is not credible. Narrow the pilot and get Nina ready for review.",
+            "The blocker has not changed: full backend scope is fake for Friday, and the narrower path still needs security."
+          ],
+          "surface_facts": [
+            "backend_infeasible_for_friday",
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "maya_blocker_descoped",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "commitment.backend_descoped_eta.status",
+              "belief_value": "tentative",
+              "confidence": 0.8,
+              "freshness_window_min": 240
+            }
+          ],
+          "effects": [
+            {
+              "audience_ids": [
+                "tpm",
+                "rohit"
+              ],
+              "confidence": 0.78,
+              "due_at": "2026-05-07T12:00:00",
+              "id": "backend_descoped_eta",
+              "metadata": {
+                "fulfillment_predicate": {
+                  "task_true_state": {
+                    "equals": "done",
+                    "field": "checkpoint",
+                    "task_id": "backend_api"
+                  }
+                },
+                "milestone_ids": [
+                  "pilot_ready"
+                ],
+                "task_ids": [
+                  "backend_api"
+                ]
+              },
+              "owner_id": "maya",
+              "scope": {
+                "scope_variant": "descoped_pilot",
+                "task_id": "backend_api"
+              },
+              "status": "tentative",
+              "subject": "backend_descoped_eta",
+              "type": "create_or_update_commitment"
+            }
+          ],
+          "id": "maya.blocker_commitment",
+          "outgoing_act_id": "commit.propose",
+          "outgoing_slots": {
+            "commitment_id": "backend_descoped_eta",
+            "due_at": "2026-05-07T12:00:00",
+            "scope_variant": "descoped_pilot"
+          },
+          "renderer_id": "maya.blocker_commitment",
+          "renderer_variants": [
+            "If we are truly staying descoped and Nina is engaged, I can still aim for Thursday noon on backend.",
+            "On the descoped path, the blocker is mostly security timing now. Thursday noon is the real backend target if that holds."
+          ],
+          "surface_facts": [
+            "backend_infeasible_for_friday",
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
       "cell_id": "andrew_ownership_before_scope",
       "response_envelopes": [
         {
@@ -400,6 +609,227 @@
       ]
     },
     {
+      "cell_id": "andrew_clarification_before_scope",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "andrew.clarifies_need_scope",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "need_scope_and_design_alignment",
+            "task_id": "frontend_pilot"
+          },
+          "renderer_id": "andrew.clarifies_need_scope",
+          "renderer_variants": [
+            "I need the actual scope call and the design constraints before I can move the frontend path.",
+            "Right now the blocker is scope plus design alignment. Once that is real, I can take the frontend work."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "andrew_clarification_after_scope",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "project.launch_scope",
+              "belief_value": "descoped_pilot",
+              "confidence": 0.8,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "andrew.clarifies_remaining_dependencies",
+          "outgoing_act_id": "inform.blocker",
+          "outgoing_slots": {
+            "blocker": "need_backend_and_design_constraints_locked",
+            "task_id": "frontend_pilot"
+          },
+          "renderer_id": "andrew.clarifies_remaining_dependencies",
+          "renderer_variants": [
+            "With the descoped pilot, I just need the backend contract and design constraints to stay stable so I can finish the frontend path.",
+            "If we keep the descoped scope, I can move. The remaining blocker is locking the backend and design edges."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "andrew_chat_fallback_undecided",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "andrew.generic_status_undecided",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "waiting_on_scope_and_design",
+            "task_id": "frontend_pilot"
+          },
+          "renderer_id": "andrew.generic_status_undecided",
+          "renderer_variants": [
+            "I can work the frontend path once the actual scope and design edges are locked.",
+            "Thanks for the update. I still need the narrowed scope and design constraints before frontend can really move."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "andrew_chat_fallback_descoped",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "project.launch_scope",
+              "belief_value": "descoped_pilot",
+              "confidence": 0.8,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "andrew.generic_status_descoped",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "ready_once_backend_and_design_locked",
+            "task_id": "frontend_pilot"
+          },
+          "renderer_id": "andrew.generic_status_descoped",
+          "renderer_variants": [
+            "If the descoped pilot is the plan, keep the backend contract and design constraints stable and I can move the frontend.",
+            "That works for me. On the narrowed pilot, I just need the backend edge and design constraints to stay locked."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "rahul_inform_blocker",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.acknowledges_blocker",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_scope_and_context",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.acknowledges_blocker",
+          "renderer_variants": [
+            "Understood. I still need the real support context tied to a concrete pilot scope before design is unblocked.",
+            "That helps, but design is still blocked until I see the customer context and the narrowed flow."
+          ],
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "rahul_inform_decision",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.acknowledges_decision_note",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_scope_and_context",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.acknowledges_decision_note",
+          "renderer_variants": [
+            "Noted. I still need the actual support context mapped to the pilot flow before I can move on design.",
+            "Thanks for the update. Design is still waiting on the customer context and the concrete narrowed path."
+          ],
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "rahul_clarification_scope_and_context",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.clarifies_scope_and_context",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_scope_and_context",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.clarifies_scope_and_context",
+          "renderer_variants": [
+            "What I still need is the support context tied to the actual narrowed pilot flow before design can move.",
+            "I can clarify the blocker: give me the customer context plus the concrete narrowed path, and then I can review design."
+          ],
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "rahul_review_scope_and_context",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.requests_scope_and_context_for_review",
+          "outgoing_act_id": "request.clarification",
+          "outgoing_slots": {
+            "topic": "support_context_and_narrowed_path"
+          },
+          "renderer_id": "rahul.requests_scope_and_context_for_review",
+          "renderer_variants": [
+            "I can review once you tie the customer context to the concrete narrowed pilot path.",
+            "Before I sign off on design, show me the actual support context plus the specific narrowed flow you want reviewed."
+          ],
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "rahul_chat_fallback_undecided",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.generic_status_undecided",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_scope_and_context",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.generic_status_undecided",
+          "renderer_variants": [
+            "I still need the customer context tied to a concrete narrowed flow before design can really move.",
+            "Keep me posted, but design is still waiting on the support context and the actual pilot shape."
+          ],
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
       "cell_id": "rahul_without_context",
       "response_envelopes": [
         {
@@ -419,6 +849,28 @@
           "surface_facts": [
             "rahul_needs_support_context"
           ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "rahul_need_scope_after_context",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "rahul.denies_until_scope_decided",
+          "outgoing_act_id": "approve.deny",
+          "outgoing_slots": {
+            "reason": "need_scope_decision",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.denies_until_scope_decided",
+          "renderer_variants": [
+            "The support context helps, but I still need the actual narrowed scope decision before I can sign off on design.",
+            "I have the customer context now. Bring me the concrete descoped flow decision and then I can approve the design."
+          ],
+          "surface_facts": [],
           "weight": 1.0
         }
       ]
@@ -535,6 +987,103 @@
       ]
     },
     {
+      "cell_id": "nina_approval_before_cutoff",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "nina.redirects_to_review",
+          "outgoing_act_id": "approve.defer",
+          "outgoing_slots": {
+            "reason": "need_exact_scope_and_artifact",
+            "task_id": "security_review"
+          },
+          "renderer_id": "nina.redirects_to_review",
+          "renderer_variants": [
+            "I can\u2019t approve this off a status note. Send the exact narrowed scope and artifact, and I can review it while the safe window is still open.",
+            "Security still needs a real review request with the concrete scope and materials. Bring that today if you want the useful slot."
+          ],
+          "surface_facts": [
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "nina_approval_after_cutoff",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "nina.redirects_late_approval",
+          "outgoing_act_id": "approve.defer",
+          "outgoing_slots": {
+            "available_after": "2026-05-07T14:00:00",
+            "reason": "late_request",
+            "task_id": "security_review"
+          },
+          "renderer_id": "nina.redirects_late_approval",
+          "renderer_variants": [
+            "I still need a real review packet, and the easy slot is gone. Earliest safe review is later than you want.",
+            "This is too late for the clean path. Security still requires the exact scope and artifact, and I can only look later."
+          ],
+          "surface_facts": [
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "nina_chat_fallback_before_cutoff",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "nina.generic_status_before_cutoff",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_exact_scope_and_artifact",
+            "task_id": "security_review"
+          },
+          "renderer_id": "nina.generic_status_before_cutoff",
+          "renderer_variants": [
+            "I still need the exact narrowed scope and artifact before security can review this.",
+            "Bring me the concrete scope and materials while the safe window is open, and I can actually assess it."
+          ],
+          "surface_facts": [
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "nina_chat_fallback_after_cutoff",
+      "response_envelopes": [
+        {
+          "belief_signals": [],
+          "effects": [],
+          "id": "nina.generic_status_after_cutoff",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "safe_slot_passed_need_late_review",
+            "task_id": "security_review"
+          },
+          "renderer_id": "nina.generic_status_after_cutoff",
+          "renderer_variants": [
+            "Security still needs the exact scope and artifact, and the useful slot has already passed.",
+            "I can still look later, but the clean path is gone unless you bring a real review packet much earlier."
+          ],
+          "surface_facts": [
+            "security_review_required"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
       "cell_id": "sara_decision_early",
       "response_envelopes": [
         {
@@ -633,6 +1182,79 @@
           "renderer_variants": [
             "This is late for me to safely reset the customer. I need a steadier story than this.",
             "I can\u2019t confidently reset Northstar this late without a cleaner plan."
+          ],
+          "surface_facts": [],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "sara_chat_fallback_early",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.sara.private_driver.needs_stable_plan_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 480,
+              "metadata": {
+                "private_driver_fact_id": "sara_needs_plan_by_wed_noon"
+              }
+            }
+          ],
+          "effects": [],
+          "id": "sara.generic_need_stable_plan",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_stable_plan_first"
+          },
+          "renderer_id": "sara.generic_need_stable_plan",
+          "renderer_variants": [
+            "The support context is already documented, but I need a stable narrowed plan early enough to keep the customer story credible.",
+            "I can help with the customer-facing context. Use the support notes as the baseline, and lock the descoped plan soon."
+          ],
+          "surface_facts": [
+            "support_context_available"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "cell_id": "sara_chat_fallback_late",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "accumulate": true,
+              "belief_key": "actor.sara.private_driver.needs_stable_plan_early",
+              "belief_value": true,
+              "confidence": 0.55,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "sara_needs_plan_by_wed_noon"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "patch": {
+                "customer_confidence": "at_risk"
+              },
+              "type": "project_state_patch"
+            }
+          ],
+          "id": "sara.generic_late_pushback",
+          "outgoing_act_id": "ack.deferred",
+          "outgoing_slots": {
+            "reason": "late_customer_reset"
+          },
+          "renderer_id": "sara.generic_late_pushback",
+          "renderer_variants": [
+            "I still need a steadier customer story than this, and we are already late to reset expectations cleanly.",
+            "The customer-facing plan is getting risky now. Bring me a stable narrowed story, not another partial update."
           ],
           "surface_facts": [],
           "weight": 1.0

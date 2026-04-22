@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from tpm_sim.agent import AgentDecision, AgentRunner, OpenAIResponsesAgentAdapter
+from tpm_sim.agent.prompts import build_agent_prompt
 from tpm_sim.authoring import (
     accept_proposal,
     compile_contract,
@@ -23,11 +24,12 @@ from tpm_sim.authoring import (
     synthesize_world,
     validate_proposal,
 )
-from tpm_sim.cli import _resolve_authoring_model, _run_agent_replay, execute_command, execute_script
+from tpm_sim.cli import _resolve_authoring_model, _resolve_summary_judge_model, _run_agent_replay, execute_command, execute_script
 from tpm_sim.cli import (
     init_db,
     run_agent,
     run_agent_replay,
+    run_summarize_run,
     run_author_compile_contract,
     run_author_init,
     run_author_synthesize,
@@ -40,11 +42,13 @@ from tpm_sim.evaluator import Evaluator
 from tpm_sim.briefing import render_operator_briefing
 from tpm_sim.model_client import ModelResponse, OpenAIResponsesModelClient, _extract_output_text, _extract_refusal
 from tpm_sim.performance import (
+    _build_signal_coverage,
     _merge_decision_action_rows,
     build_behavior_diagnostics,
     build_run_summary,
     export_bundle_summary,
     export_run_summary,
+    render_bundle_summary,
     render_run_summary,
 )
 from tpm_sim.runtime_env import autoload_project_dotenv
@@ -759,6 +763,14 @@ class AgentAndAuthoringTests(unittest.TestCase):
         self.assertIn("read.tasks", call["schema"]["properties"]["action_type"]["enum"])
         self.assertIn("request.approval", call["schema"]["properties"]["arguments"]["properties"]["act_id"]["enum"])
 
+    def test_build_agent_prompt_keeps_private_notes_audit_only(self) -> None:
+        prompt = build_agent_prompt({"scenario_id": "internal_rollout_smoke", "time": "2026-05-05T09:00:00"})
+        system = prompt["system"]
+        self.assertIn("notes.write: private scratchpad only. It has no coordination effect.", system)
+        self.assertIn("follow through later", system)
+        self.assertNotIn("private-note stuffing instead of coordination", system)
+        self.assertNotIn("Think like a TPM, not a note-taker", system)
+
     def test_openai_agent_adapter_applies_gpt5_reasoning_defaults(self) -> None:
         payload = {
             "action_type": "read.tasks",
@@ -961,16 +973,82 @@ class AgentAndAuthoringTests(unittest.TestCase):
             report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
             summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
         rendered = render_run_summary(summary)
+        self.assertIn("Score: 15 / 85 (17.65%)", rendered)
         self.assertIn("Capability verdict:", rendered)
         self.assertIn("Direct answer:", rendered)
+        self.assertIn("Score breakdown:", rendered)
+        self.assertIn("This benchmark uses 85 rubric points.", rendered)
         self.assertIn("Top root-cause findings:", rendered)
         self.assertLess(rendered.index("Top root-cause findings:"), rendered.index("Supporting data:"))
-        self.assertIn("termination: turn budget exhausted; turns=4 / 10", rendered)
-        self.assertIn("Critical actors never contacted: dana, leo", rendered)
-        self.assertIn("Direct questions left unanswered: message:1", rendered)
+        self.assertIn("Explains 70 / 70 unearned points.", rendered)
+        self.assertIn("Outbound stakeholder coordination: ivy 3.", rendered)
+        self.assertIn("dana was a critical stakeholder and received no proactive TPM outreach.", rendered)
         self.assertIn("Reference-path divergence:", rendered)
-        self.assertIn("critical unsurfaced: full_rollout_infeasible, leo_rejects_fake_rollout_dates", rendered)
+        self.assertIn("Observed in the trace: 2 / 4", rendered)
+        self.assertIn("Observed but not converted: dana_accepts_staged_if_early", rendered)
+        self.assertIn("Not observed at all: full_rollout_infeasible, leo_rejects_fake_rollout_dates", rendered)
+        self.assertIn("Stakeholder drivers / hidden motives:", rendered)
+        self.assertIn("Dana backs staged rollout if engaged early [dana_accepts_staged_if_early]: surfaced", rendered)
+        self.assertIn("TPM private notes:", rendered)
+        self.assertIn("No private notes were written.", rendered)
+        self.assertIn("Confidence: Low confidence. This is a single-seed directional readout", rendered)
+        self.assertIn("Run end: turn budget exhausted; turns=4 / 10;", rendered)
         self.assertIn("rubric failure: Scope aligned on time lost=25.0", rendered)
+
+    def test_render_run_summary_surfaces_private_note_follow_through(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+        summary["run_health"]["behavior_diagnostics"]["private_note_audit"] = {
+            "total_notes_written": 2,
+            "structured_notes_written": 2,
+            "followed_through": 1,
+            "revisited_only": 0,
+            "not_followed_through": 1,
+            "unscoped_notes": 0,
+        }
+        summary["raw_scoring_appendix"]["private_note_audit_notes"] = [
+            {
+                "note_doc_id": "DOC-NOTE-001",
+                "note_action_ref": "action:10",
+                "created_turn": 3,
+                "created_at": "2026-05-05T09:10:00",
+                "refs": ["task:approval_review"],
+                "status": "followed_through",
+                "reread_note": False,
+                "reread_note_action_ref": None,
+                "reread_note_at": None,
+                "first_touch_action_ref": "action:11",
+                "first_touch_at": "2026-05-05T09:15:00",
+                "first_touch_refs": ["task:approval_review"],
+                "first_non_read_touch_action_ref": "action:11",
+                "first_non_read_touch_at": "2026-05-05T09:15:00",
+                "first_non_read_touch_refs": ["task:approval_review"],
+                "touch_action_refs": ["action:11"],
+            },
+            {
+                "note_doc_id": "DOC-NOTE-002",
+                "note_action_ref": "action:12",
+                "created_turn": 4,
+                "created_at": "2026-05-05T09:20:00",
+                "refs": ["actor:ivy"],
+                "status": "not_followed_through",
+                "reread_note": False,
+                "reread_note_action_ref": None,
+                "reread_note_at": None,
+                "first_touch_action_ref": None,
+                "first_touch_at": None,
+                "first_touch_refs": [],
+                "first_non_read_touch_action_ref": None,
+                "first_non_read_touch_at": None,
+                "first_non_read_touch_refs": [],
+                "touch_action_refs": [],
+            },
+        ]
+        rendered = render_run_summary(summary)
+        self.assertIn("Written=2; structured=2; followed through=1; revisited only=0; not followed through=1; unscoped=0.", rendered)
+        self.assertIn("DOC-NOTE-001: followed through; influenced later work via action:11; refs: task:approval_review.", rendered)
+        self.assertIn("DOC-NOTE-002: not followed through; refs: actor:ivy.", rendered)
 
     def test_scripted_agent_runner_can_complete_internal_rollout_smoke(self) -> None:
         actions = [
@@ -1089,6 +1167,7 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 summary = export_run_summary(run_dir, write_files=True)
             self.assertEqual(summary["schema_version"], "tpm_performance_summary_v3")
             self.assertIn("capability_assessment", summary)
+            self.assertIn("score_breakdown", summary)
             self.assertIn("root_cause_findings", summary)
             self.assertIn("stakeholder_engagement", summary)
             self.assertIn("signal_coverage", summary)
@@ -1101,6 +1180,27 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertEqual(summary["narrative"]["source"], "deterministic_template")
             self.assertTrue((run_dir / "tpm_performance_summary.json").exists())
             self.assertTrue((run_dir / "judge_input_bundle.json").exists())
+
+    def test_export_run_summary_resolves_paths_after_run_directory_move(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            original_run_dir = Path(payload["run"]["output_dir"])
+            Path(payload["run"]["report_path"]).write_text(json.dumps(report, indent=2, sort_keys=True))
+            Path(payload["run"]["agent_log_path"]).write_text(json.dumps(payload, indent=2, sort_keys=True))
+            moved_run_dir = Path(tmpdir) / "moved_failure_run"
+            original_run_dir.rename(moved_run_dir)
+
+            with mock.patch("tpm_sim.performance.load_scenario_bundle", return_value=scenario_bundle):
+                summary = export_run_summary(moved_run_dir, write_files=True)
+
+            self.assertEqual(summary["run_header"]["report_path"], str(moved_run_dir / "benchmark_run.report.json"))
+            repaired_run = json.loads((moved_run_dir / "agent_run.json").read_text())["run"]
+            repaired_report = json.loads((moved_run_dir / "benchmark_run.report.json").read_text())
+            self.assertEqual(repaired_run["output_dir"], str(moved_run_dir))
+            self.assertEqual(repaired_run["report_path"], str(moved_run_dir / "benchmark_run.report.json"))
+            self.assertEqual(repaired_run["agent_log_path"], str(moved_run_dir / "agent_run.json"))
+            self.assertEqual(repaired_report["trace_paths"]["agent_trace"], str(moved_run_dir / "agent_trace.jsonl"))
+            self.assertEqual(repaired_report["trace_paths"]["omniscient_trace"], str(moved_run_dir / "omniscient_trace.jsonl"))
 
     def test_merge_decision_action_rows_prefers_executed_action_refs(self) -> None:
         action_rows = [
@@ -1371,6 +1471,77 @@ class AgentAndAuthoringTests(unittest.TestCase):
         self.assertTrue(by_note["DOC-NOTE-003"]["reread_note"])
         self.assertEqual(by_note["DOC-NOTE-004"]["status"], "unscoped")
 
+    def test_build_behavior_diagnostics_excludes_private_notes_from_artifact_churn(self) -> None:
+        scenario = summary_scenario_bundle()["scenario"]
+        action_rows = [
+            {
+                "turn": 1,
+                "time": "2026-05-05T09:00:00",
+                "action_type": "notes.write",
+                "act_id": "note.write",
+                "target": None,
+                "task_id": None,
+                "doc_id": "DOC-NOTE-010",
+                "meeting_id": None,
+                "refs": ["task:approval_review"],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:10",
+                "surface": "notes",
+                "duration_minutes": 5,
+                "slots": {"doc_id": "DOC-NOTE-010"},
+                "metadata": {"doc_id": "DOC-NOTE-010", "refs": ["task:approval_review"]},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+            {
+                "turn": 2,
+                "time": "2026-05-05T09:05:00",
+                "action_type": "notes.write",
+                "act_id": "note.write",
+                "target": None,
+                "task_id": None,
+                "doc_id": "DOC-NOTE-011",
+                "meeting_id": None,
+                "refs": ["actor:ivy"],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:11",
+                "surface": "notes",
+                "duration_minutes": 5,
+                "slots": {"doc_id": "DOC-NOTE-011"},
+                "metadata": {"doc_id": "DOC-NOTE-011", "refs": ["actor:ivy"]},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+            {
+                "turn": 3,
+                "time": "2026-05-05T09:10:00",
+                "action_type": "docs.write",
+                "act_id": "docs.write",
+                "target": None,
+                "task_id": None,
+                "doc_id": "DOC-PLAN-001",
+                "meeting_id": None,
+                "refs": [],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "action_ref": "action:12",
+                "surface": "docs",
+                "duration_minutes": 15,
+                "slots": {"doc_id": "DOC-PLAN-001"},
+                "metadata": {"doc_id": "DOC-PLAN-001"},
+                "thread_id": None,
+                "target_actor_id": None,
+            },
+        ]
+        diagnostics = build_behavior_diagnostics(action_rows, [], scenario)
+        self.assertEqual(diagnostics["counts"]["artifact_churn"], 1)
+        self.assertEqual(diagnostics["private_note_audit"]["total_notes_written"], 2)
+
     def test_run_summary_surfaces_new_driver_discovery_lines_when_relevant(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
@@ -1379,10 +1550,59 @@ class AgentAndAuthoringTests(unittest.TestCase):
         self.assertIn("project_constraint_discovery", success_ids)
         self.assertIn("stakeholder_driver_discovery", success_ids)
 
+    def test_northstar_driver_signal_conversion_tracks_maya_feasibility_follow_up(self) -> None:
+        scenario = load_bundle_from_current_sources("northstar_launch_week")["scenario"]
+        visible_trace = [
+            {
+                "id": 1,
+                "at": "2026-05-05T09:00:00",
+                "event_type": "fact_signal",
+                "payload": {"fact_id": "maya_rejects_fake_dates_under_pressure", "observer_id": "tpm"},
+            }
+        ]
+        merged_action_rows = [
+            {
+                "turn": 2,
+                "time": "2026-05-05T09:05:00",
+                "action_type": "chat.send",
+                "act_id": "request.feasibility",
+                "target": "maya",
+                "task_id": "backend_api",
+                "doc_id": None,
+                "meeting_id": None,
+                "refs": [],
+                "validation_errors": [],
+                "repair_attempts": 0,
+                "step_succeeded": True,
+                "executed_action_ref": "action:1",
+                "action_id": 1,
+                "action_ref": "action:1",
+                "surface": "chat",
+                "duration_minutes": 10,
+                "body": "Need the honest path and blockers.",
+                "slots": {"task_id": "backend_api"},
+                "metadata": {"target_actor_id": "maya"},
+                "thread_id": "maya",
+                "target_actor_id": "maya",
+            }
+        ]
+        coverage = _build_signal_coverage(scenario, visible_trace, merged_action_rows)
+        maya_row = next(
+            row for row in coverage["signals"] if row["signal_id"] == "maya_rejects_fake_dates_under_pressure"
+        )
+        self.assertEqual(maya_row["kind"], "driver")
+        self.assertEqual(maya_row["expected_actors"], ["maya"])
+        self.assertIn("feasibility_alignment", maya_row["expected_action_families"])
+        self.assertTrue(maya_row["converted_to_plan_change"])
+        self.assertEqual(maya_row["conversion_action_refs"], ["action:1"])
+
     def test_build_run_summary_surfaces_behavior_centric_findings_with_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
             summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+        self.assertEqual(summary["score_breakdown"]["total_possible"], 85.0)
+        self.assertEqual(summary["score_breakdown"]["total_awarded"], 15.0)
+        self.assertEqual(summary["score_breakdown"]["total_unearned"], 70.0)
         findings = summary["root_cause_findings"]
         self.assertGreaterEqual(len(findings), 4)
         self.assertEqual(findings[0]["id"], "cue_not_converted_to_plan_change")
@@ -1417,6 +1637,20 @@ class AgentAndAuthoringTests(unittest.TestCase):
         self.assertIn("message:2", evidence_refs)
         self.assertIn("action:1", evidence_refs)
         self.assertIn("event:15", evidence_refs)
+
+    def test_build_run_summary_merges_missing_signal_events_from_omniscient_trace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
+            agent_trace_path = Path(report["trace_paths"]["agent_trace"])
+            omniscient_rows = [json.loads(line) for line in Path(report["trace_paths"]["omniscient_trace"]).read_text().splitlines() if line.strip()]
+            agent_only_rows = [row for row in omniscient_rows if row["event_type"] == "npc.message_sent"]
+            write_jsonl(agent_trace_path, agent_only_rows)
+            summary = build_run_summary(report, agent_payload=payload, scenario_bundle=scenario_bundle)
+        self.assertEqual(summary["signal_coverage"]["summary_metrics"]["critical_observed"], 2)
+        self.assertEqual(
+            summary["signal_coverage"]["summary_metrics"]["critical_not_observed"],
+            ["full_rollout_infeasible", "leo_rejects_fake_rollout_dates"],
+        )
 
     def test_build_run_summary_marks_coverage_interruptions_as_run_interruption(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1470,6 +1704,7 @@ class AgentAndAuthoringTests(unittest.TestCase):
             )
         self.assertEqual(len(client.calls), 1)
         prompt_bundle = json.loads(client.calls[0]["prompt_spec"]["user"])
+        self.assertIn("score_breakdown", prompt_bundle)
         self.assertIn("capability_assessment", prompt_bundle)
         self.assertIn("missed_opportunities", prompt_bundle)
         self.assertIn("evidence_catalog", prompt_bundle)
@@ -1535,6 +1770,7 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 {
                     "schema_version": "tpm_performance_summary_v3",
                     "run_header": {"seed": 11, "score": 55, "scenario_id": "internal_rollout_smoke", "summary_path": "a"},
+                    "score_breakdown": {"total_possible": 100.0},
                     "outcome_verdict": {"headline": "partial"},
                     "capability_assessment": {"rating": "mixed"},
                     "root_cause_findings": [{"id": "wrong_precondition_sequence", "title": "Wrong Precondition Sequence", "lost_points_total": 50.0}],
@@ -1551,8 +1787,30 @@ class AgentAndAuthoringTests(unittest.TestCase):
                     },
                     "signal_coverage": {
                         "signals": [
-                            {"signal_id": "approval_required", "criticality": "critical", "surfaced": True, "converted_to_plan_change": True},
-                            {"signal_id": "full_rollout_infeasible", "criticality": "critical", "surfaced": False, "converted_to_plan_change": False},
+                            {
+                                "signal_id": "approval_required",
+                                "label": "Approval is required for the staged rollout",
+                                "kind": "fact",
+                                "criticality": "critical",
+                                "surfaced": True,
+                                "converted_to_plan_change": True,
+                            },
+                            {
+                                "signal_id": "dana_accepts_staged_if_early",
+                                "label": "Dana backs staged rollout if engaged early",
+                                "kind": "driver",
+                                "criticality": "critical",
+                                "surfaced": True,
+                                "converted_to_plan_change": False,
+                            },
+                            {
+                                "signal_id": "full_rollout_infeasible",
+                                "label": "Full rollout is not credible this week",
+                                "kind": "fact",
+                                "criticality": "critical",
+                                "surfaced": False,
+                                "converted_to_plan_change": False,
+                            },
                         ]
                     },
                     "window_scorecards": [
@@ -1561,12 +1819,28 @@ class AgentAndAuthoringTests(unittest.TestCase):
                     "reference_path_diff": {"expected_step": "docs open DOC-BRIEF-100", "actual_step": "chat.send ivy"},
                     "tpm_competency_profile": [{"id": "discovery_situation_awareness", "label": "Discovery & Situation Awareness", "score": 80}],
                     "outcome_profile": [{"id": "outcome_attainment", "label": "Outcome Attainment", "score": 40}],
-                    "run_health": {"protocol_failure": False, "coverage_miss": False, "harness_interface_issues": [], "scenario_authoring_issues": []},
+                    "run_health": {
+                        "protocol_failure": False,
+                        "coverage_miss": False,
+                        "harness_interface_issues": [],
+                        "scenario_authoring_issues": [],
+                        "behavior_diagnostics": {
+                            "private_note_audit": {
+                                "total_notes_written": 2,
+                                "structured_notes_written": 2,
+                                "followed_through": 1,
+                                "revisited_only": 1,
+                                "not_followed_through": 0,
+                                "unscoped_notes": 0,
+                            }
+                        },
+                    },
                     "key_failures": [{"id": "scope_aligned_on_time"}],
                 },
                 {
                     "schema_version": "tpm_performance_summary_v3",
                     "run_header": {"seed": 29, "score": 45, "scenario_id": "internal_rollout_smoke", "summary_path": "b"},
+                    "score_breakdown": {"total_possible": 100.0},
                     "outcome_verdict": {"headline": "failed"},
                     "capability_assessment": {"rating": "poor"},
                     "root_cause_findings": [{"id": "wrong_precondition_sequence", "title": "Wrong Precondition Sequence", "lost_points_total": 70.0}],
@@ -1583,8 +1857,30 @@ class AgentAndAuthoringTests(unittest.TestCase):
                     },
                     "signal_coverage": {
                         "signals": [
-                            {"signal_id": "approval_required", "criticality": "critical", "surfaced": True, "converted_to_plan_change": True},
-                            {"signal_id": "full_rollout_infeasible", "criticality": "critical", "surfaced": False, "converted_to_plan_change": False},
+                            {
+                                "signal_id": "approval_required",
+                                "label": "Approval is required for the staged rollout",
+                                "kind": "fact",
+                                "criticality": "critical",
+                                "surfaced": True,
+                                "converted_to_plan_change": True,
+                            },
+                            {
+                                "signal_id": "dana_accepts_staged_if_early",
+                                "label": "Dana backs staged rollout if engaged early",
+                                "kind": "driver",
+                                "criticality": "critical",
+                                "surfaced": False,
+                                "converted_to_plan_change": False,
+                            },
+                            {
+                                "signal_id": "full_rollout_infeasible",
+                                "label": "Full rollout is not credible this week",
+                                "kind": "fact",
+                                "criticality": "critical",
+                                "surfaced": False,
+                                "converted_to_plan_change": False,
+                            },
                         ]
                     },
                     "window_scorecards": [
@@ -1593,19 +1889,56 @@ class AgentAndAuthoringTests(unittest.TestCase):
                     "reference_path_diff": {"expected_step": "docs open DOC-BRIEF-100", "actual_step": "chat.send ivy"},
                     "tpm_competency_profile": [{"id": "discovery_situation_awareness", "label": "Discovery & Situation Awareness", "score": 60}],
                     "outcome_profile": [{"id": "outcome_attainment", "label": "Outcome Attainment", "score": 20}],
-                    "run_health": {"protocol_failure": False, "coverage_miss": False, "harness_interface_issues": [], "scenario_authoring_issues": []},
+                    "run_health": {
+                        "protocol_failure": False,
+                        "coverage_miss": False,
+                        "harness_interface_issues": [],
+                        "scenario_authoring_issues": [],
+                        "behavior_diagnostics": {
+                            "private_note_audit": {
+                                "total_notes_written": 0,
+                                "structured_notes_written": 0,
+                                "followed_through": 0,
+                                "revisited_only": 0,
+                                "not_followed_through": 0,
+                                "unscoped_notes": 0,
+                            }
+                        },
+                    },
                     "key_failures": [{"id": "scope_aligned_on_time"}],
                 },
             ]
             summary = export_bundle_summary(Path(tmpdir), run_summaries, scenario_id="internal_rollout_smoke", model="mock-model", seed_bundle=[11, 29], write_files=False)
             self.assertEqual(summary["schema_version"], "tpm_bundle_performance_summary_v2")
             self.assertEqual(summary["headline"]["mean_score"], 50.0)
+            self.assertEqual(summary["headline"]["score_possible"], 100.0)
             self.assertEqual(summary["aggregate_capability_assessment"]["rating"], "mixed")
             self.assertEqual(summary["confidence_scope"], "multi_seed_supported")
             self.assertEqual(summary["recurring_root_causes"][0]["id"], "wrong_precondition_sequence")
+            self.assertEqual(summary["recurring_root_causes"][0]["seeds"], [11, 29])
             self.assertEqual(summary["stakeholder_failure_patterns"][0]["actor_id"], "leo")
             self.assertEqual(summary["signal_coverage_consistency"][0]["signal_id"], "approval_required")
+            self.assertEqual(summary["driver_signal_consistency"][0]["signal_id"], "dana_accepts_staged_if_early")
+            self.assertEqual(summary["private_note_audit_aggregate"]["runs_with_any_notes"], 1)
+            self.assertEqual(summary["private_note_audit_aggregate"]["runs_with_followed_through_notes"], 1)
             self.assertEqual(summary["window_miss_recurrence"][0]["window_id"], "approval_cutoff")
+            self.assertEqual(summary["runs"][0]["critical_signals_total"], 3)
+            self.assertEqual(summary["runs"][0]["critical_signals_observed"], 2)
+            self.assertEqual(summary["runs"][0]["critical_signals_converted"], 1)
+            self.assertEqual(summary["runs"][0]["critical_actors_never_contacted"], ["leo"])
+            self.assertEqual(summary["dimension_highlights"]["stable_weaknesses"][0]["id"], "outcome_attainment")
+            self.assertEqual(summary["narrative"]["source"], "deterministic_template")
+            rendered = render_bundle_summary(summary)
+            self.assertIn("Per-seed comparison:", rendered)
+            self.assertIn("| Seed | Score | Capability | Outcome | Critical signals | Driver clues | Stakeholder handling | Windows | Biggest miss |", rendered)
+            self.assertIn("| 11 | 55 / 100 (55%) | mixed | partial | 2/3 seen, 1/3 acted | 1/1 seen, 0/1 acted | missed leo; 1 unanswered | 0/1 hit | Wrong Precondition Sequence |", rendered)
+            self.assertIn("Capability profile:", rendered)
+            self.assertIn("| Root cause | Runs | Seeds | Mean lost points |", rendered)
+            self.assertIn("Critical signal consistency:", rendered)
+            self.assertIn("Driver clue consistency:", rendered)
+            self.assertIn("| Dana backs staged rollout if engaged early [dana_accepts_staged_if_early] | 1/2 (50%) | 0/2 (0%) | 11 | none |", rendered)
+            self.assertIn("Private note audit:", rendered)
+            self.assertIn("| Runs with notes | 1/2 |", rendered)
 
     def test_observation_exposes_unread_threads_with_stable_ids(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1633,6 +1966,288 @@ class AgentAndAuthoringTests(unittest.TestCase):
             fact_ids = {item["id"] for item in observation["working_memory"]["surfaced_facts"]}
             self.assertIn("maya_oncall_until_mon_1500", fact_ids)
             self.assertIn("backend_infeasible_for_friday", fact_ids)
+
+    def test_northstar_andrew_clarification_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "andrew_clarification.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                result = session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "andrew",
+                            "act_id": "request.clarification",
+                            "body": "What specific alignment do you need before the frontend pilot can move?",
+                        },
+                    )
+                )
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_andrew_inform_decision_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "andrew_decision.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "andrew",
+                            "act_id": "inform.decision",
+                            "body": "We may need to narrow the pilot and I want to keep the frontend path aligned.",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_rahul_inform_blocker_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "rahul_blocker.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(StructuredAction("read.doc", {"doc_id": "DOC-SUPPORT-001"}))
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "rahul",
+                            "act_id": "inform.blocker",
+                            "body": "I reviewed the support context and design is still blocked until we align scope.",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_rahul_inform_decision_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "rahul_decision.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(StructuredAction("read.doc", {"doc_id": "DOC-SUPPORT-001"}))
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "rahul",
+                            "act_id": "inform.decision",
+                            "body": "I reviewed the support context and want to align on the next design step for the pilot.",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_rahul_clarification_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "rahul_clarification.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "rahul",
+                            "act_id": "request.clarification",
+                            "body": "Can you clarify what support context and narrowed flow details you still need before design can move?",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_rahul_review_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "rahul_review.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "rahul",
+                            "act_id": "request.review",
+                            "body": "Can you review the narrowed pilot flow once I have the customer context and concrete path packaged?",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_rahul_status_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "rahul_status.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "rahul",
+                            "act_id": "inform.status_update",
+                            "body": "Quick status update: we are still narrowing the pilot path and I want to keep design aligned.",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_rahul_approval_after_context_before_scope_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "rahul_approval_need_scope.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(StructuredAction("read.doc", {"doc_id": "DOC-SUPPORT-001"}))
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "rahul",
+                            "act_id": "request.approval",
+                            "body": "Can you sign off on the design now that I have the support context, even though the sponsor has not yet locked the narrowed scope?",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_sara_clarification_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "sara_clarification.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "sara",
+                            "act_id": "request.clarification",
+                            "body": "Can you clarify the customer support context and what needs to stay stable for the descoped pilot story?",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_maya_inform_blocker_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "maya_blocker.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "maya",
+                            "act_id": "inform.blocker",
+                            "body": "The backend blocker is keeping us from aligning the pilot plan.",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_rohit_clarification_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "rohit_clarification.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "rohit",
+                            "act_id": "request.clarification",
+                            "body": "We need to clarify what is actually launchable this week for the pilot.",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_rohit_inform_decision_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "rohit_decision.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "rohit",
+                            "act_id": "inform.decision",
+                            "body": "The feasible scope this week is a descoped pilot with the critical dependencies still being worked through.",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_nina_request_approval_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "nina_approval.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "nina",
+                            "act_id": "request.approval",
+                            "body": "Can security approve the pilot path as-is so we can keep moving?",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
+
+    def test_northstar_nina_request_clarification_path_has_authored_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "nina_clarification.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "nina",
+                            "act_id": "request.clarification",
+                            "body": "What do you need from us to make the security path real this week?",
+                        },
+                    )
+                )
+                result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+            finally:
+                session.close()
+            self.assertFalse(result.coverage_miss)
 
     def test_chat_send_uses_semantic_cost_buckets(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -2416,7 +3031,7 @@ class AgentAndAuthoringTests(unittest.TestCase):
             with (
                 mock.patch("tpm_sim.cli.build_model_client", return_value=object()),
                 mock.patch("tpm_sim.cli.OpenAIResponsesAgentAdapter", return_value=ScriptedAdapter(actions)),
-                mock.patch("tpm_sim.cli.export_run_summary", return_value=summary),
+                mock.patch("tpm_sim.cli.export_run_summary", return_value=summary) as export_run_summary_mock,
                 redirect_stdout(stdout),
                 redirect_stderr(stderr),
             ):
@@ -2434,6 +3049,22 @@ class AgentAndAuthoringTests(unittest.TestCase):
         self.assertEqual(json.loads(stdout.getvalue()), summary)
         self.assertIn("tpm.message_sent", stderr.getvalue())
         self.assertIn("npc.message_sent", stderr.getvalue())
+        self.assertEqual(export_run_summary_mock.call_args.kwargs["judge_model"], "gpt-5.4")
+
+    def test_run_summarize_run_uses_gpt_5_4_judge_model(self) -> None:
+        stdout = StringIO()
+        summary = {"schema_version": "test_summary_v1", "ok": True}
+        with (
+            mock.patch("tpm_sim.cli.summarize_existing_run", return_value=summary) as summarize_existing_run_mock,
+            redirect_stdout(stdout),
+        ):
+            exit_code = run_summarize_run("/tmp/mock-run", as_json_output=True)
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(json.loads(stdout.getvalue()), summary)
+        self.assertEqual(summarize_existing_run_mock.call_args.kwargs["judge_model"], "gpt-5.4")
+
+    def test_resolve_summary_judge_model_is_pinned_to_gpt_5_4(self) -> None:
+        self.assertEqual(_resolve_summary_judge_model(), "gpt-5.4")
 
     def test_internal_rollout_smoke_script_runs_cleanly(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -2474,6 +3105,66 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertTrue(any("Leo Park" in message for message in notices))
             self.assertIn("[inform.status_update]", thread_view.message)
             self.assertIn("actor.leo.prefers_scope_before_eta", thread_view.message)
+
+    def test_northstar_clarification_to_maya_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "maya_clarification.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "maya",
+                            "act_id": "request.clarification",
+                            "slots": {},
+                            "body": "Clarify the real blocker and what needs to happen next.",
+                        },
+                    )
+                )
+                notices = []
+                for _ in range(3):
+                    result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 180}))
+                    notices.append(result.message)
+                    if "Maya Chen" in result.message:
+                        break
+                thread_view = session.step(StructuredAction("read.thread", {"target": "maya"}))
+            finally:
+                session.close()
+            self.assertTrue(any("Maya Chen" in message for message in notices))
+            self.assertIn("[inform.blocker]", thread_view.message)
+            self.assertIn("Full backend scope is not credible for Friday", thread_view.message)
+            self.assertIn("Security review is required", thread_view.message)
+
+    def test_northstar_status_update_to_maya_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "maya_status.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "maya",
+                            "act_id": "inform.status_update",
+                            "slots": {},
+                            "body": "Status update: we still need the credible backend path and security timing.",
+                        },
+                    )
+                )
+                notices = []
+                for _ in range(3):
+                    result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 180}))
+                    notices.append(result.message)
+                    if "Maya Chen" in result.message:
+                        break
+                thread_view = session.step(StructuredAction("read.thread", {"target": "maya"}))
+            finally:
+                session.close()
+            self.assertTrue(any("Maya Chen" in message for message in notices))
+            self.assertIn("[inform.blocker]", thread_view.message)
+            self.assertIn("Full backend scope is not credible for Friday", thread_view.message)
+            self.assertIn("Security review is required", thread_view.message)
 
     def test_internal_rollout_request_eta_to_ivy_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -3085,6 +3776,86 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 _run_agent_replay(str(run_dir), events="omniscient", event_limit=10)
             rendered = output.getvalue()
             self.assertIn("Chronological omniscient events:", rendered)
+            self.assertIn("[2026-05-05T10:00:00] dana npc.message_sent", rendered)
+
+    def test_agent_replay_resolves_paths_after_run_directory_move(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_run_dir = Path(tmpdir) / "run"
+            original_run_dir.mkdir(parents=True, exist_ok=True)
+            report_path = original_run_dir / "benchmark_run.report.json"
+            agent_trace = original_run_dir / "benchmark_run.agent_trace.jsonl"
+            omniscient_trace = original_run_dir / "benchmark_run.omniscient_trace.jsonl"
+            agent_trace.write_text(
+                json.dumps(
+                    {
+                        "actor_id": "tpm",
+                        "at": "2026-05-05T09:00:00",
+                        "event_type": "task.tracker_updated",
+                        "phase": "interaction_start",
+                        "summary": "Updated tracker note for approval_review",
+                    }
+                )
+                + "\n"
+            )
+            omniscient_trace.write_text(
+                json.dumps(
+                    {
+                        "actor_id": "dana",
+                        "at": "2026-05-05T10:00:00",
+                        "event_type": "npc.message_sent",
+                        "phase": "interaction_start",
+                        "summary": "dana proactively messaged TPM",
+                    }
+                )
+                + "\n"
+            )
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "trace_paths": {
+                            "agent_trace": str(agent_trace),
+                            "omniscient_trace": str(omniscient_trace),
+                        }
+                    }
+                )
+            )
+            (original_run_dir / "agent_run.json").write_text(
+                json.dumps(
+                    {
+                        "run": {
+                            "scenario_id": "internal_rollout_smoke",
+                            "seed": 11,
+                            "model": "gpt-test",
+                            "score": 5.0,
+                            "turns_taken": 1,
+                            "protocol_failure": False,
+                            "report_path": str(report_path),
+                        },
+                        "decisions": [
+                            {
+                                "turn": 1,
+                                "observation_time": "2026-05-05T09:00:00",
+                                "decision": {"action": {"action_type": "task.note"}},
+                                "step_result": {
+                                    "time_before": "2026-05-05T09:00:00",
+                                    "time_after": "2026-05-05T09:03:00",
+                                    "message": "Updated tracker note for approval_review.",
+                                },
+                                "validation_errors": [],
+                            }
+                        ],
+                    }
+                )
+            )
+            moved_run_dir = Path(tmpdir) / "moved_run"
+            original_run_dir.rename(moved_run_dir)
+
+            output = StringIO()
+            with redirect_stdout(output):
+                _run_agent_replay(str(moved_run_dir), events="omniscient", event_limit=10)
+            rendered = output.getvalue()
+            self.assertIn(str(moved_run_dir / "benchmark_run.agent_trace.jsonl"), rendered)
+            self.assertIn(str(moved_run_dir / "benchmark_run.omniscient_trace.jsonl"), rendered)
             self.assertIn("[2026-05-05T10:00:00] dana npc.message_sent", rendered)
 
 

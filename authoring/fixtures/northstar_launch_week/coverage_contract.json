@@ -54,6 +54,44 @@
       "why_reachable": "Extracted from legacy compiled coverage."
     },
     {
+      "compiled_family_id": "maya.blocker.undecided",
+      "criticality": "critical",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_blocker_undecided",
+      "priority": 34,
+      "rationale": "Low-capability models sometimes tell Maya there is a blocker instead of directly asking for feasibility.",
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may message Maya about the blocker while the scope is still undecided."
+    },
+    {
+      "compiled_family_id": "maya.blocker.descoped",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_blocker_descoped",
+      "priority": 37,
+      "rationale": "After descoping, blocker updates to Maya should still route to the credible backend commitment path.",
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may continue coordinating around the backend blocker after scope narrows."
+    },
+    {
       "compiled_family_id": "rohit.risk.early",
       "criticality": "important",
       "id": "rohit_risk",
@@ -65,6 +103,19 @@
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "rohit.clarification.scope",
+      "criticality": "important",
+      "id": "rohit_clarification_scope",
+      "priority": 22,
+      "rationale": "Low-capability models sometimes ask Rohit to clarify scope before making a concrete approval request.",
+      "selector": {
+        "actor_id": "rohit",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may ask Rohit to clarify the real launch scope before bringing him a concrete tradeoff."
     },
     {
       "compiled_family_id": "rohit.approval.need_context",
@@ -126,6 +177,42 @@
       "why_reachable": "Extracted from legacy compiled coverage."
     },
     {
+      "compiled_family_id": "rohit.generic.undecided",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rohit_chat_fallback_undecided",
+      "priority": 5,
+      "rationale": "Strict mode should still cover lower-signal Rohit chat acts like decision notes or generic status updates.",
+      "selector": {
+        "actor_id": "rohit",
+        "surface": "chat"
+      },
+      "why_reachable": "Low-capability models often use generic sponsor updates instead of the more structured risk or approval acts."
+    },
+    {
+      "compiled_family_id": "rohit.generic.descoped",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rohit_chat_fallback_descoped",
+      "priority": 6,
+      "rationale": "After descoping, generic Rohit chat should still keep sponsor alignment moving instead of failing coverage.",
+      "selector": {
+        "actor_id": "rohit",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may send a generic scope or status note to Rohit after the path narrows."
+    },
+    {
       "compiled_family_id": "andrew.ownership.before_scope",
       "criticality": "important",
       "guard": {
@@ -164,6 +251,150 @@
       "why_reachable": "Extracted from legacy compiled coverage."
     },
     {
+      "compiled_family_id": "andrew.clarification.before_scope",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_clarification_before_scope",
+      "priority": 20,
+      "rationale": "Covers Andrew clarifying the frontend blocker before the scope decision is made.",
+      "selector": {
+        "actor_id": "andrew",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may ask Andrew to clarify the frontend blocker before scope is aligned."
+    },
+    {
+      "compiled_family_id": "andrew.clarification.after_scope",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_clarification_after_scope",
+      "priority": 25,
+      "rationale": "Covers Andrew clarifying the remaining frontend dependencies once scope is aligned.",
+      "selector": {
+        "actor_id": "andrew",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may ask Andrew to clarify what remains after the descoped pilot path is chosen."
+    },
+    {
+      "compiled_family_id": "andrew.generic.undecided",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_chat_fallback_undecided",
+      "priority": 5,
+      "rationale": "Before scope is decided, generic Andrew chat should still reinforce the real frontend dependency instead of failing coverage.",
+      "selector": {
+        "actor_id": "andrew",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may send Andrew a generic status or decision note before scope is aligned."
+    },
+    {
+      "compiled_family_id": "andrew.generic.descoped",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_chat_fallback_descoped",
+      "priority": 6,
+      "rationale": "After descoping, generic Andrew chat should keep the frontend path grounded in the remaining dependency set.",
+      "selector": {
+        "actor_id": "andrew",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may send Andrew a generic scope or status note after the path narrows."
+    },
+    {
+      "compiled_family_id": "rahul.blocker.note",
+      "criticality": "important",
+      "id": "rahul_inform_blocker",
+      "priority": 18,
+      "rationale": "Low-capability models sometimes tell Rahul design is blocked instead of asking for approval directly.",
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "inform.blocker",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may message Rahul about the blocker after reading the support notes."
+    },
+    {
+      "compiled_family_id": "rahul.decision.note",
+      "criticality": "important",
+      "id": "rahul_inform_decision",
+      "priority": 18,
+      "rationale": "Low-capability models sometimes tell Rahul a decision or context update before asking for approval directly.",
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may message Rahul after reading support notes to align on the next design step."
+    },
+    {
+      "compiled_family_id": "rahul.clarification.scope_and_context",
+      "criticality": "important",
+      "id": "rahul_clarification_scope_and_context",
+      "priority": 19,
+      "rationale": "Low-capability models sometimes ask Rahul to clarify the missing design inputs instead of bringing a concrete approval request.",
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.clarification",
+        "surface": "chat"
+      },
+      "why_reachable": "Observed in live-agent execution when the TPM tries to unblock design_signoff by asking Rahul what context or narrowed path he still needs."
+    },
+    {
+      "compiled_family_id": "rahul.review.scope_and_context",
+      "criticality": "important",
+      "id": "rahul_review_scope_and_context",
+      "priority": 20,
+      "rationale": "Low-capability models sometimes package a review request for Rahul before they have converted the dependency into a concrete approval path.",
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      },
+      "why_reachable": "Observed in live-agent execution when the TPM repeatedly asks Rahul to review design instead of using the explicit approval affordance."
+    },
+    {
+      "compiled_family_id": "rahul.generic.undecided",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rahul_chat_fallback_undecided",
+      "priority": 10,
+      "rationale": "Before scope is aligned, generic Rahul chat should still reinforce the need for support context and a narrowed flow.",
+      "selector": {
+        "actor_id": "rahul",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may keep Rahul informed with generic status or clarification notes before the pilot scope is narrowed."
+    },
+    {
       "compiled_family_id": "rahul.approval.without_context",
       "criticality": "critical",
       "guard": {
@@ -180,6 +411,32 @@
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "rahul.approval.need_scope",
+      "criticality": "critical",
+      "guard": {
+        "all_of": [
+          {
+            "surfaced": "support_context_available"
+          },
+          {
+            "project_state": {
+              "equals": "undecided",
+              "field": "launch_scope"
+            }
+          }
+        ]
+      },
+      "id": "rahul_need_scope_after_context",
+      "priority": 25,
+      "rationale": "Once support context is surfaced, low-capability models may still ask Rahul for approval before the sponsor has actually locked the narrowed scope.",
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "Observed in live-agent execution after the TPM found support context but had not yet converted it into an approved descoped pilot."
     },
     {
       "compiled_family_id": "rahul.approval.with_context",
@@ -242,6 +499,72 @@
       "why_reachable": "Extracted from legacy compiled coverage."
     },
     {
+      "compiled_family_id": "nina.approval.before_cutoff",
+      "criticality": "important",
+      "guard": {
+        "critical_window_open": "security_cutoff"
+      },
+      "id": "nina_approval_before_cutoff",
+      "priority": 18,
+      "rationale": "Lower-capability models sometimes ask Nina for approval directly before they have framed a real review request.",
+      "selector": {
+        "actor_id": "nina",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may ask security for approval instead of requesting the actual review slot."
+    },
+    {
+      "compiled_family_id": "nina.approval.after_cutoff",
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "security_cutoff"
+        }
+      },
+      "id": "nina_approval_after_cutoff",
+      "priority": 16,
+      "rationale": "Security may still get a late approval ask after the useful slot has passed.",
+      "selector": {
+        "actor_id": "nina",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may ask for approval after the safe review window instead of framing the real review work."
+    },
+    {
+      "compiled_family_id": "nina.generic.before_cutoff",
+      "criticality": "important",
+      "guard": {
+        "critical_window_open": "security_cutoff"
+      },
+      "id": "nina_chat_fallback_before_cutoff",
+      "priority": 10,
+      "rationale": "Generic early Nina chat should still reinforce the true security intake requirement instead of failing coverage.",
+      "selector": {
+        "actor_id": "nina",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may send Nina a generic clarification or status note before framing the actual review request."
+    },
+    {
+      "compiled_family_id": "nina.generic.after_cutoff",
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "security_cutoff"
+        }
+      },
+      "id": "nina_chat_fallback_after_cutoff",
+      "priority": 8,
+      "rationale": "Generic late Nina chat should explain that the useful security path has narrowed rather than failing coverage.",
+      "selector": {
+        "actor_id": "nina",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may keep chatting with Nina after the cutoff in ways that are not modeled as explicit review or approval asks."
+    },
+    {
       "compiled_family_id": "sara.decision.early",
       "criticality": "important",
       "guard": {
@@ -274,6 +597,38 @@
         "surface": "chat"
       },
       "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "sara.generic.early",
+      "criticality": "important",
+      "guard": {
+        "critical_window_open": "customer_plan_cutoff"
+      },
+      "id": "sara_chat_fallback_early",
+      "priority": 10,
+      "rationale": "Generic early Sara chat should steer the TPM toward the existing support context and the need for a stable customer story instead of failing coverage.",
+      "selector": {
+        "actor_id": "sara",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may ask Sara clarifying customer-context questions before presenting a real locked plan."
+    },
+    {
+      "compiled_family_id": "sara.generic.late",
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "customer_plan_cutoff"
+        }
+      },
+      "id": "sara_chat_fallback_late",
+      "priority": 8,
+      "rationale": "Generic late Sara chat should explain that the customer reset window is already at risk rather than failing coverage.",
+      "selector": {
+        "actor_id": "sara",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may keep chatting with Sara in non-decision ways after the clean customer-plan window is narrowing."
     },
     {
       "compiled_family_id": "calendar.accept.available",

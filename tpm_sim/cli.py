@@ -29,10 +29,13 @@ from tpm_sim.environment import EnvironmentSession, StructuredAction, render_ste
 from tpm_sim.evaluator import Evaluator, summarize_score_band
 from tpm_sim.model_client import build_model_client
 from tpm_sim.performance import (
+    RUN_TRACE_FILENAMES,
     export_bundle_summary,
     export_run_summary,
+    maybe_resolve_run_artifact_path,
     render_bundle_summary,
     render_run_summary,
+    resolve_run_artifact_path,
     summarize_existing_bundle,
     summarize_existing_run,
 )
@@ -50,6 +53,9 @@ class ShellExit(Exception):
     pass
 
 
+SUMMARY_JUDGE_MODEL = "gpt-5.4"
+
+
 def build_runtime(db_path: str) -> tuple[SimulationEngine, Evaluator]:
     store = open_store(db_path)
     scenario_id = store.get_meta("scenario_id")
@@ -59,6 +65,10 @@ def build_runtime(db_path: str) -> tuple[SimulationEngine, Evaluator]:
     engine = SimulationEngine(store, bundle)
     evaluator = Evaluator(engine)
     return engine, evaluator
+
+
+def _resolve_summary_judge_model() -> str:
+    return SUMMARY_JUDGE_MODEL
 
 
 def execute_command(engine: SimulationEngine, evaluator: Evaluator, raw_line: str) -> Optional[str]:
@@ -652,7 +662,7 @@ def run_agent(
     summary = export_run_summary(
         outdir,
         judge_client=client,
-        judge_model=os.getenv("TPM_JUDGE_MODEL") or resolved_model,
+        judge_model=_resolve_summary_judge_model(),
     )
     if as_json_output:
         print(json.dumps(summary, indent=2, sort_keys=True))
@@ -707,7 +717,7 @@ def run_agent_bundle_eval(
             export_run_summary(
                 seed_dir,
                 judge_client=client,
-                judge_model=os.getenv("TPM_JUDGE_MODEL") or resolved_model,
+                judge_model=_resolve_summary_judge_model(),
             )
         )
     aggregate = export_bundle_summary(base_dir, run_summaries, scenario_id=scenario_id, model=resolved_model, seed_bundle=seed_bundle)
@@ -726,7 +736,7 @@ def run_agent_replay(run_dir: str) -> int:
 
 
 def run_summarize_run(run_dir: str, as_json_output: bool) -> int:
-    summary = summarize_existing_run(run_dir, judge_model=os.getenv("TPM_JUDGE_MODEL") or os.getenv("TPM_AGENT_MODEL"))
+    summary = summarize_existing_run(run_dir, judge_model=_resolve_summary_judge_model())
     if as_json_output:
         print(json.dumps(summary, indent=2, sort_keys=True))
     else:
@@ -750,14 +760,19 @@ def run_summarize_bundle(bundle_dir: str, as_json_output: bool) -> int:
 def _run_agent_replay(run_dir: str, *, events: str, event_limit: Optional[int]) -> int:
     payload = json.loads((Path(run_dir) / "agent_run.json").read_text())
     run = payload["run"]
-    report_path = Path(run["report_path"])
+    report_path = resolve_run_artifact_path(run_dir, run.get("report_path"), default_name="benchmark_run.report.json")
     trace_paths: dict[str, str] = {}
-    if report_path.exists():
-        try:
-            report_payload = json.loads(report_path.read_text())
-            trace_paths = report_payload.get("trace_paths", {})
-        except Exception:
-            trace_paths = {}
+    try:
+        report_payload = json.loads(report_path.read_text())
+        raw_trace_paths = report_payload.get("trace_paths", {})
+        for trace_key, default_name in RUN_TRACE_FILENAMES.items():
+            resolved_trace = maybe_resolve_run_artifact_path(run_dir, raw_trace_paths.get(trace_key), default_name=default_name)
+            if resolved_trace is not None:
+                trace_paths[trace_key] = str(resolved_trace)
+            elif raw_trace_paths.get(trace_key):
+                trace_paths[trace_key] = raw_trace_paths[trace_key]
+    except Exception:
+        trace_paths = {}
     print(f"Scenario: {run['scenario_id']}")
     print(f"Seed: {run['seed']}")
     print(f"Model: {run['model']}")
