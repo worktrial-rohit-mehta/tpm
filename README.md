@@ -4,6 +4,8 @@ This repository ships a **deterministic TPM evaluation harness** with:
 - one deep official scenario: `northstar_launch_week`
 - one lightweight generalization/smoke scenario: `internal_rollout_smoke`
 - a fixed TPM agent harness for cross-model comparison
+- a canonical `TPMPerformanceSummary` / `BundlePerformanceSummary` reporting surface
+- an explanatory-only LLM judge layer for evidence-cited TPM diagnosis
 - an offline, proposal-based authoring workflow for generating and freezing benchmark artifacts
 
 V1 is intentionally framed as an **engineering demonstration of the harness primitives**, not a calibrated frontier-model benchmark:
@@ -24,6 +26,8 @@ V1 is intentionally framed as an **engineering demonstration of the harness prim
 - checkpoint and fork support
 - a standardized TPM agent harness
 - one concrete OpenAI-backed live model adapter
+- a stable TPM competency model for user-facing evaluation
+- canonical run and bundle summaries derived from deterministic scoring
 - an offline, LLM-assisted authoring workflow with proposal validation and explicit promotion
 
 ## Scenarios
@@ -56,6 +60,7 @@ Important runtime constraints:
 - structured acts and slots carry the official semantics
 - hidden facts are surfaced only through authored predicates
 - scoring is evidence-backed and deterministic
+- the LLM judge layer is **explanatory only** and never changes official scores
 
 ## Install
 
@@ -159,7 +164,19 @@ The live TPM-agent path keeps fixed:
 - repair policy
 - stop conditions
 
-The harness auto-loads a repo-root `.env` file on startup without overriding variables you already exported in your shell. If `TPM_AGENT_MODEL` is set there, the agent and authoring commands also use it as the default model.
+The harness auto-loads a repo-root `.env` file on startup without overriding variables you already exported in your shell. Agent commands use `TPM_AGENT_MODEL` as the default live TPM model. OpenAI-backed authoring commands use `TPM_AUTHORING_MODEL` when set and otherwise fall back to `TPM_AGENT_MODEL`. `--model` still overrides the env on any individual command.
+
+Every live TPM-agent run now emits:
+- `tpm_performance_summary.json`
+- `tpm_performance_summary.md`
+
+Those canonical outputs answer the TPM question directly by summarizing:
+- outcome verdict
+- critical-path result
+- TPM competency profile
+- decisive successes and failures
+- run-health / harness-health flags
+- evidence-backed appendix fields
 
 Then run:
 
@@ -168,6 +185,8 @@ python3 -m tpm_sim agent run \
   --scenario northstar_launch_week \
   --seed 11
 ```
+
+`agent run` now streams the live event timeline to `stderr` by default while the episode is running, including omniscient simulation events beyond just the TPM agent. Use `--stream-events none` to silence it or `--stream-events agent` to limit the stream to agent-visible events.
 
 Run the live TPM agent across the official seed bundle:
 
@@ -184,17 +203,36 @@ python3 -m tpm_sim agent replay \
 ```
 
 Agent run artifacts are persisted under `.artifacts/agent_runs/...` and include:
-- the final run report
+- the canonical TPM performance summary
+- the final deterministic run report
 - raw prompt/response log
 - structured decisions
 - protocol-failure metadata
 
+You can regenerate the canonical summary for any existing run directory:
+
+```bash
+python3 -m tpm_sim summarize-run \
+  --run-dir .artifacts/agent_runs/<run-id>
+```
+
+And regenerate the aggregate bundle summary for a bundle directory:
+
+```bash
+python3 -m tpm_sim summarize-bundle \
+  --bundle-dir .artifacts/agent_runs/<bundle-id>
+```
+
 ## Workflow 3: Offline Authoring
 
-Authoring is a separate offline workflow. The human maintains a **structured authoring brief**. The LLM helps synthesize candidate benchmark artifacts. Nothing becomes official benchmark truth without:
-- schema validation
-- coverage validation
-- smoke simulation
+Authoring is a separate offline workflow. The human maintains a **structured authoring brief**. The pipeline then separates:
+- deterministic scenario and coverage-contract compilation
+- LLM-assisted semantic authoring
+- deterministic validation and closure checks
+
+Nothing becomes official benchmark truth without:
+- deterministic validation
+- closure-suite checks
 - human diff review
 - explicit accept
 
@@ -210,7 +248,9 @@ Use the default offline fixture-backed synthesis path:
 
 ```bash
 python3 -m tpm_sim author synthesize-world --proposal-dir .artifacts/proposals/internal_rollout_smoke
-python3 -m tpm_sim author synthesize-coverage --proposal-dir .artifacts/proposals/internal_rollout_smoke
+python3 -m tpm_sim author compile-contract --proposal-dir .artifacts/proposals/internal_rollout_smoke
+python3 -m tpm_sim author synthesize-semantics --proposal-dir .artifacts/proposals/internal_rollout_smoke
+python3 -m tpm_sim author compile-coverage --proposal-dir .artifacts/proposals/internal_rollout_smoke
 python3 -m tpm_sim author synthesize-trajectories --proposal-dir .artifacts/proposals/internal_rollout_smoke
 ```
 
@@ -218,6 +258,12 @@ Validate the proposal:
 
 ```bash
 python3 -m tpm_sim author validate --proposal-dir .artifacts/proposals/internal_rollout_smoke
+```
+
+Run the stricter closure checks:
+
+```bash
+python3 -m tpm_sim author closure-suite --proposal-dir .artifacts/proposals/internal_rollout_smoke
 ```
 
 Diff it against the accepted scenario:
@@ -241,6 +287,31 @@ python3 -m tpm_sim author synthesize-world \
   --proposal-dir .artifacts/proposals/internal_rollout_smoke \
   --adapter openai
 ```
+
+If you want authoring to use a different model than the TPM agent under test, set `TPM_AUTHORING_MODEL` in `.env` or pass `--model` on the individual authoring command. If `TPM_AUTHORING_MODEL` is unset, authoring falls back to `TPM_AGENT_MODEL`.
+
+And then:
+
+```bash
+python3 -m tpm_sim author compile-contract \
+  --proposal-dir .artifacts/proposals/internal_rollout_smoke
+
+python3 -m tpm_sim author synthesize-semantics \
+  --proposal-dir .artifacts/proposals/internal_rollout_smoke \
+  --adapter openai
+
+python3 -m tpm_sim author compile-coverage \
+  --proposal-dir .artifacts/proposals/internal_rollout_smoke
+
+python3 -m tpm_sim author synthesize-trajectories \
+  --proposal-dir .artifacts/proposals/internal_rollout_smoke \
+  --adapter openai
+```
+
+For compatibility, `author synthesize-coverage` still works as an alias for `author synthesize-semantics`, but the canonical model is:
+- `coverage_contract.json`: deterministic reachable interaction situations
+- `coverage_semantics.json`: LLM-authored response semantics for those situations
+- `npc_coverage.json`: compiled runtime artifact
 
 ## Shell Commands
 
@@ -330,6 +401,9 @@ These files are part of the benchmark definition and scenario digest:
 - `docs/specs/PREDICATE_DSL_v1.md`
 - `docs/specs/CONTEXT_FAMILY_SCHEMA_v1.json`
 - `docs/specs/EVAL_DSL_v1.md`
+- `docs/specs/TPM_COMPETENCY_MODEL_v1.md`
+- `docs/specs/TPM_PERFORMANCE_SUMMARY_v1.md`
+- `docs/specs/TPM_JUDGE_IO_v1.md`
 
 ## Non-Claims
 

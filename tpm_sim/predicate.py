@@ -235,7 +235,13 @@ class PredicateEvaluator:
             if "min_confidence" in payload and float(belief["confidence"]) < float(payload["min_confidence"]):
                 return PredicateResult.no()
             matched = self._match_value(value, payload)
-            return PredicateResult(matched, [f"belief:{belief['id']}"] if matched else [], [f"belief_known:{payload['belief_key']}"])
+            evidence: list[str] = []
+            if matched:
+                source_ref = belief["source_ref"]
+                if source_ref:
+                    evidence.append(source_ref)
+                evidence.append(f"belief:{belief['id']}")
+            return PredicateResult(matched, evidence, [f"belief_known:{payload['belief_key']}"])
         if "critical_window_open" in predicate:
             window_id = predicate["critical_window_open"]
             try:

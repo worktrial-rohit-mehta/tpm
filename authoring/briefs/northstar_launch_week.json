@@ -4,37 +4,76 @@
       "coordination_template": "sponsor",
       "name": "Rohit Kapoor",
       "notes": "Wants honest status and can authorize descoping if engaged early.",
-      "org_role": "director_product"
+      "org_role": "director_product",
+      "private_drivers": [
+        {
+          "coordination_implication": "Bring Rohit the real blocker and descoped option early; do not ask for approval on vibes or fake green status.",
+          "cue_examples": [
+            "He asks for the real plan, not a green tracker.",
+            "He responds well to early honest risk framing tied to a descoped pilot."
+          ],
+          "driver_type": "supports_descoping_if_engaged_early",
+          "id": "rohit_accepts_descoping_if_early",
+          "summary": "Wants honest constraints early and will back a narrower credible pilot when the TPM brings the real tradeoff quickly."
+        }
+      ]
     },
     {
       "coordination_template": "critical_path_owner",
       "name": "Maya Chen",
       "notes": "Overloaded backend owner who resists fake commitments.",
-      "org_role": "engineer"
+      "org_role": "engineer",
+      "private_drivers": [
+        {
+          "coordination_implication": "Ask for honest feasibility and blockers first; avoid pressuring her for ETA theater while she is overloaded.",
+          "cue_examples": [
+            "She explicitly says she will not give a fake ETA.",
+            "She responds better to honest feasibility asks than to date pressure."
+          ],
+          "driver_type": "rejects_fake_dates_under_pressure",
+          "id": "maya_rejects_fake_dates_under_pressure",
+          "summary": "Low trust plus overload makes Maya push back hard on date pressure before the scope is real."
+        }
+      ]
     },
     {
       "coordination_template": "ally",
       "name": "Andrew Ortiz",
       "notes": "Helpful frontend ally once scope is aligned.",
-      "org_role": "engineer"
+      "org_role": "engineer",
+      "private_drivers": []
     },
     {
       "coordination_template": "cross_functional_dependency_owner",
       "name": "Rahul Iyer",
       "notes": "Designer who needs support context before approving the descoped path.",
-      "org_role": "designer"
+      "org_role": "designer",
+      "private_drivers": []
     },
     {
       "coordination_template": "cross_functional_dependency_owner",
       "name": "Nina Patel",
       "notes": "Security reviewer with a useful-slot cutoff.",
-      "org_role": "security_engineer"
+      "org_role": "security_engineer",
+      "private_drivers": []
     },
     {
       "coordination_template": "customer_facing_bridge",
       "name": "Sara Feldman",
       "notes": "Needs stable messaging for the customer-facing story.",
-      "org_role": "solutions_engineer"
+      "org_role": "solutions_engineer",
+      "private_drivers": [
+        {
+          "coordination_implication": "Give Sara a customer-safe plan before Wednesday lunch or the external story destabilizes.",
+          "cue_examples": [
+            "The brief says the customer story has to settle early.",
+            "Sara asks for a stable story before lunch, not just more progress words."
+          ],
+          "driver_type": "needs_stable_plan_early",
+          "id": "sara_needs_plan_by_wed_noon",
+          "summary": "Needs a stable plan early so customer-facing messaging stays credible."
+        }
+      ]
     }
   ],
   "critical_path": [
@@ -59,7 +98,11 @@
     },
     {
       "id": "rohit_accepts_descoping_if_early",
-      "summary": "The sponsor will support descoping if engaged early."
+      "summary": "Rohit wants honest constraints early and will back descoping when he sees a credible narrower path."
+    },
+    {
+      "id": "maya_rejects_fake_dates_under_pressure",
+      "summary": "Maya reacts badly to fake date pressure while overloaded."
     },
     {
       "id": "rahul_needs_support_context",
@@ -67,7 +110,7 @@
     },
     {
       "id": "sara_needs_plan_by_wed_noon",
-      "summary": "Customer-facing messaging destabilizes by Wednesday noon without a stable plan."
+      "summary": "Sara needs a stable customer story before Wednesday noon."
     }
   ],
   "milestones": [

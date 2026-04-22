@@ -3,17 +3,22 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from tpm_sim.agent import AgentRunner, OpenAIResponsesAgentAdapter
 from tpm_sim.authoring import (
     accept_proposal,
+    compile_contract,
+    compile_coverage_artifact,
     diff_proposal,
     gap_fill_proposal,
     init_proposal,
+    run_closure_suite,
     synthesize_coverage,
+    synthesize_semantics,
     synthesize_trajectories,
     synthesize_world,
     validate_proposal,
@@ -23,6 +28,14 @@ from tpm_sim.engine import CoverageMissError, SimulationEngine
 from tpm_sim.environment import EnvironmentSession, StructuredAction, render_step_result
 from tpm_sim.evaluator import Evaluator, summarize_score_band
 from tpm_sim.model_client import build_model_client
+from tpm_sim.performance import (
+    export_bundle_summary,
+    export_run_summary,
+    render_bundle_summary,
+    render_run_summary,
+    summarize_existing_bundle,
+    summarize_existing_run,
+)
 from tpm_sim.scenario import (
     available_scenarios,
     load_bundle_from_store,
@@ -451,30 +464,41 @@ def run_agent(
     output_dir: Optional[str],
     max_turns: int,
     coverage_enforcement: str,
+    stream_events: str,
     as_json_output: bool,
 ) -> int:
     resolved_model = _resolve_model_name(model)
     client = build_model_client("openai")
-    adapter = OpenAIResponsesAgentAdapter(client, model=resolved_model)
+    adapter = OpenAIResponsesAgentAdapter(client, model=resolved_model, temperature=0, top_p=1)
     outdir = Path(output_dir) if output_dir else _default_agent_output_dir(scenario_id, seed, resolved_model)
     session = EnvironmentSession.create(str(outdir / "run.sqlite"), scenario_id, seed, coverage_enforcement=coverage_enforcement, force=True)
     try:
         runner = AgentRunner(adapter, max_turns=max_turns)
-        record = runner.run(session, seed=seed, output_dir=str(outdir), model_name=resolved_model)
+        record = runner.run(
+            session,
+            seed=seed,
+            output_dir=str(outdir),
+            model_name=resolved_model,
+            event_stream=stream_events,
+            on_event=_emit_live_event if stream_events != "none" else None,
+        )
     finally:
         session.close()
+    if stream_events != "none":
+        print("Run complete. Generating summary artifacts...", file=sys.stderr, flush=True)
+    summary = export_run_summary(
+        outdir,
+        judge_client=client,
+        judge_model=os.getenv("TPM_JUDGE_MODEL") or resolved_model,
+    )
     if as_json_output:
-        print(json.dumps(record.to_dict(), indent=2, sort_keys=True))
+        print(json.dumps(summary, indent=2, sort_keys=True))
     else:
-        print(f"Scenario: {record.scenario_id}")
-        print(f"Seed: {record.seed}")
-        print(f"Model: {record.model}")
-        print(f"Score: {record.score}")
-        print(f"Turns: {record.turns_taken} / {record.max_turns}")
-        print(f"Protocol failure: {'yes' if record.protocol_failure else 'no'}")
-        if record.protocol_failure and record.protocol_failure_reason:
-            print(f"Failure reason: {record.protocol_failure_reason}")
-        print(f"Report: {record.report_path}")
+        print(render_run_summary(summary))
+        print("")
+        print(f"Summary JSON: {outdir / 'tpm_performance_summary.json'}")
+        print(f"Summary Markdown: {outdir / 'tpm_performance_summary.md'}")
+        print(f"Raw report: {record.report_path}")
         print(f"Agent log: {record.agent_log_path}")
     return 0
 
@@ -490,40 +514,59 @@ def run_agent_bundle_eval(
     bundle = load_scenario_bundle(scenario_id)
     seed_bundle = list(bundle["scenario"]["evaluation"].get("official_seeds", [11, 29, 47]))
     base_dir = Path(output_dir) if output_dir else Path(".artifacts") / "agent_bundle_eval" / scenario_id / resolved_model.replace("/", "_")
-    results = []
+    run_summaries = []
     for seed in seed_bundle:
         seed_dir = base_dir / f"seed{seed}"
         client = build_model_client("openai")
-        adapter = OpenAIResponsesAgentAdapter(client, model=resolved_model)
+        adapter = OpenAIResponsesAgentAdapter(client, model=resolved_model, temperature=0, top_p=1)
         session = EnvironmentSession.create(str(seed_dir / "run.sqlite"), scenario_id, seed, coverage_enforcement="strict", force=True)
         try:
             runner = AgentRunner(adapter, max_turns=max_turns)
-            results.append(runner.run(session, seed=seed, output_dir=str(seed_dir), model_name=resolved_model).to_dict())
+            runner.run(session, seed=seed, output_dir=str(seed_dir), model_name=resolved_model)
         finally:
             session.close()
-    aggregate = {
-        "scenario_id": scenario_id,
-        "model": resolved_model,
-        "seed_bundle": seed_bundle,
-        "headline": summarize_score_band([float(item["score"]) for item in results]),
-        "runs": results,
-    }
+        run_summaries.append(
+            export_run_summary(
+                seed_dir,
+                judge_client=client,
+                judge_model=os.getenv("TPM_JUDGE_MODEL") or resolved_model,
+            )
+        )
+    aggregate = export_bundle_summary(base_dir, run_summaries, scenario_id=scenario_id, model=resolved_model, seed_bundle=seed_bundle)
     if as_json_output:
         print(json.dumps(aggregate, indent=2, sort_keys=True))
     else:
-        print(f"Scenario: {scenario_id}")
-        print(f"Model: {model}")
-        print(f"Mean score: {aggregate['headline']['mean']}")
-        print(f"Worst seed: {aggregate['headline']['worst']}")
-        print(f"Stdev: {aggregate['headline']['stdev']}")
+        print(render_bundle_summary(aggregate))
         print("")
-        for item in results:
-            print(f"- seed {item['seed']}: score={item['score']} protocol_failure={'yes' if item['protocol_failure'] else 'no'}")
+        print(f"Bundle summary JSON: {base_dir / 'bundle_performance_summary.json'}")
+        print(f"Bundle summary Markdown: {base_dir / 'bundle_performance_summary.md'}")
     return 0
 
 
 def run_agent_replay(run_dir: str) -> int:
     return _run_agent_replay(run_dir, events="none", event_limit=None)
+
+
+def run_summarize_run(run_dir: str, as_json_output: bool) -> int:
+    summary = summarize_existing_run(run_dir, judge_model=os.getenv("TPM_JUDGE_MODEL") or os.getenv("TPM_AGENT_MODEL"))
+    if as_json_output:
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    else:
+        print(render_run_summary(summary))
+        print("")
+        print(f"Summary JSON: {Path(run_dir) / 'tpm_performance_summary.json'}")
+    return 0
+
+
+def run_summarize_bundle(bundle_dir: str, as_json_output: bool) -> int:
+    summary = summarize_existing_bundle(bundle_dir)
+    if as_json_output:
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    else:
+        print(render_bundle_summary(summary))
+        print("")
+        print(f"Bundle summary JSON: {Path(bundle_dir) / 'bundle_performance_summary.json'}")
+    return 0
 
 
 def _run_agent_replay(run_dir: str, *, events: str, event_limit: Optional[int]) -> int:
@@ -573,6 +616,19 @@ def _run_agent_replay(run_dir: str, *, events: str, event_limit: Optional[int]) 
     return 0
 
 
+def _emit_live_event(event: dict[str, Any]) -> None:
+    print(_render_trace_row(event), file=sys.stderr, flush=True)
+
+
+def _render_trace_row(row: dict[str, Any]) -> str:
+    actor = row.get("actor_id") or "unknown"
+    when = row.get("at") or "unknown"
+    event_type = row.get("event_type") or "unknown"
+    phase = row.get("phase") or "unknown"
+    summary = row.get("summary") or ""
+    return f"- [{when}] {actor} {event_type} ({phase}) -> {summary}"
+
+
 def _render_trace_events(trace_path: str, *, limit: Optional[int]) -> list[str]:
     rows = []
     for raw_line in Path(trace_path).read_text().splitlines():
@@ -581,15 +637,7 @@ def _render_trace_events(trace_path: str, *, limit: Optional[int]) -> list[str]:
         rows.append(json.loads(raw_line))
     if limit is not None and limit >= 0:
         rows = rows[:limit]
-    rendered: list[str] = []
-    for row in rows:
-        actor = row.get("actor_id") or "unknown"
-        when = row.get("at") or "unknown"
-        event_type = row.get("event_type") or "unknown"
-        phase = row.get("phase") or "unknown"
-        summary = row.get("summary") or ""
-        rendered.append(f"- [{when}] {actor} {event_type} ({phase}) -> {summary}")
-    return rendered
+    return [_render_trace_row(row) for row in rows]
 
 
 def run_author_init(brief_path: str, proposal_dir: str, as_json_output: bool) -> int:
@@ -618,12 +666,32 @@ def run_author_synthesize(
     }
     if kind == "world":
         result = synthesize_world(**kwargs)
+    elif kind == "semantics":
+        result = synthesize_semantics(**kwargs)
     elif kind == "coverage":
         result = synthesize_coverage(**kwargs)
     elif kind == "trajectories":
         result = synthesize_trajectories(**kwargs)
     else:
         raise RuntimeError(f"Unknown synthesis kind '{kind}'.")
+    if as_json_output:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+def run_author_compile_contract(proposal_dir: str, as_json_output: bool) -> int:
+    result = compile_contract(proposal_dir)
+    if as_json_output:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+def run_author_compile_coverage(proposal_dir: str, as_json_output: bool) -> int:
+    result = compile_coverage_artifact(proposal_dir)
     if as_json_output:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
@@ -663,6 +731,29 @@ def run_author_gap_fill(
         adapter=adapter,
         model=_resolve_authoring_model(adapter, model),
         fixtures_root=fixtures_root,
+    )
+    if as_json_output:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+def run_author_closure_suite(
+    proposal_dir: str,
+    adapter: str,
+    model: Optional[str],
+    fixtures_root: Optional[str],
+    repeats: int,
+    as_json_output: bool,
+) -> int:
+    resolved_model = None if adapter == "fixture" else _resolve_authoring_model(adapter, model)
+    result = run_closure_suite(
+        proposal_dir,
+        adapter=adapter,
+        model=resolved_model,
+        fixtures_root=fixtures_root,
+        repeats=repeats,
     )
     if as_json_output:
         print(json.dumps(result, indent=2, sort_keys=True))
@@ -742,6 +833,14 @@ def build_parser() -> argparse.ArgumentParser:
     readiness_parser.add_argument("--examples-dir", default=str(Path(__file__).resolve().parents[1] / "examples"))
     readiness_parser.add_argument("--json", action="store_true")
 
+    summarize_run_parser = subparsers.add_parser("summarize-run", help="Generate or refresh the canonical TPM run summary for an agent run directory")
+    summarize_run_parser.add_argument("--run-dir", required=True)
+    summarize_run_parser.add_argument("--json", action="store_true")
+
+    summarize_bundle_parser = subparsers.add_parser("summarize-bundle", help="Generate or refresh the canonical TPM bundle summary for a bundle directory")
+    summarize_bundle_parser.add_argument("--bundle-dir", required=True)
+    summarize_bundle_parser.add_argument("--json", action="store_true")
+
     agent_parser = subparsers.add_parser("agent", help="Run a live TPM agent or inspect prior runs")
     agent_subparsers = agent_parser.add_subparsers(dest="agent_command", required=True)
 
@@ -752,6 +851,7 @@ def build_parser() -> argparse.ArgumentParser:
     agent_run.add_argument("--outdir")
     agent_run.add_argument("--max-turns", type=int, default=80)
     agent_run.add_argument("--coverage-enforcement", choices=["strict", "permissive"], default="strict")
+    agent_run.add_argument("--stream-events", choices=["none", "agent", "omniscient"], default="omniscient")
     agent_run.add_argument("--json", action="store_true")
 
     agent_bundle = agent_subparsers.add_parser("bundle-eval", help="Run the live TPM agent across the official seed bundle")
@@ -774,17 +874,33 @@ def build_parser() -> argparse.ArgumentParser:
     author_init.add_argument("--proposal-dir", required=True)
     author_init.add_argument("--json", action="store_true")
 
-    for subcommand in ("synthesize-world", "synthesize-coverage", "synthesize-trajectories"):
+    for subcommand in ("synthesize-world", "synthesize-semantics", "synthesize-coverage", "synthesize-trajectories"):
         synth = author_subparsers.add_parser(subcommand, help=f"{subcommand.replace('-', ' ').title()}")
         synth.add_argument("--proposal-dir", required=True)
         synth.add_argument("--adapter", choices=["openai", "fixture"], default="fixture")
-        synth.add_argument("--model", default=os.getenv("TPM_AGENT_MODEL"))
+        synth.add_argument("--model")
         synth.add_argument("--fixtures-root", default=str(Path(__file__).resolve().parents[1] / "authoring" / "fixtures"))
         synth.add_argument("--json", action="store_true")
+
+    author_compile_contract = author_subparsers.add_parser("compile-contract", help="Compile a deterministic coverage contract from the scenario")
+    author_compile_contract.add_argument("--proposal-dir", required=True)
+    author_compile_contract.add_argument("--json", action="store_true")
+
+    author_compile_coverage = author_subparsers.add_parser("compile-coverage", help="Compile npc_coverage.json from contract + semantics")
+    author_compile_coverage.add_argument("--proposal-dir", required=True)
+    author_compile_coverage.add_argument("--json", action="store_true")
 
     author_validate = author_subparsers.add_parser("validate", help="Validate a proposal bundle")
     author_validate.add_argument("--proposal-dir", required=True)
     author_validate.add_argument("--json", action="store_true")
+
+    author_closure = author_subparsers.add_parser("closure-suite", help="Run deterministic and optional live closure checks for a proposal")
+    author_closure.add_argument("--proposal-dir", required=True)
+    author_closure.add_argument("--adapter", choices=["openai", "fixture"], default="fixture")
+    author_closure.add_argument("--model")
+    author_closure.add_argument("--fixtures-root", default=str(Path(__file__).resolve().parents[1] / "authoring" / "fixtures"))
+    author_closure.add_argument("--repeats", type=int, default=1)
+    author_closure.add_argument("--json", action="store_true")
 
     author_diff = author_subparsers.add_parser("diff", help="Diff a proposal against the accepted scenario")
     author_diff.add_argument("--proposal-dir", required=True)
@@ -795,7 +911,7 @@ def build_parser() -> argparse.ArgumentParser:
     author_gap.add_argument("--proposal-dir", required=True)
     author_gap.add_argument("--gaps-path", required=True)
     author_gap.add_argument("--adapter", choices=["openai", "fixture"], default="fixture")
-    author_gap.add_argument("--model", default=os.getenv("TPM_AGENT_MODEL"))
+    author_gap.add_argument("--model")
     author_gap.add_argument("--fixtures-root", default=str(Path(__file__).resolve().parents[1] / "authoring" / "fixtures"))
     author_gap.add_argument("--json", action="store_true")
 
@@ -828,9 +944,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         return run_coverage_report(args.scenario, args.json)
     if args.command == "readiness":
         return run_readiness(args.scenario, args.examples_dir, args.json)
+    if args.command == "summarize-run":
+        return run_summarize_run(args.run_dir, args.json)
+    if args.command == "summarize-bundle":
+        return run_summarize_bundle(args.bundle_dir, args.json)
     if args.command == "agent":
         if args.agent_command == "run":
-            return run_agent(args.scenario, args.seed, args.model, args.outdir, args.max_turns, args.coverage_enforcement, args.json)
+            return run_agent(args.scenario, args.seed, args.model, args.outdir, args.max_turns, args.coverage_enforcement, args.stream_events, args.json)
         if args.agent_command == "bundle-eval":
             return run_agent_bundle_eval(args.scenario, args.model, args.outdir, args.max_turns, args.json)
         if args.agent_command == "replay":
@@ -840,12 +960,20 @@ def main(argv: Optional[list[str]] = None) -> int:
             return run_author_init(args.brief, args.proposal_dir, args.json)
         if args.author_command == "synthesize-world":
             return run_author_synthesize("world", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
+        if args.author_command == "compile-contract":
+            return run_author_compile_contract(args.proposal_dir, args.json)
+        if args.author_command == "synthesize-semantics":
+            return run_author_synthesize("semantics", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
         if args.author_command == "synthesize-coverage":
             return run_author_synthesize("coverage", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
+        if args.author_command == "compile-coverage":
+            return run_author_compile_coverage(args.proposal_dir, args.json)
         if args.author_command == "synthesize-trajectories":
             return run_author_synthesize("trajectories", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
         if args.author_command == "validate":
             return run_author_validate(args.proposal_dir, args.json)
+        if args.author_command == "closure-suite":
+            return run_author_closure_suite(args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.repeats, args.json)
         if args.author_command == "diff":
             return run_author_diff(args.proposal_dir, args.scenarios_root, args.json)
         if args.author_command == "gap-fill":
@@ -868,10 +996,20 @@ def _resolve_model_name(model: Optional[str]) -> str:
     raise RuntimeError("A model is required. Pass --model or set TPM_AGENT_MODEL in your environment or .env file.")
 
 
+def _default_authoring_model_name() -> Optional[str]:
+    return os.getenv("TPM_AUTHORING_MODEL") or os.getenv("TPM_AGENT_MODEL")
+
+
 def _resolve_authoring_model(adapter: str, model: Optional[str]) -> str:
     if adapter == "fixture":
         return model or "fixture"
-    return _resolve_model_name(model)
+    resolved = model or _default_authoring_model_name()
+    if resolved:
+        return resolved
+    raise RuntimeError(
+        "A model is required for OpenAI authoring. Pass --model or set TPM_AUTHORING_MODEL "
+        "(or TPM_AGENT_MODEL as a fallback) in your environment or .env file."
+    )
 
 
 if __name__ == "__main__":

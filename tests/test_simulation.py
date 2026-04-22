@@ -15,8 +15,14 @@ ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
 
 
-def build_runtime(db_path: str, *, seed: int = 11, coverage_enforcement: str = "strict") -> tuple[SimulationEngine, Evaluator]:
-    bundle = load_scenario_bundle("northstar_launch_week")
+def build_runtime(
+    db_path: str,
+    scenario_id: str = "northstar_launch_week",
+    *,
+    seed: int = 11,
+    coverage_enforcement: str = "strict",
+) -> tuple[SimulationEngine, Evaluator]:
+    bundle = load_scenario_bundle(scenario_id)
     store = open_store(db_path)
     seed_store(store, bundle, seed, coverage_enforcement=coverage_enforcement)
     engine = SimulationEngine(store, bundle)
@@ -57,6 +63,142 @@ class SimulationTests(unittest.TestCase):
                 coverage = engine.coverage_report()
                 self.assertEqual(coverage["critical_uncovered"], 0)
                 self.assertEqual(coverage["coverage"], 1.0)
+            finally:
+                engine.store.close()
+
+    def test_coverage_report_is_complete_for_internal_rollout_smoke(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine, evaluator = build_runtime(
+                str(Path(tmpdir) / "coverage_smoke.sqlite"),
+                "internal_rollout_smoke",
+                coverage_enforcement="permissive",
+            )
+            try:
+                coverage = engine.coverage_report()
+                self.assertEqual(coverage["critical_uncovered"], 0)
+                self.assertEqual(coverage["coverage"], 1.0)
+            finally:
+                engine.store.close()
+
+    def test_same_value_belief_signals_accumulate_confidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine, evaluator = build_runtime(str(Path(tmpdir) / "accumulate.sqlite"))
+            try:
+                engine._apply_observation_signals(
+                    "tpm",
+                    "doc:synthetic-a",
+                    {
+                        "belief_signals": [
+                            {
+                                "belief_key": "synthetic.driver",
+                                "belief_value": True,
+                                "confidence": 0.4,
+                                "freshness_window_min": 240,
+                                "accumulate": True,
+                            }
+                        ]
+                    },
+                )
+                engine._apply_observation_signals(
+                    "tpm",
+                    "doc:synthetic-b",
+                    {
+                        "belief_signals": [
+                            {
+                                "belief_key": "synthetic.driver",
+                                "belief_value": True,
+                                "confidence": 0.5,
+                                "freshness_window_min": 240,
+                                "accumulate": True,
+                            }
+                        ]
+                    },
+                )
+                belief = engine.latest_belief("tpm", "synthetic.driver")
+                self.assertIsNotNone(belief)
+                self.assertAlmostEqual(float(belief["confidence"]), 0.7, places=3)
+            finally:
+                engine.store.close()
+
+    def test_conflicting_belief_signals_do_not_merge(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine, evaluator = build_runtime(str(Path(tmpdir) / "conflict.sqlite"))
+            try:
+                engine._apply_observation_signals(
+                    "tpm",
+                    "doc:synthetic-a",
+                    {
+                        "belief_signals": [
+                            {
+                                "belief_key": "synthetic.driver",
+                                "belief_value": True,
+                                "confidence": 0.4,
+                                "freshness_window_min": 240,
+                                "accumulate": True,
+                            }
+                        ]
+                    },
+                )
+                engine._apply_observation_signals(
+                    "tpm",
+                    "doc:synthetic-b",
+                    {
+                        "belief_signals": [
+                            {
+                                "belief_key": "synthetic.driver",
+                                "belief_value": False,
+                                "confidence": 0.5,
+                                "freshness_window_min": 240,
+                                "accumulate": True,
+                            }
+                        ]
+                    },
+                )
+                belief = engine.latest_belief("tpm", "synthetic.driver")
+                self.assertIsNotNone(belief)
+                self.assertEqual(engine.deserialize(belief["belief_value_json"]), False)
+                self.assertAlmostEqual(float(belief["confidence"]), 0.5, places=3)
+                all_rows = [row for row in engine.store.beliefs_for_actor("tpm") if row["belief_key"] == "synthetic.driver"]
+                self.assertEqual(len(all_rows), 2)
+            finally:
+                engine.store.close()
+
+    def test_belief_known_uses_underlying_source_ref_for_private_driver_cues(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine, evaluator = build_runtime(str(Path(tmpdir) / "belief_known.sqlite"))
+            try:
+                engine._apply_observation_signals(
+                    "tpm",
+                    "doc:synthetic",
+                    {
+                        "belief_signals": [
+                            {
+                                "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+                                "belief_value": True,
+                                "confidence": 0.8,
+                                "freshness_window_min": 240,
+                                "accumulate": True,
+                                "metadata": {
+                                    "private_driver_fact_id": "rohit_accepts_descoping_if_early",
+                                },
+                            }
+                        ]
+                    },
+                )
+                result = engine.predicate.evaluate(
+                    {
+                        "belief_known": {
+                            "actor_id": "tpm",
+                            "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+                            "equals": True,
+                            "min_confidence": 0.75,
+                        }
+                    }
+                )
+                self.assertTrue(result.matched)
+                self.assertGreaterEqual(len(result.evidence_refs), 2)
+                self.assertTrue(result.evidence_refs[0].startswith("event:"))
+                self.assertTrue(result.evidence_refs[1].startswith("belief:"))
             finally:
                 engine.store.close()
 
@@ -128,6 +270,17 @@ class SimulationTests(unittest.TestCase):
             finally:
                 reopened_engine.store.close()
 
+    def test_golden_path_awards_both_new_discovery_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine, evaluator = build_runtime(str(Path(tmpdir) / "golden_discovery.sqlite"), seed=11)
+            try:
+                report = run_script(engine, evaluator, "golden.tpm")
+                awarded = {line["id"]: float(line["awarded"]) for line in report["rubric"]}
+                self.assertEqual(awarded["project_constraint_discovery"], 10.0)
+                self.assertEqual(awarded["stakeholder_driver_discovery"], 10.0)
+            finally:
+                engine.store.close()
+
     def test_reference_trajectories_separate_cleanly(self) -> None:
         trajectories = {
             "golden": "golden.tpm",
@@ -150,8 +303,8 @@ class SimulationTests(unittest.TestCase):
                         engine.store.close()
                 score_bands[name] = summarize_score_band(scores)
 
-            self.assertGreaterEqual(score_bands["golden"]["mean"], 85)
-            self.assertGreaterEqual(score_bands["golden"]["worst"], 75)
+            self.assertGreaterEqual(score_bands["golden"]["mean"], 83)
+            self.assertGreaterEqual(score_bands["golden"]["worst"], 80)
             self.assertGreaterEqual(score_bands["competent_but_imperfect"]["mean"], 55)
             self.assertLessEqual(score_bands["competent_but_imperfect"]["mean"], 65)
             self.assertLessEqual(score_bands["busywork"]["mean"], 35)

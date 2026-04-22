@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from tpm_sim.agent.base import AgentAdapter, AgentRunRecord
 from tpm_sim.common import stable_digest
@@ -23,6 +23,8 @@ class AgentRunner:
         seed: int,
         output_dir: str,
         model_name: str,
+        event_stream: str = "none",
+        on_event: Optional[Callable[[dict[str, Any]], None]] = None,
     ) -> AgentRunRecord:
         run_id = stable_digest(
             session.engine.scenario["id"],
@@ -45,6 +47,11 @@ class AgentRunner:
                 "max_turns": self.max_turns,
             }
         )
+        last_event_id = 0
+        if event_stream != "none" and on_event is not None:
+            relevant_rows = self._stream_rows(session, event_stream)
+            if relevant_rows:
+                last_event_id = int(relevant_rows[-1]["id"])
         turns = 0
         end_at = session.engine.store.get_meta("simulation_end")
         while turns < self.max_turns and session.engine.now() < datetime.strptime(end_at, "%Y-%m-%dT%H:%M:%S"):
@@ -53,17 +60,26 @@ class AgentRunner:
             decision_payload = None
             errors: list[str] = []
             step_result = None
+            repair_attempts = 0
             for attempt in range(2):
                 decision = self.adapter.decide(agent_session, observation, repair_feedback=repair_feedback)
                 decision_payload = decision
                 try:
                     action = coerce_action(decision.action)
                     step_result = session.step(action)
+                    if event_stream != "none" and on_event is not None:
+                        last_event_id = self._emit_new_events(
+                            session,
+                            event_stream=event_stream,
+                            last_event_id=last_event_id,
+                            on_event=on_event,
+                        )
                     errors = []
                     break
                 except ActionValidationError as exc:
                     errors = [str(exc)]
                     repair_feedback = str(exc)
+                    repair_attempts += 1
                 except CoverageMissError as exc:
                     errors = [f"Benchmark coverage miss: {exc}"]
                     repair_feedback = None
@@ -71,6 +87,7 @@ class AgentRunner:
                 except (KeyError, ValueError) as exc:
                     errors = [f"Action execution failed: {exc}"]
                     repair_feedback = errors[0]
+                    repair_attempts += 1
             else:
                 protocol_failure = True
                 protocol_failure_reason = errors[0] if errors else "invalid_action"
@@ -81,6 +98,7 @@ class AgentRunner:
                         "decision": decision_payload.to_dict() if decision_payload else {},
                         "step_result": None,
                         "validation_errors": errors,
+                        "repair_attempts": repair_attempts,
                     }
                 )
                 break
@@ -95,6 +113,7 @@ class AgentRunner:
                         "decision": decision_payload.to_dict() if decision_payload else {},
                         "step_result": None,
                         "validation_errors": errors,
+                        "repair_attempts": repair_attempts,
                     }
                 )
                 break
@@ -106,6 +125,7 @@ class AgentRunner:
                     "decision": decision_payload.to_dict(),
                     "step_result": step_result.to_dict(),
                     "validation_errors": errors,
+                    "repair_attempts": repair_attempts,
                 }
             )
             turns += 1
@@ -137,3 +157,34 @@ class AgentRunner:
         }
         agent_log_path.write_text(json.dumps(payload, indent=2, sort_keys=True))
         return run_record
+
+    def _emit_new_events(
+        self,
+        session: EnvironmentSession,
+        *,
+        event_stream: str,
+        last_event_id: int,
+        on_event: Callable[[dict[str, Any]], None],
+    ) -> int:
+        new_rows = [row for row in self._stream_rows(session, event_stream) if int(row["id"]) > last_event_id]
+        for row in new_rows:
+            on_event(
+                {
+                    "id": int(row["id"]),
+                    "at": row["at"],
+                    "phase": row["phase"],
+                    "event_type": row["event_type"],
+                    "actor_id": row["actor_id"],
+                    "visibility": row["visibility"],
+                    "summary": row["summary"],
+                    "payload": session.engine.deserialize(row["payload_json"], {}),
+                }
+            )
+        if new_rows:
+            return int(new_rows[-1]["id"])
+        return last_event_id
+
+    def _stream_rows(self, session: EnvironmentSession, event_stream: str) -> list[Any]:
+        if event_stream == "agent":
+            return session.engine.store.event_log("agent")
+        return session.engine.store.event_log()

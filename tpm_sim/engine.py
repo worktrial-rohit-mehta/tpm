@@ -38,6 +38,8 @@ PHASE_PRIORITY = {
     "informational": 3,
 }
 
+ACTOR_PRIVATE_DRIVER_CONFIDENCE_THRESHOLD = 0.75
+
 
 class CoverageMissError(RuntimeError):
     pass
@@ -771,10 +773,12 @@ class SimulationEngine:
             except KeyError:
                 continue
             if row["surface"] == surface:
+                self._log_thread_normalization(candidate, row["id"], reason="direct_alias")
                 return row
         lowered = normalized.lower()
         for row in self.store.threads(surface=surface):
             if row["id"].lower() == lowered or row["title"].lower() == lowered:
+                self._log_thread_normalization(candidate, row["id"], reason="casefold_match")
                 return row
         actor_alias_matches = []
         for row in self.store.threads(surface=surface):
@@ -808,8 +812,22 @@ class SimulationEngine:
             if lowered in aliases:
                 actor_alias_matches.append(row)
         if len(actor_alias_matches) == 1:
+            self._log_thread_normalization(candidate, actor_alias_matches[0]["id"], reason="role_or_actor_alias")
             return actor_alias_matches[0]
         raise KeyError(f"Unknown {surface} thread '{thread_or_actor_id}'.")
+
+    def _log_thread_normalization(self, candidate: str, resolved_thread_id: str, *, reason: str) -> None:
+        if candidate == resolved_thread_id:
+            return
+        self.store.log_event(
+            to_iso(self.now()),
+            phase="informational",
+            event_type="thread.normalized",
+            actor_id="system",
+            visibility="omniscient",
+            summary=f"Normalized thread target '{candidate}' to '{resolved_thread_id}'",
+            payload={"candidate": candidate, "resolved_thread_id": resolved_thread_id, "reason": reason},
+        )
 
     def _thread_primary_target(self, thread, *, explicit_target: Optional[str] = None) -> Optional[str]:
         participants = self.deserialize(thread["participant_ids_json"], [])
@@ -911,19 +929,12 @@ class SimulationEngine:
         beliefs: list[str] = []
         facts: list[str] = []
         for signal in [*metadata.get("belief_signals", []), *metadata.get("signals", [])]:
-            belief_id = self.store.add_belief(
-                {
-                    "actor_id": observer_id,
-                    "belief_key": signal["belief_key"],
-                    "belief_value": signal.get("belief_value"),
-                    "confidence": signal.get("confidence", 0.7),
-                    "freshness_window_min": signal.get("freshness_window_min", 240),
-                    "updated_at": to_iso(self.now()),
-                    "source_ref": source_ref,
-                    "metadata": signal.get("metadata", {}),
-                }
+            belief_id, belief_confidence, belief_source_ref, surfaced_fact_id = self._record_observation_belief_signal(
+                observer_id=observer_id,
+                signal=signal,
+                observation_source_ref=source_ref,
             )
-            beliefs.append(f"{signal['belief_key']} (confidence {signal.get('confidence', 0.7):.2f})")
+            beliefs.append(f"{signal['belief_key']} (confidence {belief_confidence:.2f})")
             self.store.log_event(
                 to_iso(self.now()),
                 phase="informational",
@@ -931,8 +942,15 @@ class SimulationEngine:
                 actor_id=observer_id,
                 visibility="omniscient",
                 summary=f"Belief updated for {observer_id}: {signal['belief_key']}",
-                payload={"belief_ref": f"belief:{belief_id}", "belief_key": signal["belief_key"], "source_ref": source_ref},
+                payload={
+                    "belief_ref": f"belief:{belief_id}",
+                    "belief_key": signal["belief_key"],
+                    "source_ref": belief_source_ref,
+                    "observation_source_ref": source_ref,
+                },
             )
+            if surfaced_fact_id:
+                facts.append(self.fact_row(surfaced_fact_id)["label"])
         for fact_id in metadata.get("surface_facts", []):
             event_id = self.store.log_event(
                 to_iso(self.now()),
@@ -948,6 +966,91 @@ class SimulationEngine:
                 facts.append(self.fact_row(fact_id)["label"])
         self._refresh_derived_state()
         return beliefs, facts
+
+    def _record_observation_belief_signal(
+        self,
+        *,
+        observer_id: str,
+        signal: dict[str, Any],
+        observation_source_ref: str,
+    ) -> tuple[int, float, str, Optional[str]]:
+        belief_key = signal["belief_key"]
+        belief_value = signal.get("belief_value")
+        signal_confidence = clamp(float(signal.get("confidence", 0.7)), 0.0, 1.0)
+        freshness_window_min = int(signal.get("freshness_window_min", 240))
+        signal_metadata = deepcopy(signal.get("metadata", {}))
+        latest = self.latest_belief(observer_id, belief_key)
+        combined_confidence = signal_confidence
+        if signal.get("accumulate") and latest is not None:
+            latest_value = self.deserialize(latest["belief_value_json"])
+            if latest_value == belief_value:
+                latest_confidence = clamp(float(latest["confidence"]), 0.0, 1.0)
+                combined_confidence = round(1.0 - (1.0 - latest_confidence) * (1.0 - signal_confidence), 4)
+        stored_source_ref = observation_source_ref
+        surfaced_fact_id: Optional[str] = None
+        private_driver_fact_id = signal_metadata.get("private_driver_fact_id")
+        if private_driver_fact_id:
+            stored_source_ref = self._log_agenda_signal_event(
+                observer_id=observer_id,
+                fact_id=str(private_driver_fact_id),
+                belief_key=belief_key,
+                belief_value=belief_value,
+                signal_confidence=signal_confidence,
+                combined_confidence=combined_confidence,
+                observation_source_ref=observation_source_ref,
+            )
+        belief_id = self.store.add_belief(
+            {
+                "actor_id": observer_id,
+                "belief_key": belief_key,
+                "belief_value": belief_value,
+                "confidence": combined_confidence,
+                "freshness_window_min": freshness_window_min,
+                "updated_at": to_iso(self.now()),
+                "source_ref": stored_source_ref,
+                "metadata": signal_metadata,
+            }
+        )
+        if private_driver_fact_id and combined_confidence >= ACTOR_PRIVATE_DRIVER_CONFIDENCE_THRESHOLD:
+            surfaced = self._try_surface_fact(str(private_driver_fact_id), observer_id, stored_source_ref)
+            if surfaced:
+                surfaced_fact_id = str(private_driver_fact_id)
+        return belief_id, combined_confidence, stored_source_ref, surfaced_fact_id
+
+    def _log_agenda_signal_event(
+        self,
+        *,
+        observer_id: str,
+        fact_id: str,
+        belief_key: str,
+        belief_value: Any,
+        signal_confidence: float,
+        combined_confidence: float,
+        observation_source_ref: str,
+    ) -> str:
+        metadata = self.fact_metadata(fact_id)
+        owner_actor_id = metadata.get("owner_actor_id")
+        event_id = self.store.log_event(
+            to_iso(self.now()),
+            phase="informational",
+            event_type="agenda_signal.observed",
+            actor_id=owner_actor_id or observer_id,
+            visibility="omniscient",
+            summary=f"Agenda cue observed for {fact_id}",
+            payload={
+                "fact_id": fact_id,
+                "observer_id": observer_id,
+                "owner_actor_id": owner_actor_id,
+                "driver_type": metadata.get("driver_type"),
+                "coordination_implication": metadata.get("coordination_implication"),
+                "belief_key": belief_key,
+                "belief_value": belief_value,
+                "signal_confidence": round(signal_confidence, 4),
+                "combined_confidence": round(combined_confidence, 4),
+                "source_ref": observation_source_ref,
+            },
+        )
+        return f"event:{event_id}"
 
     def _sync_tracker_beliefs_for_actor(self, actor_id: str) -> None:
         for row in self.store.tasks():

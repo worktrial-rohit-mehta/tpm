@@ -1,0 +1,316 @@
+{
+  "cells": [
+    {
+      "compiled_family_id": "maya.eta.high_pressure",
+      "criticality": "important",
+      "id": "maya_eta_early",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "request.eta",
+        "pressure_band": "high",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "maya.feasibility.high_pressure",
+      "criticality": "critical",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_feasibility_early",
+      "priority": 30,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "request.feasibility",
+        "pressure_band": "high",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "maya.feasibility.descoped",
+      "criticality": "critical",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "maya_feasibility_descoped",
+      "priority": 40,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "maya",
+        "incoming_act_id": "request.feasibility",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "rohit.risk.early",
+      "criticality": "important",
+      "id": "rohit_risk",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "rohit",
+        "incoming_act_id": "inform.risk",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "rohit.approval.need_context",
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "surfaced": "backend_infeasible_for_friday"
+        }
+      },
+      "id": "rohit_decision_need_context",
+      "priority": 25,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "rohit",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "rohit.approval.descoped",
+      "criticality": "important",
+      "guard": {
+        "all_of": [
+          {
+            "surfaced": "backend_infeasible_for_friday"
+          },
+          {
+            "critical_window_open": "scope_alignment_cutoff"
+          }
+        ]
+      },
+      "id": "rohit_decision_early",
+      "priority": 30,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "rohit",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "rohit.approval.late",
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "scope_alignment_cutoff"
+        }
+      },
+      "id": "rohit_decision_late",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "rohit",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "andrew.ownership.before_scope",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "undecided",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_ownership_before_scope",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "andrew",
+        "incoming_act_id": "request.ownership",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "andrew.ownership.after_scope",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "andrew_ownership_after_scope",
+      "priority": 30,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "andrew",
+        "incoming_act_id": "request.ownership",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "rahul.approval.without_context",
+      "criticality": "critical",
+      "guard": {
+        "not": {
+          "surfaced": "support_context_available"
+        }
+      },
+      "id": "rahul_without_context",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "rahul.approval.with_context",
+      "criticality": "critical",
+      "guard": {
+        "all_of": [
+          {
+            "surfaced": "support_context_available"
+          },
+          {
+            "project_state": {
+              "equals": "descoped_pilot",
+              "field": "launch_scope"
+            }
+          }
+        ]
+      },
+      "id": "rahul_with_context",
+      "priority": 30,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "rahul",
+        "incoming_act_id": "request.approval",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "nina.review.before_cutoff",
+      "criticality": "critical",
+      "guard": {
+        "critical_window_open": "security_cutoff"
+      },
+      "id": "nina_before_cutoff",
+      "priority": 30,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "nina",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "nina.review.after_cutoff",
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "security_cutoff"
+        }
+      },
+      "id": "nina_after_cutoff",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "nina",
+        "incoming_act_id": "request.review",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "sara.decision.early",
+      "criticality": "important",
+      "guard": {
+        "critical_window_open": "customer_plan_cutoff"
+      },
+      "id": "sara_decision_early",
+      "priority": 30,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "sara",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "sara.decision.late",
+      "criticality": "important",
+      "guard": {
+        "not": {
+          "critical_window_open": "customer_plan_cutoff"
+        }
+      },
+      "id": "sara_decision_late",
+      "priority": 20,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "actor_id": "sara",
+        "incoming_act_id": "inform.decision",
+        "surface": "chat"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "calendar.accept.available",
+      "criticality": "important",
+      "guard": {
+        "context_field": {
+          "equals": true,
+          "field": "available_for_meeting"
+        }
+      },
+      "id": "calendar_accept_available",
+      "priority": 10,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "incoming_act_id": "meeting.propose",
+        "surface": "calendar"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    },
+    {
+      "compiled_family_id": "calendar.decline.unavailable",
+      "criticality": "important",
+      "guard": {
+        "context_field": {
+          "equals": false,
+          "field": "available_for_meeting"
+        }
+      },
+      "id": "calendar_decline_busy",
+      "priority": 10,
+      "rationale": "Migrated from existing npc_coverage.json so compiled runtime behavior stays stable.",
+      "selector": {
+        "incoming_act_id": "meeting.propose",
+        "surface": "calendar"
+      },
+      "why_reachable": "Extracted from legacy compiled coverage."
+    }
+  ],
+  "version": "coverage_contract_v1"
+}

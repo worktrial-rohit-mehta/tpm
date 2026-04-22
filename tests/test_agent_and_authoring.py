@@ -4,7 +4,7 @@ import json
 import os
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest import mock
@@ -12,19 +12,24 @@ from unittest import mock
 from tpm_sim.agent import AgentDecision, AgentRunner, OpenAIResponsesAgentAdapter
 from tpm_sim.authoring import (
     accept_proposal,
+    compile_contract,
+    compile_coverage_artifact,
     diff_proposal,
     init_proposal,
+    run_closure_suite,
     synthesize_coverage,
+    synthesize_semantics,
     synthesize_trajectories,
     synthesize_world,
     validate_proposal,
 )
-from tpm_sim.cli import _run_agent_replay, execute_command, execute_script
-from tpm_sim.cli import run_agent_replay
+from tpm_sim.cli import _resolve_authoring_model, _run_agent_replay, execute_command, execute_script
+from tpm_sim.cli import run_agent, run_agent_replay
 from tpm_sim.engine import CoverageMissError, SimulationEngine
 from tpm_sim.environment import ActionValidationError, EnvironmentSession, StructuredAction, validate_structured_action
 from tpm_sim.evaluator import Evaluator
 from tpm_sim.model_client import ModelResponse
+from tpm_sim.performance import build_run_summary, export_bundle_summary, export_run_summary
 from tpm_sim.runtime_env import autoload_project_dotenv
 from tpm_sim.scenario import load_scenario_bundle, seed_store
 from tpm_sim.storage import open_store
@@ -399,6 +404,86 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertGreaterEqual(record.score, 95.0)
             self.assertFalse(record.protocol_failure)
 
+    def test_export_run_summary_builds_canonical_tpm_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "summary.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            try:
+                record = AgentRunner(
+                    ScriptedAdapter(
+                        [
+                            {"action_type": "read.doc", "arguments": {"doc_id": "DOC-BRIEF-100"}, "reason": "read the kickoff brief"},
+                            {"action_type": "wait.duration", "arguments": {"minutes": 30}, "reason": "advance"},
+                        ]
+                    ),
+                    max_turns=2,
+                ).run(
+                    session,
+                    seed=11,
+                    output_dir=str(Path(tmpdir) / "summary_run"),
+                    model_name="mock-model",
+                )
+            finally:
+                session.close()
+            summary = export_run_summary(Path(record.output_dir), write_files=True)
+            self.assertEqual(summary["schema_version"], "tpm_performance_summary_v1")
+            self.assertIn("tpm_competency_profile", summary)
+            self.assertIn("run_health", summary)
+            self.assertEqual(summary["narrative"]["source"], "deterministic_template")
+            self.assertTrue((Path(record.output_dir) / "tpm_performance_summary.json").exists())
+
+    def test_run_summary_surfaces_new_driver_discovery_lines_when_relevant(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "summary_success.sqlite")
+            engine, evaluator = build_runtime(db_path, "northstar_launch_week", seed=11)
+            try:
+                execute_script(engine, evaluator, EXAMPLES / "golden.tpm", echo=False, emit=False)
+                success_summary = build_run_summary(
+                    evaluator.evaluate(),
+                    scenario_bundle=load_scenario_bundle("northstar_launch_week"),
+                )
+            finally:
+                engine.store.close()
+
+            db_path = str(Path(tmpdir) / "summary_failure.sqlite")
+            engine, evaluator = build_runtime(db_path, "northstar_launch_week", seed=11)
+            try:
+                execute_script(engine, evaluator, EXAMPLES / "false_green.tpm", echo=False, emit=False)
+                failure_summary = build_run_summary(
+                    evaluator.evaluate(),
+                    scenario_bundle=load_scenario_bundle("northstar_launch_week"),
+                )
+            finally:
+                engine.store.close()
+
+        self.assertIn("stakeholder_driver_discovery", [item["id"] for item in success_summary["key_successes"]])
+        self.assertIn("stakeholder_driver_discovery", [item["id"] for item in failure_summary["key_failures"]])
+
+    def test_export_bundle_summary_aggregates_run_summaries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            run_summaries = [
+                {
+                    "run_header": {"seed": 11, "score": 55, "scenario_id": "internal_rollout_smoke", "summary_path": "a"},
+                    "outcome_verdict": {"headline": "partial"},
+                    "tpm_competency_profile": [{"id": "discovery_situation_awareness", "label": "Discovery & Situation Awareness", "score": 80}],
+                    "outcome_profile": [{"id": "outcome_attainment", "label": "Outcome Attainment", "score": 40}],
+                    "run_health": {"protocol_failure": False, "coverage_miss": False, "harness_interface_issues": [], "scenario_authoring_issues": []},
+                    "key_failures": [{"id": "scope_aligned_on_time"}],
+                },
+                {
+                    "run_header": {"seed": 29, "score": 35, "scenario_id": "internal_rollout_smoke", "summary_path": "b"},
+                    "outcome_verdict": {"headline": "failed"},
+                    "tpm_competency_profile": [{"id": "discovery_situation_awareness", "label": "Discovery & Situation Awareness", "score": 60}],
+                    "outcome_profile": [{"id": "outcome_attainment", "label": "Outcome Attainment", "score": 20}],
+                    "run_health": {"protocol_failure": False, "coverage_miss": False, "harness_interface_issues": [], "scenario_authoring_issues": []},
+                    "key_failures": [{"id": "scope_aligned_on_time"}],
+                },
+            ]
+            summary = export_bundle_summary(Path(tmpdir), run_summaries, scenario_id="internal_rollout_smoke", model="mock-model", seed_bundle=[11, 29], write_files=False)
+            self.assertEqual(summary["schema_version"], "tpm_bundle_performance_summary_v1")
+            self.assertEqual(summary["headline"]["mean_score"], 45.0)
+            self.assertEqual(summary["top_recurring_failure_themes"][0]["id"], "scope_aligned_on_time")
+
     def test_observation_exposes_unread_threads_with_stable_ids(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = str(Path(tmpdir) / "observe.sqlite")
@@ -412,6 +497,68 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertTrue(all(isinstance(item, dict) for item in unread))
             self.assertTrue(all("thread_id" in item for item in unread))
             self.assertTrue(all("display" in item for item in unread))
+
+    def test_working_memory_exposes_surfaced_facts_after_doc_read(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "working_memory.sqlite")
+            session = EnvironmentSession.create(db_path, "northstar_launch_week", 11, force=True)
+            try:
+                session.step(StructuredAction("read.doc", {"doc_id": "DOC-MAYA-LOAD-001"}))
+                observation = session.observe()
+            finally:
+                session.close()
+            fact_ids = {item["id"] for item in observation["working_memory"]["surfaced_facts"]}
+            self.assertIn("maya_oncall_until_mon_1500", fact_ids)
+            self.assertIn("backend_infeasible_for_friday", fact_ids)
+
+    def test_pressuring_engineer_vs_honest_feasibility_changes_trust_and_discovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            eta_db = str(Path(tmpdir) / "eta.sqlite")
+            feasibility_db = str(Path(tmpdir) / "feasibility.sqlite")
+            eta_session = EnvironmentSession.create(eta_db, "internal_rollout_smoke", 11, force=True)
+            feasibility_session = EnvironmentSession.create(feasibility_db, "internal_rollout_smoke", 11, force=True)
+            try:
+                eta_session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "leo",
+                            "act_id": "request.eta",
+                            "slots": {"task_id": "config_rollout"},
+                            "body": "Need a delivery date right now.",
+                        },
+                    )
+                )
+                eta_session.step(StructuredAction("wait.until_next_event", {"max_minutes": 180}))
+                eta_session.step(StructuredAction("read.thread", {"target": "leo"}))
+
+                feasibility_session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "leo",
+                            "act_id": "request.feasibility",
+                            "slots": {"task_id": "config_rollout"},
+                            "body": "Need the honest path and blockers.",
+                        },
+                    )
+                )
+                feasibility_session.step(StructuredAction("wait.until_next_event", {"max_minutes": 180}))
+                feasibility_session.step(StructuredAction("read.thread", {"target": "leo"}))
+
+                eta_trust = eta_session.engine.relationship_state("leo", "tpm")["trust"]
+                feasibility_trust = feasibility_session.engine.relationship_state("leo", "tpm")["trust"]
+                eta_facts = {item["id"] for item in eta_session.observe()["working_memory"]["surfaced_facts"]}
+                feasibility_facts = {
+                    item["id"] for item in feasibility_session.observe()["working_memory"]["surfaced_facts"]
+                }
+            finally:
+                eta_session.close()
+                feasibility_session.close()
+            self.assertLess(eta_trust, feasibility_trust)
+            self.assertNotIn("full_rollout_infeasible", eta_facts)
+            self.assertIn("full_rollout_infeasible", feasibility_facts)
+            self.assertIn("approval_required", feasibility_facts)
 
     def test_read_thread_accepts_envelope_like_target_prefix(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -501,10 +648,14 @@ class AgentAndAuthoringTests(unittest.TestCase):
             proposal_dir = str(Path(tmpdir) / "proposal")
             init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
             synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
-            synthesize_coverage(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_contract(proposal_dir)
+            synthesize_semantics(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_coverage_artifact(proposal_dir)
             synthesize_trajectories(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
             validation = validate_proposal(proposal_dir)
             self.assertTrue(validation["valid"])
+            closure = run_closure_suite(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            self.assertTrue(closure["passed"])
             diff = diff_proposal(proposal_dir, scenarios_root=str(OFFICIAL_SCENARIOS))
             self.assertTrue(diff["scenario_exists"])
             self.assertEqual(diff["scenario_changes"]["top_level_changed"], [])
@@ -518,8 +669,34 @@ class AgentAndAuthoringTests(unittest.TestCase):
             )
             scenario_dir = Path(accepted["scenario_dir"])
             self.assertTrue((scenario_dir / "scenario.json").exists())
+            self.assertTrue((scenario_dir / "coverage_contract.json").exists())
+            self.assertTrue((scenario_dir / "coverage_semantics.json").exists())
             self.assertTrue((scenario_dir / "npc_coverage.json").exists())
+            self.assertTrue((scenario_dir / "closure_report.json").exists())
             self.assertTrue((examples_root / "internal_rollout_smoke" / "smoke.tpm").exists())
+
+    def test_closure_suite_fails_when_official_seeds_are_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_contract(proposal_dir)
+            synthesize_semantics(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_coverage_artifact(proposal_dir)
+            synthesize_trajectories(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            validation = validate_proposal(proposal_dir)
+            self.assertTrue(validation["valid"])
+
+            scenario_path = Path(proposal_dir) / "candidate" / "scenario.json"
+            scenario = json.loads(scenario_path.read_text())
+            scenario["evaluation"]["official_seeds"] = []
+            scenario_path.write_text(json.dumps(scenario, indent=2, sort_keys=True))
+            compile_coverage_artifact(proposal_dir)
+
+            closure = run_closure_suite(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            self.assertFalse(closure["passed"])
+            self.assertEqual(closure["status"], "failed_no_seeds")
+            self.assertEqual(closure["live_agent_suite"]["status"], "skipped_no_seeds")
 
     def test_project_env_autoload_reads_repo_root_dotenv_without_overriding_process_env(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -531,13 +708,19 @@ class AgentAndAuthoringTests(unittest.TestCase):
                     [
                         "OPENAI_API_KEY=from-dotenv",
                         "TPM_AGENT_MODEL=\"gpt-from-dotenv\"",
+                        "TPM_AUTHORING_MODEL=\"gpt-authoring-from-dotenv\"",
                     ]
                 )
             )
-            with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "from-process"}, clear=True):
+            with mock.patch.dict(
+                os.environ,
+                {"OPENAI_API_KEY": "from-process", "TPM_AUTHORING_MODEL": "gpt-authoring-from-process"},
+                clear=True,
+            ):
                 result = autoload_project_dotenv(start_dir=nested, project_root_path=root)
                 self.assertEqual(os.environ["OPENAI_API_KEY"], "from-process")
                 self.assertEqual(os.environ["TPM_AGENT_MODEL"], "gpt-from-dotenv")
+                self.assertEqual(os.environ["TPM_AUTHORING_MODEL"], "gpt-authoring-from-process")
                 self.assertEqual([str(Path(path).resolve()) for path in result["loaded_paths"]], [str((root / ".env").resolve())])
 
     def test_cli_uses_tpm_agent_model_from_environment_as_default(self) -> None:
@@ -547,6 +730,72 @@ class AgentAndAuthoringTests(unittest.TestCase):
             parser = build_parser()
             args = parser.parse_args(["agent", "run", "--scenario", "internal_rollout_smoke"])
             self.assertEqual(args.model, "gpt-env-default")
+            self.assertEqual(args.stream_events, "omniscient")
+
+    def test_resolve_authoring_model_prefers_explicit_then_authoring_env(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"TPM_AGENT_MODEL": "gpt-agent-default", "TPM_AUTHORING_MODEL": "gpt-authoring-default"},
+            clear=True,
+        ):
+            self.assertEqual(_resolve_authoring_model("openai", "gpt-cli-override"), "gpt-cli-override")
+            self.assertEqual(_resolve_authoring_model("openai", None), "gpt-authoring-default")
+
+    def test_resolve_authoring_model_falls_back_to_tpm_agent_model(self) -> None:
+        with mock.patch.dict(os.environ, {"TPM_AGENT_MODEL": "gpt-agent-default"}, clear=True):
+            self.assertEqual(_resolve_authoring_model("openai", None), "gpt-agent-default")
+
+    def test_fixture_authoring_resolution_keeps_fixture_default(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"TPM_AGENT_MODEL": "gpt-agent-default", "TPM_AUTHORING_MODEL": "gpt-authoring-default"},
+            clear=True,
+        ):
+            self.assertEqual(_resolve_authoring_model("fixture", None), "fixture")
+
+    def test_run_agent_streams_live_events_to_stderr_without_corrupting_json_stdout(self) -> None:
+        actions = [
+            {
+                "action_type": "chat.send",
+                "arguments": {
+                    "target": "leo",
+                    "act_id": "request.feasibility",
+                    "slots": {"task_id": "config_rollout"},
+                    "body": "Need the honest path for the staged rollout.",
+                },
+                "reason": "get the real feasibility signal",
+            },
+            {
+                "action_type": "wait.until_next_event",
+                "arguments": {"max_minutes": 180},
+                "reason": "wait for Leo to answer",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = StringIO()
+            stderr = StringIO()
+            summary = {"schema_version": "test_summary_v1", "ok": True}
+            with (
+                mock.patch("tpm_sim.cli.build_model_client", return_value=object()),
+                mock.patch("tpm_sim.cli.OpenAIResponsesAgentAdapter", return_value=ScriptedAdapter(actions)),
+                mock.patch("tpm_sim.cli.export_run_summary", return_value=summary),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                exit_code = run_agent(
+                    "internal_rollout_smoke",
+                    11,
+                    "mock-model",
+                    str(Path(tmpdir) / "live_run"),
+                    2,
+                    "strict",
+                    "omniscient",
+                    True,
+                )
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(json.loads(stdout.getvalue()), summary)
+        self.assertIn("tpm.message_sent", stderr.getvalue())
+        self.assertIn("npc.message_sent", stderr.getvalue())
 
     def test_internal_rollout_smoke_script_runs_cleanly(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -614,6 +863,79 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 session.close()
             self.assertTrue(any("Ivy Shah" in message for message in notices))
             self.assertIn("do not give the delivery ETA", thread_view.message)
+
+    def test_internal_rollout_request_clarification_to_dana_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_clarification.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "request.clarification",
+                            "slots": {},
+                            "body": "What tradeoff do you need from me to make the staged path real?",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("recommend the staged path clearly", thread_view.message)
+
+    def test_internal_rollout_inform_blocker_to_dana_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_blocker.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "inform.blocker",
+                            "slots": {"target_actor_id": "dana"},
+                            "body": "The approval path is blocked until we settle whether staged rollout is the only credible option.",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("bring me the staged tradeoff", thread_view.message.lower())
+
+    def test_internal_rollout_inform_decision_to_dana_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_decision.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "inform.decision",
+                            "slots": {
+                                "decision_key": "project.launch_scope",
+                                "decision_value": "staged_rollout",
+                                "target_actor_id": "dana",
+                            },
+                            "body": "We are leaning staged, but I need your backing on the tradeoff.",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("need the concrete tradeoff", thread_view.message.lower())
 
     def test_internal_rollout_inform_decision_to_ivy_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -754,6 +1076,31 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 session.close()
             self.assertTrue(any("Ivy Shah" in message for message in notices))
             self.assertIn("I do not set product scope", thread_view.message)
+
+    def test_internal_rollout_request_scope_tradeoff_to_ivy_after_scope_is_staged_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "ivy_scope_tradeoff_clear.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                execute_script(session.engine, session.evaluator, EXAMPLES / "internal_rollout_smoke" / "smoke.tpm", echo=False, emit=False)
+
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "ivy",
+                            "act_id": "request.scope_tradeoff",
+                            "slots": {},
+                            "body": "Any remaining scope tradeoff concerns from your side now that the staged path is set?",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "ivy"}))
+            finally:
+                session.close()
+            self.assertIn("Any remaining scope tradeoff concerns from your side now that the staged path is set?", thread_view.message)
 
     def test_agent_replay_prints_timestamps_actor_and_trace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

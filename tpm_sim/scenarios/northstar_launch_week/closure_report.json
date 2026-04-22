@@ -1,0 +1,90 @@
+{
+  "deterministic_scripted_suite": [
+    {
+      "error": null,
+      "score": 85.0,
+      "script": "golden.tpm",
+      "seed": 11
+    },
+    {
+      "error": null,
+      "score": 85.0,
+      "script": "golden.tpm",
+      "seed": 29
+    },
+    {
+      "error": null,
+      "score": 85.0,
+      "script": "golden.tpm",
+      "seed": 47
+    },
+    {
+      "error": null,
+      "score": 15.0,
+      "script": "busywork.tpm",
+      "seed": 11
+    },
+    {
+      "error": null,
+      "score": 15.0,
+      "script": "busywork.tpm",
+      "seed": 29
+    },
+    {
+      "error": null,
+      "score": 15.0,
+      "script": "busywork.tpm",
+      "seed": 47
+    },
+    {
+      "error": null,
+      "score": 25.0,
+      "script": "false_green.tpm",
+      "seed": 11
+    },
+    {
+      "error": null,
+      "score": 25.0,
+      "script": "false_green.tpm",
+      "seed": 29
+    },
+    {
+      "error": null,
+      "score": 25.0,
+      "script": "false_green.tpm",
+      "seed": 47
+    },
+    {
+      "error": null,
+      "score": 8.0,
+      "script": "spray_and_pray.tpm",
+      "seed": 11
+    },
+    {
+      "error": null,
+      "score": 8.0,
+      "script": "spray_and_pray.tpm",
+      "seed": 29
+    },
+    {
+      "error": null,
+      "score": 8.0,
+      "script": "spray_and_pray.tpm",
+      "seed": 47
+    }
+  ],
+  "live_agent_suite": {
+    "model": "fixture",
+    "repeats": 1,
+    "runs": [],
+    "status": "fixture_skipped"
+  },
+  "pass_criteria": {
+    "zero_live_protocol_failures": true,
+    "zero_observed_coverage_misses": true,
+    "zero_script_errors": true
+  },
+  "passed": true,
+  "scenario_id": "northstar_launch_week",
+  "status": "passed"
+}

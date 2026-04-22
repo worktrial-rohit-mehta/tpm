@@ -1,0 +1,17 @@
+{
+  "deterministic_scripted_suite": [],
+  "live_agent_suite": {
+    "model": "gpt-4o",
+    "repeats": 1,
+    "runs": [],
+    "status": "executed"
+  },
+  "pass_criteria": {
+    "zero_live_protocol_failures": true,
+    "zero_observed_coverage_misses": true,
+    "zero_script_errors": true
+  },
+  "passed": true,
+  "scenario_id": "internal_rollout_smoke",
+  "status": "passed"
+}

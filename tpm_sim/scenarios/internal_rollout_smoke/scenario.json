@@ -1,405 +1,943 @@
 {
-  "id": "internal_rollout_smoke",
-  "name": "Internal rollout approval smoke",
-  "timezone": "America/Los_Angeles",
-  "start_at": "2026-05-05T09:00:00",
   "end_at": "2026-05-06T17:00:00",
-  "world": {
-    "project": {
-      "name": "Identity Toggle Internal Rollout",
-      "description": "A lightweight generalization scenario around getting a staged internal rollout ready under approval pressure.",
-      "state": {
-        "launch_scope": "undecided",
-        "stakeholder_confidence": "stable",
-        "coverage_miss": false,
-        "invalid_external_commitments": 0
+  "evaluation": {
+    "official_seeds": [
+      11,
+      29,
+      47
+    ],
+    "primary_failure_classes": [
+      "timing",
+      "discovery",
+      "commitment"
+    ],
+    "rubric_lines": [
+      {
+        "competency_tags": [
+          "outcome_attainment",
+          "timing_optionality_preservation",
+          "decision_tradeoff_management",
+          "stakeholder_alignment_communication"
+        ],
+        "deadline_or_window": "scope_alignment_cutoff",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "timing",
+        "failure_meaning": "The TPM failed to converge the team on the real feasible path early enough, so the rest of execution remained unstable.",
+        "failure_predicates": [],
+        "id": "scope_aligned_on_time",
+        "label": "Scope aligned on time",
+        "measurement_rationale": "Measures whether the TPM drove the staged rollout decision into explicit cross-functional alignment before the main decision window closed.",
+        "partial_credit_predicates": [],
+        "scoring_type": "binary",
+        "success_meaning": "The TPM got the team onto the feasible staged path in time for downstream work and approvals to proceed.",
+        "success_predicate": {
+          "before": {
+            "predicate": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "scope_aligned"
+              }
+            },
+            "time": "2026-05-05T15:00:00"
+          }
+        },
+        "weight": 25
       },
-      "metadata": {
-        "benchmark_positioning": "lightweight_generalization_smoke"
+      {
+        "competency_tags": [
+          "outcome_attainment",
+          "timing_optionality_preservation",
+          "commitment_dependency_management",
+          "stakeholder_alignment_communication"
+        ],
+        "deadline_or_window": "approval_cutoff",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "timing",
+        "failure_meaning": "The TPM did not secure approval in time, which means dependency management and timing discipline were insufficient.",
+        "failure_predicates": [],
+        "id": "approval_secured_on_time",
+        "label": "Approval secured before cutoff",
+        "measurement_rationale": "Measures whether the TPM handled the key approval dependency before the queue cutoff instead of discovering it too late or asking without the right setup.",
+        "partial_credit_predicates": [],
+        "scoring_type": "binary",
+        "success_meaning": "The TPM secured the key dependency on time, preserving the path to rollout.",
+        "success_predicate": {
+          "before": {
+            "predicate": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "approval_secured"
+              }
+            },
+            "time": "2026-05-05T12:00:00"
+          }
+        },
+        "weight": 25
+      },
+      {
+        "competency_tags": [
+          "outcome_attainment",
+          "timing_optionality_preservation",
+          "critical_path_prioritization",
+          "commitment_dependency_management"
+        ],
+        "deadline_or_window": "rollout_ready",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "timing",
+        "failure_meaning": "The TPM did not translate alignment and approvals into execution progress quickly enough to make the rollout ready.",
+        "failure_predicates": [],
+        "id": "rollout_ready_on_time",
+        "label": "Rollout ready by Wednesday afternoon",
+        "measurement_rationale": "Measures whether the TPM actually converted planning and coordination into a ready-to-run staged rollout by the scenario deadline.",
+        "partial_credit_predicates": [],
+        "scoring_type": "binary",
+        "success_meaning": "The TPM moved the critical path all the way to a rollout-ready state.",
+        "success_predicate": {
+          "before": {
+            "predicate": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "rollout_ready"
+              }
+            },
+            "time": "2026-05-06T15:00:00"
+          }
+        },
+        "weight": 20
+      },
+      {
+        "competency_tags": [
+          "discovery_situation_awareness"
+        ],
+        "deadline_or_window": "critical_fact_windows",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "discovery",
+        "failure_meaning": "The TPM either missed or surfaced the hard rollout constraints too late to steer the scenario cleanly.",
+        "failure_predicates": [],
+        "id": "project_constraint_discovery",
+        "label": "Project constraints surfaced in time",
+        "measurement_rationale": "Measures whether the TPM surfaced the hard rollout constraints and approval dependency early enough to still change the plan.",
+        "partial_credit_predicates": [
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "full_rollout_infeasible"
+              },
+              "time": "2026-05-05T11:30:00"
+            }
+          },
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "approval_required"
+              },
+              "time": "2026-05-05T12:00:00"
+            }
+          }
+        ],
+        "scoring_type": "count_fraction",
+        "success_meaning": "The TPM found the objective blockers before the dependent windows closed.",
+        "success_predicate": {},
+        "weight": 5
+      },
+      {
+        "competency_tags": [
+          "discovery_situation_awareness",
+          "stakeholder_alignment_communication"
+        ],
+        "deadline_or_window": "stakeholder_driver_windows",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "discovery",
+        "failure_meaning": "The TPM treated stakeholder reactions as generic status noise and missed the cues that should have changed the rollout approach.",
+        "failure_predicates": [],
+        "id": "stakeholder_driver_discovery",
+        "label": "Stakeholder drivers surfaced in time",
+        "measurement_rationale": "Measures whether the TPM picked up the sponsor and engineer cues that should change how they sequence the rollout conversation.",
+        "partial_credit_predicates": [
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "dana_accepts_staged_if_early"
+              },
+              "time": "2026-05-05T15:00:00"
+            }
+          },
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "leo_rejects_fake_rollout_dates"
+              },
+              "time": "2026-05-06T12:00:00"
+            }
+          }
+        ],
+        "scoring_type": "count_fraction",
+        "success_meaning": "The TPM noticed the private drivers behind stakeholder behavior early enough to coordinate differently.",
+        "success_predicate": {},
+        "weight": 5
+      },
+      {
+        "competency_tags": [
+          "commitment_dependency_management",
+          "stakeholder_alignment_communication"
+        ],
+        "deadline_or_window": "commitments",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "commitment",
+        "failure_meaning": "The TPM did not secure enough commitment quality for the plan to be trusted or executed.",
+        "failure_predicates": [],
+        "id": "commitment_quality",
+        "label": "Credible commitments secured",
+        "measurement_rationale": "Measures whether the TPM secured credible staged-plan and rollout commitments rather than only trading messages or dates without support.",
+        "partial_credit_predicates": [
+          {
+            "predicate": {
+              "all_of": [
+                {
+                  "commitment_state": {
+                    "commitment_id": "staged_rollout_plan",
+                    "field": "status",
+                    "in": [
+                      "committed",
+                      "fulfilled"
+                    ]
+                  }
+                },
+                {
+                  "commitment_state": {
+                    "commitment_id": "config_rollout_eta",
+                    "field": "status",
+                    "in": [
+                      "tentative",
+                      "committed",
+                      "fulfilled"
+                    ]
+                  }
+                }
+              ]
+            },
+            "score": 10
+          },
+          {
+            "predicate": {
+              "any_of": [
+                {
+                  "commitment_state": {
+                    "commitment_id": "staged_rollout_plan",
+                    "field": "status",
+                    "in": [
+                      "committed",
+                      "fulfilled"
+                    ]
+                  }
+                },
+                {
+                  "commitment_state": {
+                    "commitment_id": "config_rollout_eta",
+                    "field": "status",
+                    "in": [
+                      "tentative",
+                      "committed",
+                      "fulfilled"
+                    ]
+                  }
+                }
+              ]
+            },
+            "score": 5
+          }
+        ],
+        "scoring_type": "thresholded",
+        "success_meaning": "The TPM turned discovery and alignment into explicit credible commitments.",
+        "success_predicate": {},
+        "weight": 10
+      },
+      {
+        "competency_tags": [
+          "stakeholder_alignment_communication"
+        ],
+        "deadline_or_window": "team_health",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "relationship",
+        "failure_meaning": "The TPM degraded trust enough that future coordination would be harder even if some progress was made.",
+        "failure_predicates": [],
+        "id": "relationship_health",
+        "label": "Working relationships stayed usable",
+        "measurement_rationale": "Measures whether the TPM preserved enough stakeholder trust to keep coordination usable while driving the work.",
+        "partial_credit_predicates": [
+          {
+            "predicate": {
+              "all_of": [
+                {
+                  "relationship_state": {
+                    "actor_id": "leo",
+                    "field": "trust",
+                    "gte": 0.4,
+                    "target_actor_id": "tpm"
+                  }
+                },
+                {
+                  "relationship_state": {
+                    "actor_id": "ivy",
+                    "field": "trust",
+                    "gte": 0.5,
+                    "target_actor_id": "tpm"
+                  }
+                }
+              ]
+            },
+            "score": 5
+          },
+          {
+            "predicate": {
+              "any_of": [
+                {
+                  "relationship_state": {
+                    "actor_id": "leo",
+                    "field": "trust",
+                    "gte": 0.4,
+                    "target_actor_id": "tpm"
+                  }
+                },
+                {
+                  "relationship_state": {
+                    "actor_id": "ivy",
+                    "field": "trust",
+                    "gte": 0.5,
+                    "target_actor_id": "tpm"
+                  }
+                }
+              ]
+            },
+            "score": 2
+          }
+        ],
+        "scoring_type": "thresholded",
+        "success_meaning": "The TPM moved the project without materially burning the key relationships needed to execute.",
+        "success_predicate": {},
+        "weight": 5
+      },
+      {
+        "competency_tags": [
+          "critical_path_prioritization"
+        ],
+        "deadline_or_window": "runbook_bonus",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "prioritization",
+        "failure_meaning": "The TPM either over-invested in the side path or ignored it when it could have been handled cheaply.",
+        "failure_predicates": [],
+        "id": "runbook_bonus",
+        "label": "Runbook distraction path still delivered a small benefit",
+        "measurement_rationale": "Measures whether the TPM can pick up a small non-gating benefit without mistaking it for the main path.",
+        "partial_credit_predicates": [],
+        "scoring_type": "binary",
+        "success_meaning": "The TPM captured the side benefit without losing focus on the critical path.",
+        "success_predicate": {
+          "before": {
+            "predicate": {
+              "task_true_state": {
+                "equals": "done",
+                "field": "checkpoint",
+                "task_id": "runbook_readiness"
+              }
+            },
+            "time": "2026-05-06T13:00:00"
+          }
+        },
+        "weight": 5
       }
+    ]
+  },
+  "id": "internal_rollout_smoke",
+  "name": "Internal Rollout Smoke",
+  "policy": {
+    "action_costs": {
+      "meeting_act": 1,
+      "read_calendar": 1,
+      "read_doc": 5,
+      "read_task_board": 1,
+      "read_thread": 2,
+      "schedule_meeting": 2,
+      "send_chat": 1,
+      "task_edit": 3,
+      "task_note": 3,
+      "write_doc": 15,
+      "write_note": 1
     },
+    "default_timing_band": "",
+    "external_commitment_requirements": [],
+    "meeting_defaults": {
+      "tpm_max_acts": 2
+    },
+    "meeting_outcomes": [
+      {
+        "effects": [
+          {
+            "patch": {
+              "launch_scope": "staged_rollout"
+            },
+            "type": "project_state_patch"
+          },
+          {
+            "actor_id": "dana",
+            "belief_key": "project.launch_scope",
+            "belief_value": "staged_rollout",
+            "confidence": 0.9,
+            "freshness_window_min": 480,
+            "type": "belief_signal"
+          },
+          {
+            "actor_id": "leo",
+            "belief_key": "project.launch_scope",
+            "belief_value": "staged_rollout",
+            "confidence": 0.9,
+            "freshness_window_min": 480,
+            "type": "belief_signal"
+          },
+          {
+            "actor_id": "mia",
+            "belief_key": "project.launch_scope",
+            "belief_value": "staged_rollout",
+            "confidence": 0.8,
+            "freshness_window_min": 480,
+            "type": "belief_signal"
+          },
+          {
+            "audience_ids": [
+              "tpm",
+              "leo",
+              "mia"
+            ],
+            "confidence": 0.9,
+            "id": "staged_rollout_plan",
+            "metadata": {
+              "milestone_ids": [
+                "scope_aligned"
+              ]
+            },
+            "owner_id": "dana",
+            "scope": {
+              "launch_scope": "staged_rollout"
+            },
+            "status": "committed",
+            "subject": "rollout_scope",
+            "type": "create_or_update_commitment"
+          }
+        ],
+        "guard": {
+          "all_of": [
+            {
+              "surfaced": "full_rollout_infeasible"
+            },
+            {
+              "surfaced": "approval_required"
+            }
+          ]
+        },
+        "id": "staged_rollout_aligned",
+        "meeting_id": "rollout_tradeoff_huddle",
+        "required_attendees": [
+          "dana",
+          "leo",
+          "mia"
+        ],
+        "required_tpm_acts": [
+          "negotiate.scope",
+          "request.ownership"
+        ]
+      }
+    ],
+    "project_state_rules": [
+      {
+        "cases": [
+          {
+            "predicate": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "rollout_ready"
+              }
+            },
+            "value": "stable"
+          },
+          {
+            "predicate": {
+              "all_of": [
+                {
+                  "after": {
+                    "predicate": {},
+                    "time": "2026-05-06T10:00:00"
+                  }
+                },
+                {
+                  "not": {
+                    "milestone_state": {
+                      "equals": "done",
+                      "field": "status",
+                      "milestone_id": "rollout_ready"
+                    }
+                  }
+                }
+              ]
+            },
+            "value": "at_risk"
+          },
+          {
+            "predicate": {
+              "all_of": [
+                {
+                  "after": {
+                    "predicate": {},
+                    "time": "2026-05-05T10:00:00"
+                  }
+                },
+                {
+                  "not": {
+                    "milestone_state": {
+                      "equals": "done",
+                      "field": "status",
+                      "milestone_id": "scope_aligned"
+                    }
+                  }
+                }
+              ]
+            },
+            "value": "fragile"
+          }
+        ],
+        "field": "stakeholder_confidence"
+      }
+    ],
+    "task_transitions": [
+      {
+        "delay_minutes": [
+          60,
+          90
+        ],
+        "effects": [],
+        "from_checkpoint": "working",
+        "guard": {
+          "all_of": [
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "scope_aligned"
+              }
+            },
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "approval_secured"
+              }
+            },
+            {
+              "action_occurred": {
+                "act_id": "request.eta",
+                "actor_id": "tpm",
+                "slots": {
+                  "target_actor_id": "leo",
+                  "task_id": "config_rollout"
+                },
+                "surface": "chat"
+              }
+            }
+          ]
+        },
+        "id": "config_to_staged_plan_ready",
+        "task_id": "config_rollout",
+        "to_checkpoint": "staged_plan_ready",
+        "tracker_patch": {
+          "blocker": "Leo is landing the staged rollout path.",
+          "status": "in_progress"
+        }
+      },
+      {
+        "delay_minutes": [
+          90,
+          120
+        ],
+        "effects": [],
+        "from_checkpoint": "staged_plan_ready",
+        "guard": {},
+        "id": "config_to_done",
+        "task_id": "config_rollout",
+        "to_checkpoint": "done",
+        "tracker_patch": {
+          "blocker": "",
+          "notes": "Staged rollout landed.",
+          "status": "done"
+        }
+      }
+    ],
+    "timing_bands": [
+      {
+        "band": "early",
+        "window_id": "approval_cutoff"
+      },
+      {
+        "band": "mid",
+        "window_id": "scope_alignment_cutoff"
+      }
+    ]
+  },
+  "start_at": "2026-05-05T09:00:00",
+  "timezone": "America/Los_Angeles",
+  "world": {
     "actors": [
       {
-        "id": "tpm",
-        "name": "You",
-        "org_role": "technical_program_manager",
-        "coordination_template": "external_agent",
-        "policy_type": "external_agent",
         "authority_profile": {
           "can_commit_external_dates": false,
           "can_schedule_meeting": true,
           "can_update_tracker": true
         },
-        "traits": {
-          "workday_start": "09:00",
-          "workday_end": "17:00",
-          "chat_reply_delay_min": 0,
-          "chat_reply_delay_max": 0,
-          "calendar_reply_delay_min": 0,
-          "calendar_reply_delay_max": 0
-        },
+        "coordination_template": "external_agent",
+        "id": "tpm",
+        "metadata": {},
+        "name": "You",
+        "org_role": "technical_program_manager",
+        "policy_type": "external_agent",
         "state": {
-          "priority_pressure": 0.6,
           "goal_alignment": 1.0,
+          "priority_pressure": 0.6,
           "trust_in_tpm": 1.0
         },
-        "metadata": {}
+        "traits": {
+          "calendar_reply_delay_max": 0,
+          "calendar_reply_delay_min": 0,
+          "chat_reply_delay_max": 0,
+          "chat_reply_delay_min": 0,
+          "workday_end": "17:00",
+          "workday_start": "09:00"
+        }
       },
       {
-        "id": "dana",
-        "name": "Dana Brooks",
-        "org_role": "director_product",
-        "coordination_template": "sponsor",
-        "policy_type": "bounded_policy",
         "authority_profile": {
           "can_approve_scope": true,
           "can_commit_external_dates": false,
           "can_schedule_staffing": false
         },
-        "traits": {
-          "workday_start": "09:00",
-          "workday_end": "17:00",
-          "chat_reply_delay_min": 8,
-          "chat_reply_delay_max": 15,
-          "calendar_reply_delay_min": 5,
-          "calendar_reply_delay_max": 10
-        },
+        "coordination_template": "sponsor",
+        "id": "dana",
+        "metadata": {},
+        "name": "Dana Brooks",
+        "org_role": "director_product",
+        "policy_type": "bounded_policy",
         "state": {
-          "priority_pressure": 0.55,
           "goal_alignment": 0.9,
+          "priority_pressure": 0.55,
           "trust_in_tpm": 0.7
         },
-        "metadata": {}
+        "traits": {
+          "calendar_reply_delay_max": 10,
+          "calendar_reply_delay_min": 5,
+          "chat_reply_delay_max": 15,
+          "chat_reply_delay_min": 8,
+          "workday_end": "17:00",
+          "workday_start": "09:00"
+        }
       },
       {
-        "id": "leo",
-        "name": "Leo Park",
-        "org_role": "engineer",
-        "coordination_template": "critical_path_owner",
-        "policy_type": "bounded_policy",
         "authority_profile": {
-          "can_commit_eta": true,
           "can_approve_scope": false,
+          "can_commit_eta": true,
           "can_update_tracker": true
         },
-        "traits": {
-          "workday_start": "09:00",
-          "workday_end": "17:00",
-          "chat_reply_delay_min": 18,
-          "chat_reply_delay_max": 28,
-          "calendar_reply_delay_min": 10,
-          "calendar_reply_delay_max": 20
-        },
+        "coordination_template": "critical_path_owner",
+        "id": "leo",
+        "metadata": {},
+        "name": "Leo Park",
+        "org_role": "engineer",
+        "policy_type": "bounded_policy",
         "state": {
-          "priority_pressure": 0.92,
           "goal_alignment": 0.82,
+          "priority_pressure": 0.92,
           "trust_in_tpm": 0.45
         },
-        "metadata": {}
+        "traits": {
+          "calendar_reply_delay_max": 20,
+          "calendar_reply_delay_min": 10,
+          "chat_reply_delay_max": 28,
+          "chat_reply_delay_min": 18,
+          "workday_end": "17:00",
+          "workday_start": "09:00"
+        }
       },
       {
-        "id": "ivy",
-        "name": "Ivy Shah",
-        "org_role": "security_engineer",
-        "coordination_template": "cross_functional_dependency_owner",
-        "policy_type": "bounded_policy",
         "authority_profile": {
           "can_approve_scope": false,
           "can_grant_review": true,
           "can_update_tracker": true
         },
-        "traits": {
-          "workday_start": "09:00",
-          "workday_end": "17:00",
-          "chat_reply_delay_min": 10,
-          "chat_reply_delay_max": 18,
-          "calendar_reply_delay_min": 10,
-          "calendar_reply_delay_max": 20
-        },
+        "coordination_template": "cross_functional_dependency_owner",
+        "id": "ivy",
+        "metadata": {},
+        "name": "Ivy Shah",
+        "org_role": "security_engineer",
+        "policy_type": "bounded_policy",
         "state": {
-          "priority_pressure": 0.5,
           "goal_alignment": 0.75,
+          "priority_pressure": 0.5,
           "trust_in_tpm": 0.58
         },
-        "metadata": {}
+        "traits": {
+          "calendar_reply_delay_max": 20,
+          "calendar_reply_delay_min": 10,
+          "chat_reply_delay_max": 18,
+          "chat_reply_delay_min": 10,
+          "workday_end": "17:00",
+          "workday_start": "09:00"
+        }
       },
       {
+        "authority_profile": {
+          "can_commit_eta": false,
+          "can_update_tracker": false
+        },
+        "coordination_template": "ally",
         "id": "mia",
+        "metadata": {},
         "name": "Mia Torres",
         "org_role": "operations",
-        "coordination_template": "ally",
         "policy_type": "bounded_policy",
-        "authority_profile": {
-          "can_update_tracker": false,
-          "can_commit_eta": false
-        },
-        "traits": {
-          "workday_start": "09:00",
-          "workday_end": "17:00",
-          "chat_reply_delay_min": 5,
-          "chat_reply_delay_max": 10,
-          "calendar_reply_delay_min": 5,
-          "calendar_reply_delay_max": 10
-        },
         "state": {
-          "priority_pressure": 0.35,
           "goal_alignment": 0.9,
+          "priority_pressure": 0.35,
           "trust_in_tpm": 0.78
         },
-        "metadata": {}
-      }
-    ],
-    "relationships": [
-      {
-        "actor_id": "dana",
-        "target_actor_id": "tpm",
-        "state": {
-          "trust": 0.7
-        }
-      },
-      {
-        "actor_id": "leo",
-        "target_actor_id": "tpm",
-        "state": {
-          "trust": 0.45
-        }
-      },
-      {
-        "actor_id": "ivy",
-        "target_actor_id": "tpm",
-        "state": {
-          "trust": 0.58
-        }
-      },
-      {
-        "actor_id": "mia",
-        "target_actor_id": "tpm",
-        "state": {
-          "trust": 0.78
+        "traits": {
+          "calendar_reply_delay_max": 10,
+          "calendar_reply_delay_min": 5,
+          "chat_reply_delay_max": 10,
+          "chat_reply_delay_min": 5,
+          "workday_end": "17:00",
+          "workday_start": "09:00"
         }
       }
     ],
-    "windows": [
+    "beliefs": [],
+    "commitments": [],
+    "dependencies": [
       {
-        "id": "approval_cutoff",
-        "title": "Approval queue useful window",
-        "start_at": "2026-05-05T09:00:00",
-        "end_at": "2026-05-05T12:00:00",
-        "metadata": {}
+        "dep_type": "decision",
+        "dst_id": "config_rollout",
+        "dst_kind": "task",
+        "id": "dep_scope_config",
+        "metadata": {},
+        "src_id": "scope_aligned",
+        "src_kind": "milestone"
       },
       {
-        "id": "scope_alignment_cutoff",
-        "title": "Scope alignment window",
-        "start_at": "2026-05-05T09:00:00",
-        "end_at": "2026-05-05T15:00:00",
-        "metadata": {}
-      }
-    ],
-    "threads": [
-      {
-        "id": "dana",
-        "surface": "chat",
-        "title": "Dana Brooks",
-        "kind": "dm",
-        "participants": [
-          "tpm",
-          "dana"
-        ],
-        "metadata": {}
-      },
-      {
-        "id": "leo",
-        "surface": "chat",
-        "title": "Leo Park",
-        "kind": "dm",
-        "participants": [
-          "tpm",
-          "leo"
-        ],
-        "metadata": {}
-      },
-      {
-        "id": "ivy",
-        "surface": "chat",
-        "title": "Ivy Shah",
-        "kind": "dm",
-        "participants": [
-          "tpm",
-          "ivy"
-        ],
-        "metadata": {}
-      },
-      {
-        "id": "mia",
-        "surface": "chat",
-        "title": "Mia Torres",
-        "kind": "dm",
-        "participants": [
-          "tpm",
-          "mia"
-        ],
-        "metadata": {}
-      },
-      {
-        "id": "rollout_room",
-        "surface": "chat",
-        "title": "Identity rollout room",
-        "kind": "group",
-        "participants": [
-          "tpm",
-          "dana",
-          "leo",
-          "ivy",
-          "mia"
-        ],
-        "metadata": {}
+        "dep_type": "approval",
+        "dst_id": "config_rollout",
+        "dst_kind": "task",
+        "id": "dep_approval_config",
+        "metadata": {},
+        "src_id": "approval_review",
+        "src_kind": "task"
       }
     ],
     "documents": [
       {
-        "id": "DOC-BRIEF-100",
-        "type": "brief",
-        "title": "Identity rollout kickoff",
         "author_id": "dana",
+        "content": "Leadership wants a credible staged rollout by Wednesday afternoon. Dana wants the real rollout story early, not a green tracker. If full rollout is not feasible, surface it early, lock the staged path before the approval queue closes, and do not fake a ship date.",
         "created_at": "2026-05-05T08:50:00",
-        "updated_at": "2026-05-05T08:50:00",
-        "visibility": "company",
-        "content": "Leadership wants a credible staged rollout by Wednesday afternoon. If full rollout is not feasible, surface it early and lock the staged path before the approval queue closes.",
+        "id": "DOC-BRIEF-100",
         "metadata": {
-          "read_cost_minutes": 5,
           "belief_signals": [
             {
               "belief_key": "project.goal",
               "belief_value": "credible_staged_rollout",
               "confidence": 0.9,
               "freshness_window_min": 1440
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.45,
+              "freshness_window_min": 1440,
+              "metadata": {
+                "private_driver_fact_id": "dana_accepts_staged_if_early"
+              }
             }
-          ]
-        }
+          ],
+          "read_cost_minutes": 5
+        },
+        "title": "Identity rollout kickoff",
+        "type": "brief",
+        "updated_at": "2026-05-05T08:50:00",
+        "visibility": "company"
       },
       {
-        "id": "DOC-OPS-101",
-        "type": "support_notes",
-        "title": "Operations rollout checklist",
         "author_id": "mia",
-        "created_at": "2026-05-05T08:40:00",
-        "updated_at": "2026-05-05T08:40:00",
-        "visibility": "company",
         "content": "Mia already has the staging checklist and rollback notes. Once scope is settled, the runbook can be drafted quickly.",
+        "created_at": "2026-05-05T08:40:00",
+        "id": "DOC-OPS-101",
         "metadata": {
           "read_cost_minutes": 5,
           "surface_facts": [
             "ops_checklist_available"
           ]
-        }
+        },
+        "title": "Operations rollout checklist",
+        "type": "support_notes",
+        "updated_at": "2026-05-05T08:40:00",
+        "visibility": "company"
       }
     ],
-    "tasks": [
+    "facts": [
       {
-        "id": "config_rollout",
-        "title": "Identity toggle staged rollout",
-        "owner_id": "leo",
-        "priority": "P0",
-        "due_at": "2026-05-06T15:00:00",
-        "description": "Primary rollout configuration change for the staged path.",
-        "true_state": {
-          "checkpoint": "working",
-          "remaining_work": 6,
-          "last_transition_ref": null
-        },
-        "tracker_state": {
-          "status": "in_progress",
-          "owner_id": "leo",
-          "blocker": "ETA unclear while rollout scope is unresolved.",
-          "target_at": "2026-05-06T15:00:00",
-          "last_updated_at": "2026-05-05T09:00:00",
-          "notes": ""
-        },
+        "description": "Leo is juggling another urgent issue until late morning.",
+        "id": "leo_overloaded_until_tue_1100",
+        "label": "Leo is overloaded until Tuesday 11:00",
         "metadata": {
-          "critical": true,
-          "remaining_work_by_checkpoint": {
-            "working": 6,
-            "staged_plan_ready": 3,
-            "done": 0
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "leo_overloaded_until_tue_1100",
+                "observer_id": "tpm"
+              }
+            }
           }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
         }
       },
       {
-        "id": "approval_review",
-        "title": "Approval review for staged rollout",
-        "owner_id": "ivy",
-        "priority": "P0",
-        "due_at": "2026-05-05T12:00:00",
-        "description": "Queue-based approval required before the rollout can be considered credible.",
-        "true_state": {
-          "checkpoint": "blocked",
-          "remaining_work": 3,
-          "last_transition_ref": null
-        },
-        "tracker_state": {
-          "status": "blocked",
-          "owner_id": "ivy",
-          "blocker": "Approval request has not been submitted.",
-          "target_at": "2026-05-05T12:00:00",
-          "last_updated_at": "2026-05-05T09:00:00",
-          "notes": ""
-        },
+        "description": "The full rollout path is not credible before Wednesday afternoon.",
+        "id": "full_rollout_infeasible",
+        "label": "Full rollout is not credible this week",
         "metadata": {
-          "critical": true,
-          "remaining_work_by_checkpoint": {
-            "blocked": 3,
-            "done": 0
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "full_rollout_infeasible",
+                "observer_id": "tpm"
+              }
+            }
           }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
         }
       },
       {
-        "id": "runbook_readiness",
-        "title": "Rollout runbook and checklist",
-        "owner_id": "mia",
-        "priority": "P2",
-        "due_at": "2026-05-06T13:00:00",
-        "description": "Non-gating rollout notes that still help the launch feel more buttoned up.",
-        "true_state": {
-          "checkpoint": "todo",
-          "remaining_work": 2,
-          "last_transition_ref": null
-        },
-        "tracker_state": {
-          "status": "todo",
-          "owner_id": "mia",
-          "blocker": "",
-          "target_at": "2026-05-06T13:00:00",
-          "last_updated_at": "2026-05-05T09:00:00",
-          "notes": ""
-        },
+        "description": "Ivy must review the staged rollout before it is safe to commit.",
+        "id": "approval_required",
+        "label": "Approval is required for the staged rollout",
         "metadata": {
-          "critical": false,
-          "remaining_work_by_checkpoint": {
-            "todo": 2,
-            "done": 0
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "approval_required",
+                "observer_id": "tpm"
+              }
+            }
           }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "The sponsor will support the smaller credible launch if the TPM brings the tradeoff early.",
+        "id": "dana_accepts_staged_if_early",
+        "label": "Dana backs staged rollout if engaged early",
+        "metadata": {
+          "coordination_implication": "Surface the real feasibility gap early and frame the staged plan clearly before the scope window closes.",
+          "driver_type": "supports_staged_if_engaged_early",
+          "fact_kind": "actor_private_driver",
+          "owner_actor_id": "dana"
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "The engineer will keep pushing back on ETA pressure until scope and approval are grounded.",
+        "id": "leo_rejects_fake_rollout_dates",
+        "label": "Leo rejects fake rollout dates until the path is real",
+        "metadata": {
+          "coordination_implication": "Ask Leo for honest feasibility before ETA, and do not pressure him into delivery theater while he is overloaded.",
+          "driver_type": "rejects_fake_rollout_dates",
+          "fact_kind": "actor_private_driver",
+          "owner_actor_id": "leo"
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "The runbook distraction can be closed quickly if the TPM looks for it.",
+        "id": "ops_checklist_available",
+        "label": "Operations checklist already exists",
+        "metadata": {
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "ops_checklist_available",
+                "observer_id": "tpm"
+              }
+            }
+          }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
         }
       }
     ],
+    "meetings": [],
+    "messages": [],
     "milestones": [
       {
-        "id": "scope_aligned",
-        "title": "Scope aligned",
         "description": "Dana and Leo have aligned on the staged rollout path.",
         "due_at": "2026-05-05T15:00:00",
-        "state": {
-          "status": "pending",
-          "recoverability": "high",
-          "achieved_at": null,
-          "last_transition_ref": null
-        },
+        "id": "scope_aligned",
         "metadata": {
           "achieved_predicate": {
             "all_of": [
               {
                 "project_state": {
-                  "field": "launch_scope",
-                  "equals": "staged_rollout"
+                  "equals": "staged_rollout",
+                  "field": "launch_scope"
                 }
               },
               {
@@ -422,911 +960,486 @@
           },
           "recoverability_rules": [
             {
-              "recoverability": "none",
               "predicate": {
                 "all_of": [
                   {
                     "after": {
-                      "time": "2026-05-05T15:00:00",
-                      "predicate": {}
+                      "predicate": {},
+                      "time": "2026-05-05T15:00:00"
                     }
                   },
                   {
                     "project_state": {
-                      "field": "launch_scope",
-                      "equals": "undecided"
+                      "equals": "undecided",
+                      "field": "launch_scope"
                     }
                   }
                 ]
-              }
+              },
+              "recoverability": "none"
             },
             {
-              "recoverability": "low",
               "predicate": {
                 "all_of": [
                   {
                     "after": {
-                      "time": "2026-05-05T13:00:00",
-                      "predicate": {}
+                      "predicate": {},
+                      "time": "2026-05-05T13:00:00"
                     }
                   },
                   {
                     "project_state": {
-                      "field": "launch_scope",
-                      "equals": "undecided"
+                      "equals": "undecided",
+                      "field": "launch_scope"
                     }
                   }
                 ]
-              }
+              },
+              "recoverability": "low"
             },
             {
-              "recoverability": "high",
-              "predicate": {}
+              "predicate": {},
+              "recoverability": "high"
             }
           ]
-        }
+        },
+        "state": {
+          "achieved_at": null,
+          "last_transition_ref": null,
+          "recoverability": "high",
+          "status": "pending"
+        },
+        "title": "Scope aligned"
       },
       {
-        "id": "approval_secured",
-        "title": "Approval secured",
         "description": "Approval is secured before the useful queue cutoff.",
         "due_at": "2026-05-05T12:00:00",
-        "state": {
-          "status": "pending",
-          "recoverability": "high",
-          "achieved_at": null,
-          "last_transition_ref": null
-        },
+        "id": "approval_secured",
         "metadata": {
           "achieved_predicate": {
             "task_true_state": {
-              "task_id": "approval_review",
+              "equals": "done",
               "field": "checkpoint",
-              "equals": "done"
+              "task_id": "approval_review"
             }
           },
           "recoverability_rules": [
             {
-              "recoverability": "none",
               "predicate": {
                 "all_of": [
                   {
                     "after": {
-                      "time": "2026-05-05T12:00:00",
-                      "predicate": {}
+                      "predicate": {},
+                      "time": "2026-05-05T12:00:00"
                     }
                   },
                   {
                     "not": {
                       "task_true_state": {
-                        "task_id": "approval_review",
+                        "equals": "done",
                         "field": "checkpoint",
-                        "equals": "done"
+                        "task_id": "approval_review"
                       }
                     }
                   }
                 ]
-              }
+              },
+              "recoverability": "none"
             },
             {
-              "recoverability": "low",
               "predicate": {
                 "all_of": [
                   {
                     "after": {
-                      "time": "2026-05-05T11:00:00",
-                      "predicate": {}
+                      "predicate": {},
+                      "time": "2026-05-05T11:00:00"
                     }
                   },
                   {
                     "not": {
                       "task_true_state": {
-                        "task_id": "approval_review",
+                        "equals": "done",
                         "field": "checkpoint",
-                        "equals": "done"
+                        "task_id": "approval_review"
                       }
                     }
                   }
                 ]
-              }
+              },
+              "recoverability": "low"
             },
             {
-              "recoverability": "high",
-              "predicate": {}
+              "predicate": {},
+              "recoverability": "high"
             }
           ]
-        }
+        },
+        "state": {
+          "achieved_at": null,
+          "last_transition_ref": null,
+          "recoverability": "high",
+          "status": "pending"
+        },
+        "title": "Approval secured"
       },
       {
-        "id": "rollout_ready",
-        "title": "Rollout ready",
         "description": "The staged rollout path is ready to execute.",
         "due_at": "2026-05-06T15:00:00",
-        "state": {
-          "status": "pending",
-          "recoverability": "high",
-          "achieved_at": null,
-          "last_transition_ref": null
-        },
+        "id": "rollout_ready",
         "metadata": {
           "achieved_predicate": {
             "all_of": [
               {
                 "task_true_state": {
-                  "task_id": "config_rollout",
+                  "equals": "done",
                   "field": "checkpoint",
-                  "equals": "done"
+                  "task_id": "config_rollout"
                 }
               },
               {
                 "milestone_state": {
-                  "milestone_id": "approval_secured",
+                  "equals": "done",
                   "field": "status",
-                  "equals": "done"
+                  "milestone_id": "approval_secured"
                 }
               }
             ]
           },
           "recoverability_rules": [
             {
-              "recoverability": "none",
               "predicate": {
                 "all_of": [
                   {
                     "after": {
-                      "time": "2026-05-06T15:00:00",
-                      "predicate": {}
+                      "predicate": {},
+                      "time": "2026-05-06T15:00:00"
                     }
                   },
                   {
                     "not": {
                       "task_true_state": {
-                        "task_id": "config_rollout",
+                        "equals": "done",
                         "field": "checkpoint",
-                        "equals": "done"
+                        "task_id": "config_rollout"
                       }
                     }
                   }
                 ]
-              }
+              },
+              "recoverability": "none"
             },
             {
-              "recoverability": "low",
               "predicate": {
                 "all_of": [
                   {
                     "after": {
-                      "time": "2026-05-06T13:00:00",
-                      "predicate": {}
+                      "predicate": {},
+                      "time": "2026-05-06T13:00:00"
                     }
                   },
                   {
                     "not": {
                       "task_true_state": {
-                        "task_id": "config_rollout",
+                        "equals": "done",
                         "field": "checkpoint",
-                        "equals": "done"
+                        "task_id": "config_rollout"
                       }
                     }
                   }
                 ]
-              }
+              },
+              "recoverability": "low"
             },
             {
-              "recoverability": "high",
-              "predicate": {}
+              "predicate": {},
+              "recoverability": "high"
             }
           ]
-        }
+        },
+        "state": {
+          "achieved_at": null,
+          "last_transition_ref": null,
+          "recoverability": "high",
+          "status": "pending"
+        },
+        "title": "Rollout ready"
       }
     ],
-    "dependencies": [
-      {
-        "id": "dep_scope_config",
-        "src_kind": "milestone",
-        "src_id": "scope_aligned",
-        "dst_kind": "task",
-        "dst_id": "config_rollout",
-        "dep_type": "decision",
-        "metadata": {}
-      },
-      {
-        "id": "dep_approval_config",
-        "src_kind": "task",
-        "src_id": "approval_review",
-        "dst_kind": "task",
-        "dst_id": "config_rollout",
-        "dep_type": "approval",
-        "metadata": {}
-      }
-    ],
-    "facts": [
-      {
-        "id": "leo_overloaded_until_tue_1100",
-        "label": "Leo is overloaded until Tuesday 11:00",
-        "description": "Leo is juggling another urgent issue until late morning.",
-        "state": {
-          "surfaced_at": null,
-          "surfaced_by": null,
-          "surface_event_ref": null
-        },
-        "metadata": {
-          "surface_predicate": {
-            "event_occurred": {
-              "event_type": "fact_signal",
-              "where": {
-                "fact_id": "leo_overloaded_until_tue_1100",
-                "observer_id": "tpm"
-              }
-            }
-          }
-        }
-      },
-      {
-        "id": "full_rollout_infeasible",
-        "label": "Full rollout is not credible this week",
-        "description": "The full rollout path is not credible before Wednesday afternoon.",
-        "state": {
-          "surfaced_at": null,
-          "surfaced_by": null,
-          "surface_event_ref": null
-        },
-        "metadata": {
-          "surface_predicate": {
-            "event_occurred": {
-              "event_type": "fact_signal",
-              "where": {
-                "fact_id": "full_rollout_infeasible",
-                "observer_id": "tpm"
-              }
-            }
-          }
-        }
-      },
-      {
-        "id": "approval_required",
-        "label": "Approval is required for the staged rollout",
-        "description": "Ivy must review the staged rollout before it is safe to commit.",
-        "state": {
-          "surfaced_at": null,
-          "surfaced_by": null,
-          "surface_event_ref": null
-        },
-        "metadata": {
-          "surface_predicate": {
-            "event_occurred": {
-              "event_type": "fact_signal",
-              "where": {
-                "fact_id": "approval_required",
-                "observer_id": "tpm"
-              }
-            }
-          }
-        }
-      },
-      {
-        "id": "dana_accepts_staged_if_early",
-        "label": "Dana will accept a staged rollout if engaged early",
-        "description": "The sponsor will back a staged rollout before the alignment window closes.",
-        "state": {
-          "surfaced_at": null,
-          "surfaced_by": null,
-          "surface_event_ref": null
-        },
-        "metadata": {
-          "surface_predicate": {
-            "event_occurred": {
-              "event_type": "fact_signal",
-              "where": {
-                "fact_id": "dana_accepts_staged_if_early",
-                "observer_id": "tpm"
-              }
-            }
-          }
-        }
-      },
-      {
-        "id": "ops_checklist_available",
-        "label": "Operations checklist already exists",
-        "description": "The runbook distraction can be closed quickly if the TPM looks for it.",
-        "state": {
-          "surfaced_at": null,
-          "surfaced_by": null,
-          "surface_event_ref": null
-        },
-        "metadata": {
-          "surface_predicate": {
-            "event_occurred": {
-              "event_type": "fact_signal",
-              "where": {
-                "fact_id": "ops_checklist_available",
-                "observer_id": "tpm"
-              }
-            }
-          }
-        }
-      }
-    ],
-    "beliefs": [],
-    "commitments": [],
-    "meetings": [],
-    "messages": [],
     "pending_events": [
       {
-        "due_at": "2026-05-05T10:00:00",
-        "phase_priority": 2,
-        "type": "guarded_message",
         "actor_id": "dana",
+        "due_at": "2026-05-05T10:00:00",
         "payload": {
-          "surface": "chat",
-          "thread_id": "dana",
-          "sender_id": "dana",
           "act_id": "request.clarification",
-          "slots": {
-            "topic": "rollout_plan"
-          },
           "body": "I need the real rollout story, not a green tracker. What is actually credible by Wednesday?",
+          "guard": {
+            "not": {
+              "before": {
+                "predicate": {
+                  "action_occurred": {
+                    "act_id": "inform.risk",
+                    "actor_id": "tpm",
+                    "slots": {
+                      "target_actor_id": "dana"
+                    },
+                    "surface": "chat"
+                  }
+                },
+                "time": "2026-05-05T10:00:00"
+              }
+            }
+          },
           "metadata": {
-            "surface_facts": [
-              "dana_accepts_staged_if_early"
-            ],
             "belief_signals": [
               {
                 "belief_key": "project.sponsor_needs_clarity",
                 "belief_value": true,
                 "confidence": 1.0,
                 "freshness_window_min": 240
-              }
-            ]
-          },
-          "guard": {
-            "not": {
-              "before": {
-                "time": "2026-05-05T10:00:00",
-                "predicate": {
-                  "action_occurred": {
-                    "actor_id": "tpm",
-                    "surface": "chat",
-                    "act_id": "inform.risk",
-                    "slots": {
-                      "target_actor_id": "dana"
-                    }
-                  }
+              },
+              {
+                "accumulate": true,
+                "belief_key": "actor.dana.private_driver.supports_staged_if_engaged_early",
+                "belief_value": true,
+                "confidence": 0.55,
+                "freshness_window_min": 240,
+                "metadata": {
+                  "private_driver_fact_id": "dana_accepts_staged_if_early"
                 }
               }
-            }
-          }
-        }
+            ],
+            "surface_facts": []
+          },
+          "sender_id": "dana",
+          "slots": {
+            "topic": "rollout_plan"
+          },
+          "surface": "chat",
+          "thread_id": "dana"
+        },
+        "phase_priority": 2,
+        "type": "guarded_message"
       },
       {
-        "due_at": "2026-05-05T11:00:00",
-        "phase_priority": 1,
-        "type": "state.patch",
         "actor_id": "system",
+        "due_at": "2026-05-05T11:00:00",
         "payload": {
           "target": {
-            "kind": "actor_state",
             "actor_id": "leo",
+            "kind": "actor_state",
             "patch": {
               "priority_pressure": 0.3
             }
           }
+        },
+        "phase_priority": 1,
+        "type": "state.patch"
+      }
+    ],
+    "project": {
+      "description": "A lightweight internal rollout focused on approval timing and staged-scope alignment.",
+      "metadata": {
+        "benchmark_positioning": "lightweight_generalization_smoke"
+      },
+      "name": "Internal Rollout Project",
+      "state": {
+        "coverage_miss": false,
+        "invalid_external_commitments": 0,
+        "launch_scope": "undecided",
+        "stakeholder_confidence": "stable"
+      }
+    },
+    "relationships": [
+      {
+        "actor_id": "dana",
+        "state": {
+          "trust": 0.7
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "leo",
+        "state": {
+          "trust": 0.45
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "ivy",
+        "state": {
+          "trust": 0.58
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "mia",
+        "state": {
+          "trust": 0.78
+        },
+        "target_actor_id": "tpm"
+      }
+    ],
+    "tasks": [
+      {
+        "description": "Primary rollout configuration change for the staged path.",
+        "due_at": "2026-05-06T15:00:00",
+        "id": "config_rollout",
+        "metadata": {
+          "critical": true,
+          "remaining_work_by_checkpoint": {
+            "done": 0,
+            "staged_plan_ready": 3,
+            "working": 6
+          }
+        },
+        "owner_id": "leo",
+        "priority": "P0",
+        "title": "Identity toggle staged rollout",
+        "tracker_state": {
+          "blocker": "ETA unclear while rollout scope is unresolved.",
+          "last_updated_at": "2026-05-05T09:00:00",
+          "notes": "",
+          "owner_id": "leo",
+          "status": "in_progress",
+          "target_at": "2026-05-06T15:00:00"
+        },
+        "true_state": {
+          "checkpoint": "working",
+          "last_transition_ref": null,
+          "remaining_work": 6
+        }
+      },
+      {
+        "description": "Queue-based approval required before the rollout can be considered credible.",
+        "due_at": "2026-05-05T12:00:00",
+        "id": "approval_review",
+        "metadata": {
+          "critical": true,
+          "remaining_work_by_checkpoint": {
+            "blocked": 3,
+            "done": 0
+          }
+        },
+        "owner_id": "ivy",
+        "priority": "P0",
+        "title": "Approval review for staged rollout",
+        "tracker_state": {
+          "blocker": "Approval request has not been submitted.",
+          "last_updated_at": "2026-05-05T09:00:00",
+          "notes": "",
+          "owner_id": "ivy",
+          "status": "blocked",
+          "target_at": "2026-05-05T12:00:00"
+        },
+        "true_state": {
+          "checkpoint": "blocked",
+          "last_transition_ref": null,
+          "remaining_work": 3
+        }
+      },
+      {
+        "description": "Non-gating rollout notes that still help the launch feel more buttoned up.",
+        "due_at": "2026-05-06T13:00:00",
+        "id": "runbook_readiness",
+        "metadata": {
+          "critical": false,
+          "remaining_work_by_checkpoint": {
+            "done": 0,
+            "todo": 2
+          }
+        },
+        "owner_id": "mia",
+        "priority": "P2",
+        "title": "Rollout runbook and checklist",
+        "tracker_state": {
+          "blocker": "",
+          "last_updated_at": "2026-05-05T09:00:00",
+          "notes": "",
+          "owner_id": "mia",
+          "status": "todo",
+          "target_at": "2026-05-06T13:00:00"
+        },
+        "true_state": {
+          "checkpoint": "todo",
+          "last_transition_ref": null,
+          "remaining_work": 2
         }
       }
-    ]
-  },
-  "policy": {
-    "action_costs": {
-      "read_thread": 2,
-      "read_doc": 5,
-      "read_task_board": 1,
-      "read_calendar": 1,
-      "send_chat": 1,
-      "schedule_meeting": 2,
-      "meeting_act": 1,
-      "write_doc": 15,
-      "write_note": 1,
-      "task_note": 3,
-      "task_edit": 3
-    },
-    "meeting_defaults": {
-      "tpm_max_acts": 2
-    },
-    "timing_bands": [
+    ],
+    "threads": [
       {
-        "band": "early",
-        "window_id": "approval_cutoff"
+        "id": "dana",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "dana"
+        ],
+        "surface": "chat",
+        "title": "Dana Brooks"
       },
       {
-        "band": "mid",
-        "window_id": "scope_alignment_cutoff"
-      }
-    ],
-    "default_timing_band": "late",
-    "external_commitment_requirements": [
-      "scope_aligned",
-      "approval_secured"
-    ],
-    "project_state_rules": [
-      {
-        "field": "stakeholder_confidence",
-        "cases": [
-          {
-            "predicate": {
-              "milestone_state": {
-                "milestone_id": "rollout_ready",
-                "field": "status",
-                "equals": "done"
-              }
-            },
-            "value": "stable"
-          },
-          {
-            "predicate": {
-              "all_of": [
-                {
-                  "after": {
-                    "time": "2026-05-06T10:00:00",
-                    "predicate": {}
-                  }
-                },
-                {
-                  "not": {
-                    "milestone_state": {
-                      "milestone_id": "rollout_ready",
-                      "field": "status",
-                      "equals": "done"
-                    }
-                  }
-                }
-              ]
-            },
-            "value": "at_risk"
-          },
-          {
-            "predicate": {
-              "all_of": [
-                {
-                  "after": {
-                    "time": "2026-05-05T10:00:00",
-                    "predicate": {}
-                  }
-                },
-                {
-                  "not": {
-                    "milestone_state": {
-                      "milestone_id": "scope_aligned",
-                      "field": "status",
-                      "equals": "done"
-                    }
-                  }
-                }
-              ]
-            },
-            "value": "fragile"
-          }
-        ]
-      }
-    ],
-    "task_transitions": [
-      {
-        "id": "config_to_staged_plan_ready",
-        "task_id": "config_rollout",
-        "from_checkpoint": "working",
-        "to_checkpoint": "staged_plan_ready",
-        "guard": {
-          "all_of": [
-            {
-              "milestone_state": {
-                "milestone_id": "scope_aligned",
-                "field": "status",
-                "equals": "done"
-              }
-            },
-            {
-              "milestone_state": {
-                "milestone_id": "approval_secured",
-                "field": "status",
-                "equals": "done"
-              }
-            },
-            {
-              "action_occurred": {
-                "actor_id": "tpm",
-                "surface": "chat",
-                "act_id": "request.eta",
-                "slots": {
-                  "task_id": "config_rollout",
-                  "target_actor_id": "leo"
-                }
-              }
-            }
-          ]
-        },
-        "delay_minutes": [
-          60,
-          90
+        "id": "leo",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "leo"
         ],
-        "tracker_patch": {
-          "status": "in_progress",
-          "blocker": "Leo is landing the staged rollout path."
-        },
-        "effects": []
+        "surface": "chat",
+        "title": "Leo Park"
       },
       {
-        "id": "config_to_done",
-        "task_id": "config_rollout",
-        "from_checkpoint": "staged_plan_ready",
-        "to_checkpoint": "done",
-        "guard": {},
-        "delay_minutes": [
-          90,
-          120
+        "id": "ivy",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "ivy"
         ],
-        "tracker_patch": {
-          "status": "done",
-          "blocker": "",
-          "notes": "Staged rollout landed."
-        },
-        "effects": []
-      }
-    ],
-    "meeting_outcomes": [
+        "surface": "chat",
+        "title": "Ivy Shah"
+      },
       {
-        "id": "staged_rollout_aligned",
-        "meeting_id": "rollout_tradeoff_huddle",
-        "required_attendees": [
-          "dana",
-          "leo",
+        "id": "mia",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
           "mia"
         ],
-        "required_tpm_acts": [
-          "negotiate.scope",
-          "request.ownership"
+        "surface": "chat",
+        "title": "Mia Torres"
+      },
+      {
+        "id": "rollout_room",
+        "kind": "group",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "dana",
+          "leo",
+          "ivy",
+          "mia"
         ],
-        "guard": {
-          "all_of": [
-            {
-              "surfaced": "full_rollout_infeasible"
-            },
-            {
-              "surfaced": "approval_required"
-            }
-          ]
-        },
-        "effects": [
-          {
-            "type": "project_state_patch",
-            "patch": {
-              "launch_scope": "staged_rollout"
-            }
-          },
-          {
-            "type": "belief_signal",
-            "actor_id": "dana",
-            "belief_key": "project.launch_scope",
-            "belief_value": "staged_rollout",
-            "confidence": 0.9,
-            "freshness_window_min": 480
-          },
-          {
-            "type": "belief_signal",
-            "actor_id": "leo",
-            "belief_key": "project.launch_scope",
-            "belief_value": "staged_rollout",
-            "confidence": 0.9,
-            "freshness_window_min": 480
-          },
-          {
-            "type": "belief_signal",
-            "actor_id": "mia",
-            "belief_key": "project.launch_scope",
-            "belief_value": "staged_rollout",
-            "confidence": 0.8,
-            "freshness_window_min": 480
-          },
-          {
-            "type": "create_or_update_commitment",
-            "id": "staged_rollout_plan",
-            "owner_id": "dana",
-            "audience_ids": [
-              "tpm",
-              "leo",
-              "mia"
-            ],
-            "subject": "rollout_scope",
-            "scope": {
-              "launch_scope": "staged_rollout"
-            },
-            "status": "committed",
-            "confidence": 0.9,
-            "metadata": {
-              "milestone_ids": [
-                "scope_aligned"
-              ]
-            }
-          }
-        ]
+        "surface": "chat",
+        "title": "Identity rollout room"
       }
-    ]
-  },
-  "evaluation": {
-    "official_seeds": [
-      11,
-      29,
-      47
     ],
-    "rubric_lines": [
+    "windows": [
       {
-        "id": "scope_aligned_on_time",
-        "label": "Scope aligned on time",
-        "weight": 25,
-        "failure_class": "timing",
-        "scoring_type": "binary",
-        "success_predicate": {
-          "before": {
-            "time": "2026-05-05T15:00:00",
-            "predicate": {
-              "milestone_state": {
-                "milestone_id": "scope_aligned",
-                "field": "status",
-                "equals": "done"
-              }
-            }
-          }
-        },
-        "partial_credit_predicates": [],
-        "failure_predicates": [],
-        "deadline_or_window": "scope_alignment_cutoff",
-        "evidence_requirements": {
-          "min_refs": 1
-        }
+        "end_at": "2026-05-05T12:00:00",
+        "id": "approval_cutoff",
+        "metadata": {},
+        "start_at": "2026-05-05T09:00:00",
+        "title": "Approval queue useful window"
       },
       {
-        "id": "approval_secured_on_time",
-        "label": "Approval secured before cutoff",
-        "weight": 25,
-        "failure_class": "timing",
-        "scoring_type": "binary",
-        "success_predicate": {
-          "before": {
-            "time": "2026-05-05T12:00:00",
-            "predicate": {
-              "milestone_state": {
-                "milestone_id": "approval_secured",
-                "field": "status",
-                "equals": "done"
-              }
-            }
-          }
-        },
-        "partial_credit_predicates": [],
-        "failure_predicates": [],
-        "deadline_or_window": "approval_cutoff",
-        "evidence_requirements": {
-          "min_refs": 1
-        }
-      },
-      {
-        "id": "rollout_ready_on_time",
-        "label": "Rollout ready by Wednesday afternoon",
-        "weight": 20,
-        "failure_class": "timing",
-        "scoring_type": "binary",
-        "success_predicate": {
-          "before": {
-            "time": "2026-05-06T15:00:00",
-            "predicate": {
-              "milestone_state": {
-                "milestone_id": "rollout_ready",
-                "field": "status",
-                "equals": "done"
-              }
-            }
-          }
-        },
-        "partial_credit_predicates": [],
-        "failure_predicates": [],
-        "deadline_or_window": "rollout_ready",
-        "evidence_requirements": {
-          "min_refs": 1
-        }
-      },
-      {
-        "id": "critical_discovery",
-        "label": "Key facts surfaced in time",
-        "weight": 10,
-        "failure_class": "discovery",
-        "scoring_type": "count_fraction",
-        "success_predicate": {},
-        "partial_credit_predicates": [
-          {
-            "before": {
-              "time": "2026-05-05T11:30:00",
-              "predicate": {
-                "surfaced": "full_rollout_infeasible"
-              }
-            }
-          },
-          {
-            "before": {
-              "time": "2026-05-05T12:00:00",
-              "predicate": {
-                "surfaced": "approval_required"
-              }
-            }
-          },
-          {
-            "before": {
-              "time": "2026-05-05T15:00:00",
-              "predicate": {
-                "surfaced": "dana_accepts_staged_if_early"
-              }
-            }
-          }
-        ],
-        "failure_predicates": [],
-        "deadline_or_window": "critical_fact_windows",
-        "evidence_requirements": {
-          "min_refs": 1
-        }
-      },
-      {
-        "id": "commitment_quality",
-        "label": "Credible commitments secured",
-        "weight": 10,
-        "failure_class": "commitment",
-        "scoring_type": "thresholded",
-        "success_predicate": {},
-        "partial_credit_predicates": [
-          {
-            "score": 10,
-            "predicate": {
-              "all_of": [
-                {
-                  "commitment_state": {
-                    "commitment_id": "staged_rollout_plan",
-                    "field": "status",
-                    "in": [
-                      "committed",
-                      "fulfilled"
-                    ]
-                  }
-                },
-                {
-                  "commitment_state": {
-                    "commitment_id": "config_rollout_eta",
-                    "field": "status",
-                    "in": [
-                      "tentative",
-                      "committed",
-                      "fulfilled"
-                    ]
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "score": 5,
-            "predicate": {
-              "any_of": [
-                {
-                  "commitment_state": {
-                    "commitment_id": "staged_rollout_plan",
-                    "field": "status",
-                    "in": [
-                      "committed",
-                      "fulfilled"
-                    ]
-                  }
-                },
-                {
-                  "commitment_state": {
-                    "commitment_id": "config_rollout_eta",
-                    "field": "status",
-                    "in": [
-                      "tentative",
-                      "committed",
-                      "fulfilled"
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        ],
-        "failure_predicates": [],
-        "deadline_or_window": "commitments",
-        "evidence_requirements": {
-          "min_refs": 1
-        }
-      },
-      {
-        "id": "relationship_health",
-        "label": "Working relationships stayed usable",
-        "weight": 5,
-        "failure_class": "relationship",
-        "scoring_type": "thresholded",
-        "success_predicate": {},
-        "partial_credit_predicates": [
-          {
-            "score": 5,
-            "predicate": {
-              "all_of": [
-                {
-                  "relationship_state": {
-                    "actor_id": "leo",
-                    "target_actor_id": "tpm",
-                    "field": "trust",
-                    "gte": 0.4
-                  }
-                },
-                {
-                  "relationship_state": {
-                    "actor_id": "ivy",
-                    "target_actor_id": "tpm",
-                    "field": "trust",
-                    "gte": 0.5
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "score": 2,
-            "predicate": {
-              "any_of": [
-                {
-                  "relationship_state": {
-                    "actor_id": "leo",
-                    "target_actor_id": "tpm",
-                    "field": "trust",
-                    "gte": 0.4
-                  }
-                },
-                {
-                  "relationship_state": {
-                    "actor_id": "ivy",
-                    "target_actor_id": "tpm",
-                    "field": "trust",
-                    "gte": 0.5
-                  }
-                }
-              ]
-            }
-          }
-        ],
-        "failure_predicates": [],
-        "deadline_or_window": "team_health",
-        "evidence_requirements": {
-          "min_refs": 1
-        }
-      },
-      {
-        "id": "runbook_bonus",
-        "label": "Runbook distraction path still delivered a small benefit",
-        "weight": 5,
-        "failure_class": "prioritization",
-        "scoring_type": "binary",
-        "success_predicate": {
-          "before": {
-            "time": "2026-05-06T13:00:00",
-            "predicate": {
-              "task_true_state": {
-                "task_id": "runbook_readiness",
-                "field": "checkpoint",
-                "equals": "done"
-              }
-            }
-          }
-        },
-        "partial_credit_predicates": [],
-        "failure_predicates": [],
-        "deadline_or_window": "runbook_bonus",
-        "evidence_requirements": {
-          "min_refs": 1
-        }
+        "end_at": "2026-05-05T15:00:00",
+        "id": "scope_alignment_cutoff",
+        "metadata": {},
+        "start_at": "2026-05-05T09:00:00",
+        "title": "Scope alignment window"
       }
     ]
   }

@@ -1,0 +1,32 @@
+{
+  "bundle_digest": "9d9562373666e43b383355cecc407b072294d7484216712d370757c0d9c010bd",
+  "compile_report": {
+    "compiled_family_count": 17,
+    "compiled_from_digest": "9d9562373666e43b383355cecc407b072294d7484216712d370757c0d9c010bd",
+    "contract_cell_count": 17,
+    "duplicate_selector_guard_collisions": [],
+    "errors": [],
+    "missing_semantic_cells": [],
+    "orphan_semantic_cells": [],
+    "renderer_count": 17,
+    "semantic_entry_count": 17
+  },
+  "compiled_coverage_digest": "9d9562373666e43b383355cecc407b072294d7484216712d370757c0d9c010bd",
+  "coverage_report": {
+    "coverage": 1.0,
+    "covered_reachable_cells": 17,
+    "critical_uncovered": 0,
+    "total_reachable_cells": 17,
+    "uncovered": []
+  },
+  "errors": [],
+  "scenario_id": "northstar_launch_week",
+  "smoke_results": [
+    {
+      "error": null,
+      "score": 85.0,
+      "script": "golden.tpm"
+    }
+  ],
+  "valid": true
+}

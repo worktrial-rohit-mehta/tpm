@@ -90,13 +90,18 @@ class OpenAIResponsesModelClient:
 
     def generate_text(self, prompt_spec: dict[str, Any], config: dict[str, Any]) -> ModelResponse:
         messages = _prompt_messages(prompt_spec)
+        request: dict[str, Any] = {
+            "model": config["model"],
+            "input": messages,
+            "store": False,
+            "metadata": prompt_spec.get("metadata") or {},
+        }
+        if "temperature" in config:
+            request["temperature"] = config["temperature"]
+        if "top_p" in config:
+            request["top_p"] = config["top_p"]
         started = time.perf_counter()
-        response = self.client.responses.create(
-            model=config["model"],
-            input=messages,
-            store=False,
-            metadata=prompt_spec.get("metadata") or {},
-        )
+        response = self.client.responses.create(**request)
         latency_ms = int((time.perf_counter() - started) * 1000)
         raw = _serialize_response(response)
         text = getattr(response, "output_text", None) or _extract_output_text(raw)
@@ -113,13 +118,12 @@ class OpenAIResponsesModelClient:
         config: dict[str, Any],
     ) -> ModelResponse:
         messages = _prompt_messages(prompt_spec)
-        started = time.perf_counter()
-        response = self.client.responses.create(
-            model=config["model"],
-            input=messages,
-            store=False,
-            metadata=prompt_spec.get("metadata") or {},
-            text={
+        request: dict[str, Any] = {
+            "model": config["model"],
+            "input": messages,
+            "store": False,
+            "metadata": prompt_spec.get("metadata") or {},
+            "text": {
                 "format": {
                     "type": "json_schema",
                     "name": schema_name,
@@ -127,7 +131,13 @@ class OpenAIResponsesModelClient:
                     "strict": True,
                 }
             },
-        )
+        }
+        if "temperature" in config:
+            request["temperature"] = config["temperature"]
+        if "top_p" in config:
+            request["top_p"] = config["top_p"]
+        started = time.perf_counter()
+        response = self.client.responses.create(**request)
         latency_ms = int((time.perf_counter() - started) * 1000)
         raw = _serialize_response(response)
         text = getattr(response, "output_text", None) or _extract_output_text(raw)

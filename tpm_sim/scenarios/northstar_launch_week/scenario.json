@@ -1,1249 +1,490 @@
 {
-  "id": "northstar_launch_week",
-  "name": "Northstar Pilot Week",
-  "timezone": "America/Los_Angeles",
-  "start_at": "2026-05-04T09:00:00",
   "end_at": "2026-05-08T17:00:00",
-  "world": {
-    "project": {
-      "name": "Northstar Admin Hub Pilot",
-      "description": "A first-week TPM benchmark around rescuing a credible Friday pilot for Northstar.",
-      "state": {
-        "launch_scope": "undecided",
-        "customer_confidence": "fragile",
-        "coverage_miss": false,
-        "invalid_external_commitments": 0
-      },
-      "metadata": {
-        "benchmark_positioning": "single_scenario_harness_demo"
-      }
-    },
-    "actors": [
-      {
-        "id": "tpm",
-        "name": "You",
-        "org_role": "technical_program_manager",
-        "coordination_template": "external_agent",
-        "policy_type": "external_agent",
-        "authority_profile": {
-          "can_update_tracker": true,
-          "can_schedule_meeting": true,
-          "can_commit_external_dates": false
-        },
-        "traits": {
-          "workday_start": "09:00",
-          "workday_end": "17:00",
-          "chat_reply_delay_min": 0,
-          "chat_reply_delay_max": 0,
-          "calendar_reply_delay_min": 0,
-          "calendar_reply_delay_max": 0
-        },
-        "state": {
-          "priority_pressure": 0.7,
-          "goal_alignment": 1.0,
-          "trust_in_tpm": 1.0
-        },
-        "metadata": {}
-      },
-      {
-        "id": "rohit",
-        "name": "Rohit Kapoor",
-        "org_role": "director_product",
-        "coordination_template": "sponsor",
-        "authority_profile": {
-          "can_approve_scope": true,
-          "can_reassign_people": false,
-          "can_commit_external_dates": false
-        },
-        "traits": {
-          "workday_start": "08:30",
-          "workday_end": "18:00",
-          "chat_reply_delay_min": 10,
-          "chat_reply_delay_max": 25,
-          "calendar_reply_delay_min": 5,
-          "calendar_reply_delay_max": 20
-        },
-        "state": {
-          "priority_pressure": 0.75,
-          "goal_alignment": 0.9,
-          "trust_in_tpm": 0.68
-        },
-        "metadata": {
-          "hidden_agenda": "wants confidence fast but will back descoping if told early"
-        }
-      },
-      {
-        "id": "maya",
-        "name": "Maya Chen",
-        "org_role": "backend_engineer",
-        "coordination_template": "critical_path_owner",
-        "authority_profile": {
-          "can_commit_eta": true,
-          "can_re_scope_product": false,
-          "can_block_launch": true
-        },
-        "traits": {
-          "workday_start": "09:30",
-          "workday_end": "18:00",
-          "chat_reply_delay_min": 35,
-          "chat_reply_delay_max": 75,
-          "calendar_reply_delay_min": 15,
-          "calendar_reply_delay_max": 30
-        },
-        "state": {
-          "priority_pressure": 0.95,
-          "goal_alignment": 0.78,
-          "trust_in_tpm": 0.34,
-          "available_after": "2026-05-04T15:00:00"
-        },
-        "metadata": {
-          "hidden_agenda": "rejects fake dates and reacts badly to pressure"
-        }
-      },
-      {
-        "id": "andrew",
-        "name": "Andrew Ortiz",
-        "org_role": "frontend_engineer",
-        "coordination_template": "ally",
-        "authority_profile": {
-          "can_commit_eta": true,
-          "can_re_scope_product": false,
-          "can_block_launch": false
-        },
-        "traits": {
-          "workday_start": "09:00",
-          "workday_end": "17:00",
-          "chat_reply_delay_min": 5,
-          "chat_reply_delay_max": 15,
-          "calendar_reply_delay_min": 5,
-          "calendar_reply_delay_max": 15
-        },
-        "state": {
-          "priority_pressure": 0.55,
-          "goal_alignment": 0.92,
-          "trust_in_tpm": 0.82
-        },
-        "metadata": {}
-      },
-      {
-        "id": "rahul",
-        "name": "Rahul Iyer",
-        "org_role": "product_designer",
-        "coordination_template": "cross_functional_dependency_owner",
-        "authority_profile": {
-          "can_approve_design": true,
-          "can_commit_eta": false,
-          "can_block_launch": true
-        },
-        "traits": {
-          "workday_start": "10:00",
-          "workday_end": "18:00",
-          "chat_reply_delay_min": 25,
-          "chat_reply_delay_max": 45,
-          "calendar_reply_delay_min": 10,
-          "calendar_reply_delay_max": 20
-        },
-        "state": {
-          "priority_pressure": 0.7,
-          "goal_alignment": 0.7,
-          "trust_in_tpm": 0.61
-        },
-        "metadata": {}
-      },
-      {
-        "id": "nina",
-        "name": "Nina Patel",
-        "org_role": "security_engineer",
-        "coordination_template": "cross_functional_dependency_owner",
-        "authority_profile": {
-          "can_approve_review_slot": true,
-          "can_veto_launch": true
-        },
-        "traits": {
-          "workday_start": "09:30",
-          "workday_end": "17:30",
-          "chat_reply_delay_min": 90,
-          "chat_reply_delay_max": 180,
-          "calendar_reply_delay_min": 20,
-          "calendar_reply_delay_max": 40
-        },
-        "state": {
-          "priority_pressure": 0.82,
-          "goal_alignment": 0.58,
-          "trust_in_tpm": 0.55
-        },
-        "metadata": {}
-      },
-      {
-        "id": "sara",
-        "name": "Sara Feldman",
-        "org_role": "solutions_engineer",
-        "coordination_template": "customer_facing_bridge",
-        "authority_profile": {
-          "can_commit_dry_run": false,
-          "can_update_customer_context": true
-        },
-        "traits": {
-          "workday_start": "08:30",
-          "workday_end": "17:30",
-          "chat_reply_delay_min": 15,
-          "chat_reply_delay_max": 35,
-          "calendar_reply_delay_min": 10,
-          "calendar_reply_delay_max": 20
-        },
-        "state": {
-          "priority_pressure": 0.72,
-          "goal_alignment": 0.9,
-          "trust_in_tpm": 0.66
-        },
-        "metadata": {}
-      }
+  "evaluation": {
+    "official_seeds": [
+      11,
+      29,
+      47
     ],
-    "relationships": [
-      {"actor_id": "rohit", "target_actor_id": "tpm", "state": {"trust": 0.68}},
-      {"actor_id": "maya", "target_actor_id": "tpm", "state": {"trust": 0.34}},
-      {"actor_id": "andrew", "target_actor_id": "tpm", "state": {"trust": 0.82}},
-      {"actor_id": "rahul", "target_actor_id": "tpm", "state": {"trust": 0.61}},
-      {"actor_id": "nina", "target_actor_id": "tpm", "state": {"trust": 0.55}},
-      {"actor_id": "sara", "target_actor_id": "tpm", "state": {"trust": 0.66}},
-      {"actor_id": "tpm", "target_actor_id": "rohit", "state": {"trust": 0.75}},
-      {"actor_id": "tpm", "target_actor_id": "maya", "state": {"trust": 0.4}},
-      {"actor_id": "tpm", "target_actor_id": "andrew", "state": {"trust": 0.85}},
-      {"actor_id": "tpm", "target_actor_id": "rahul", "state": {"trust": 0.65}},
-      {"actor_id": "tpm", "target_actor_id": "nina", "state": {"trust": 0.6}},
-      {"actor_id": "tpm", "target_actor_id": "sara", "state": {"trust": 0.72}}
+    "primary_failure_classes": [
+      "timing",
+      "discovery",
+      "commitment"
     ],
-    "windows": [
-      {"id": "security_cutoff", "title": "Security review safe slot window", "start_at": "2026-05-04T09:00:00", "end_at": "2026-05-05T12:00:00", "metadata": {}},
-      {"id": "scope_alignment_cutoff", "title": "Scope alignment window", "start_at": "2026-05-04T09:00:00", "end_at": "2026-05-05T16:00:00", "metadata": {}},
-      {"id": "customer_plan_cutoff", "title": "Customer plan lock window", "start_at": "2026-05-04T09:00:00", "end_at": "2026-05-06T12:00:00", "metadata": {}}
-    ],
-    "threads": [
-      {"id": "rohit", "surface": "chat", "title": "Rohit Kapoor", "kind": "dm", "participants": ["tpm", "rohit"], "metadata": {}},
-      {"id": "maya", "surface": "chat", "title": "Maya Chen", "kind": "dm", "participants": ["tpm", "maya"], "metadata": {}},
-      {"id": "andrew", "surface": "chat", "title": "Andrew Ortiz", "kind": "dm", "participants": ["tpm", "andrew"], "metadata": {}},
-      {"id": "rahul", "surface": "chat", "title": "Rahul Iyer", "kind": "dm", "participants": ["tpm", "rahul"], "metadata": {}},
-      {"id": "nina", "surface": "chat", "title": "Nina Patel", "kind": "dm", "participants": ["tpm", "nina"], "metadata": {}},
-      {"id": "sara", "surface": "chat", "title": "Sara Feldman", "kind": "dm", "participants": ["tpm", "sara"], "metadata": {}},
-      {"id": "launch_room", "surface": "chat", "title": "Northstar launch room", "kind": "group", "participants": ["tpm", "rohit", "andrew", "sara"], "metadata": {}}
-    ],
-    "documents": [
+    "rubric_lines": [
       {
-        "id": "DOC-BRIEF-001",
-        "type": "brief",
-        "title": "Northstar pilot kickoff brief",
-        "author_id": "rohit",
-        "created_at": "2026-05-04T08:50:00",
-        "updated_at": "2026-05-04T08:50:00",
-        "visibility": "company",
-        "content": "Northstar wants a credible Friday pilot. They expect a dry run on Thursday afternoon if we have a stable descoped plan. Leadership wants honesty over fake green.",
-        "metadata": {
-          "read_cost_minutes": 5,
-          "belief_signals": [
-            {"belief_key": "project.goal", "belief_value": "credible_friday_pilot", "confidence": 0.9, "freshness_window_min": 1440},
-            {"belief_key": "project.external_dry_run_target", "belief_value": "2026-05-07T15:00:00", "confidence": 0.9, "freshness_window_min": 1440}
-          ],
-          "surface_facts": ["sara_needs_plan_by_wed_noon"]
-        }
-      },
-      {
-        "id": "DOC-MAYA-LOAD-001",
-        "type": "internal_note",
-        "title": "Backend load note",
-        "author_id": "system",
-        "created_at": "2026-05-04T08:55:00",
-        "updated_at": "2026-05-04T08:55:00",
-        "visibility": "company",
-        "content": "Platform note: Maya is handling the checkout Sev-1 until mid-afternoon Monday. Full-scope delivery risk is high.",
-        "metadata": {
-          "read_cost_minutes": 5,
-          "surface_facts": ["maya_oncall_until_mon_1500", "backend_infeasible_for_friday"],
-          "belief_signals": [
-            {"belief_key": "actor.maya.available_after", "belief_value": "2026-05-04T15:00:00", "confidence": 0.8, "freshness_window_min": 240},
-            {"belief_key": "task.backend_api.true_risk", "belief_value": "high", "confidence": 0.8, "freshness_window_min": 240}
-          ]
-        }
-      },
-      {
-        "id": "DOC-SUPPORT-001",
-        "type": "support_notes",
-        "title": "Northstar support pain points",
-        "author_id": "system",
-        "created_at": "2026-05-04T08:55:00",
-        "updated_at": "2026-05-04T08:55:00",
-        "visibility": "company",
-        "content": "Northstar mostly cares about permission clarity and getting the empty state right for initial admins.",
-        "metadata": {
-          "read_cost_minutes": 5,
-          "surface_facts": ["support_context_available"],
-          "belief_signals": [
-            {"belief_key": "customer.pain_points", "belief_value": "permission_clarity", "confidence": 0.9, "freshness_window_min": 1440}
-          ]
-        }
-      },
-      {
-        "id": "DOC-RUNBOOK-TEMPLATE",
-        "type": "runbook_template",
-        "title": "Pilot runbook template",
-        "author_id": "system",
-        "created_at": "2026-05-04T08:55:00",
-        "updated_at": "2026-05-04T08:55:00",
-        "visibility": "company",
-        "content": "Checklist placeholder for launch-day runbook and on-call handoff.",
-        "metadata": {
-          "read_cost_minutes": 3
-        }
-      }
-    ],
-    "tasks": [
-      {
-        "id": "backend_api",
-        "title": "Descoped backend entitlement path",
-        "owner_id": "maya",
-        "priority": "P0",
-        "due_at": "2026-05-07T12:00:00",
-        "description": "Backend path for the descoped pilot.",
-        "true_state": {
-          "checkpoint": "working",
-          "remaining_work": 8,
-          "last_transition_ref": null
+        "competency_tags": [
+          "outcome_attainment",
+          "timing_optionality_preservation",
+          "decision_tradeoff_management",
+          "stakeholder_alignment_communication"
+        ],
+        "deadline_or_window": "scope_alignment_cutoff",
+        "evidence_requirements": {
+          "min_refs": 1,
+          "require_event_ref": true
         },
-        "tracker_state": {
-          "status": "in_progress",
-          "owner_id": "maya",
-          "blocker": "No credible ETA yet.",
-          "target_at": "2026-05-07T12:00:00",
-          "last_updated_at": "2026-05-04T09:00:00",
-          "notes": ""
-        },
-        "metadata": {
-          "critical": true,
-          "remaining_work_by_checkpoint": {
-            "working": 8,
-            "descoped_contract_ready": 4,
-            "done": 0
-          }
-        }
-      },
-      {
-        "id": "frontend_pilot",
-        "title": "Pilot frontend path",
-        "owner_id": "andrew",
-        "priority": "P0",
-        "due_at": "2026-05-07T16:00:00",
-        "description": "Frontend path for the descoped pilot.",
-        "true_state": {
-          "checkpoint": "blocked",
-          "remaining_work": 6,
-          "last_transition_ref": null
-        },
-        "tracker_state": {
-          "status": "blocked",
-          "owner_id": "andrew",
-          "blocker": "Needs scope and design alignment.",
-          "target_at": "2026-05-07T16:00:00",
-          "last_updated_at": "2026-05-04T09:00:00",
-          "notes": ""
-        },
-        "metadata": {
-          "critical": true,
-          "remaining_work_by_checkpoint": {
-            "blocked": 6,
-            "in_progress": 3,
-            "done": 0
-          }
-        }
-      },
-      {
-        "id": "design_signoff",
-        "title": "Design signoff for descoped flow",
-        "owner_id": "rahul",
-        "priority": "P1",
-        "due_at": "2026-05-05T17:00:00",
-        "description": "Approval for the simplified empty state and admin flow.",
-        "true_state": {
-          "checkpoint": "blocked",
-          "remaining_work": 4,
-          "last_transition_ref": null
-        },
-        "tracker_state": {
-          "status": "blocked",
-          "owner_id": "rahul",
-          "blocker": "Needs support context before simplification.",
-          "target_at": "2026-05-05T17:00:00",
-          "last_updated_at": "2026-05-04T09:00:00",
-          "notes": ""
-        },
-        "metadata": {
-          "critical": true,
-          "remaining_work_by_checkpoint": {
-            "blocked": 4,
-            "in_review": 2,
-            "done": 0
-          }
-        }
-      },
-      {
-        "id": "security_review",
-        "title": "Security review for OAuth scope",
-        "owner_id": "nina",
-        "priority": "P0",
-        "due_at": "2026-05-06T11:00:00",
-        "description": "Security review for the new OAuth scope.",
-        "true_state": {
-          "checkpoint": "not_requested",
-          "remaining_work": 3,
-          "last_transition_ref": null
-        },
-        "tracker_state": {
-          "status": "blocked",
-          "owner_id": "nina",
-          "blocker": "Review not yet requested.",
-          "target_at": "2026-05-06T11:00:00",
-          "last_updated_at": "2026-05-04T09:00:00",
-          "notes": ""
-        },
-        "metadata": {
-          "critical": true,
-          "remaining_work_by_checkpoint": {
-            "not_requested": 3,
-            "scheduled": 1,
-            "done": 0
-          }
-        }
-      },
-      {
-        "id": "runbook_readiness",
-        "title": "Pilot runbook and launch notes",
-        "owner_id": "tpm",
-        "priority": "P2",
-        "due_at": "2026-05-07T16:00:00",
-        "description": "Minor readiness artifact that helps but does not gate launch.",
-        "true_state": {
-          "checkpoint": "todo",
-          "remaining_work": 2,
-          "last_transition_ref": null
-        },
-        "tracker_state": {
-          "status": "todo",
-          "owner_id": "tpm",
-          "blocker": "",
-          "target_at": "2026-05-07T16:00:00",
-          "last_updated_at": "2026-05-04T09:00:00",
-          "notes": ""
-        },
-        "metadata": {
-          "critical": false,
-          "remaining_work_by_checkpoint": {
-            "todo": 2,
-            "done": 0
-          }
-        }
-      }
-    ],
-    "milestones": [
-      {
-        "id": "scope_aligned",
-        "title": "Scope aligned",
-        "description": "A descoped pilot plan has been aligned with leadership and engineering.",
-        "due_at": "2026-05-05T16:00:00",
-        "state": {
-          "status": "pending",
-          "recoverability": "high",
-          "achieved_at": null,
-          "last_transition_ref": null
-        },
-        "metadata": {
-          "achieved_predicate": {
-            "all_of": [
-              {"project_state": {"field": "launch_scope", "equals": "descoped_pilot"}},
-              {"belief_known": {"actor_id": "rohit", "belief_key": "project.launch_scope", "equals": "descoped_pilot", "min_confidence": 0.6}},
-              {"belief_known": {"actor_id": "andrew", "belief_key": "project.launch_scope", "equals": "descoped_pilot", "min_confidence": 0.6}}
-            ]
-          },
-          "recoverability_rules": [
-            {
-              "recoverability": "none",
-              "predicate": {
-                "all_of": [
-                  {"after": {"time": "2026-05-05T16:00:00", "predicate": {"project_state": {"field": "launch_scope", "equals": "undecided"}}}}
-                ]
-              }
-            },
-            {
-              "recoverability": "low",
-              "predicate": {
-                "all_of": [
-                  {"after": {"time": "2026-05-05T13:00:00", "predicate": {"project_state": {"field": "launch_scope", "equals": "undecided"}}}}
-                ]
-              }
-            },
-            {"recoverability": "high", "predicate": {}}
-          ]
-        }
-      },
-      {
-        "id": "security_slot_secured",
-        "title": "Security slot secured",
-        "description": "A useful security review slot has been secured before cutoff.",
-        "due_at": "2026-05-05T12:00:00",
-        "state": {
-          "status": "pending",
-          "recoverability": "high",
-          "achieved_at": null,
-          "last_transition_ref": null
-        },
-        "metadata": {
-          "achieved_predicate": {
-            "commitment_state": {
-              "commitment_id": "security_review_slot",
-              "field": "status",
-              "in": ["tentative", "committed", "fulfilled"]
-            }
-          },
-          "recoverability_rules": [
-            {
-              "recoverability": "none",
-              "predicate": {
-                "all_of": [
-                  {"after": {"time": "2026-05-05T12:00:00", "predicate": {"task_true_state": {"task_id": "security_review", "field": "checkpoint", "equals": "not_requested"}}}}
-                ]
-              }
-            },
-            {"recoverability": "high", "predicate": {}}
-          ]
-        }
-      },
-      {
-        "id": "customer_plan_locked",
-        "title": "Customer plan locked",
-        "description": "Sara has a stable external plan to communicate.",
-        "due_at": "2026-05-06T12:00:00",
-        "state": {
-          "status": "pending",
-          "recoverability": "high",
-          "achieved_at": null,
-          "last_transition_ref": null
-        },
-        "metadata": {
-          "achieved_predicate": {
-            "all_of": [
-              {"belief_known": {"actor_id": "sara", "belief_key": "project.launch_scope", "equals": "descoped_pilot", "min_confidence": 0.6}},
-              {"commitment_state": {"commitment_id": "customer_plan", "field": "status", "in": ["tentative", "committed", "fulfilled"]}}
-            ]
-          },
-          "recoverability_rules": [
-            {
-              "recoverability": "none",
-              "predicate": {
-                "after": {
-                  "time": "2026-05-06T12:00:00",
-                  "predicate": {"project_state": {"field": "customer_confidence", "equals": "at_risk"}}
-                }
-              }
-            },
-            {
-              "recoverability": "low",
-              "predicate": {
-                "after": {
-                  "time": "2026-05-06T10:00:00",
-                  "predicate": {"commitment_state": {"commitment_id": "customer_plan", "field": "status", "equals": "missing"}}
-                }
-              }
-            },
-            {"recoverability": "high", "predicate": {}}
-          ]
-        }
-      },
-      {
-        "id": "pilot_ready",
-        "title": "Pilot ready",
-        "description": "Critical path tasks are done in time for the pilot.",
-        "due_at": "2026-05-08T15:00:00",
-        "state": {
-          "status": "pending",
-          "recoverability": "high",
-          "achieved_at": null,
-          "last_transition_ref": null
-        },
-        "metadata": {
-          "achieved_predicate": {
-            "all_of": [
-              {"task_true_state": {"task_id": "backend_api", "field": "checkpoint", "equals": "done"}},
-              {"task_true_state": {"task_id": "frontend_pilot", "field": "checkpoint", "equals": "done"}},
-              {"task_true_state": {"task_id": "design_signoff", "field": "checkpoint", "equals": "done"}},
-              {"task_true_state": {"task_id": "security_review", "field": "checkpoint", "equals": "done"}}
-            ]
-          },
-          "recoverability_rules": [
-            {
-              "recoverability": "none",
-              "predicate": {
-                "after": {
-                  "time": "2026-05-08T15:00:00",
-                  "predicate": {"task_true_state": {"task_id": "backend_api", "field": "checkpoint", "in": ["working", "blocked", "descoped_contract_ready"]}}
-                }
-              }
-            },
-            {
-              "recoverability": "low",
-              "predicate": {
-                "after": {
-                  "time": "2026-05-07T17:00:00",
-                  "predicate": {"task_true_state": {"task_id": "backend_api", "field": "checkpoint", "equals": "working"}}
-                }
-              }
-            },
-            {"recoverability": "high", "predicate": {}}
-          ]
-        }
-      }
-    ],
-    "dependencies": [
-      {"id": "dep_scope_frontend", "src_kind": "milestone", "src_id": "scope_aligned", "dst_kind": "task", "dst_id": "frontend_pilot", "dep_type": "decision", "metadata": {}},
-      {"id": "dep_design_frontend", "src_kind": "task", "src_id": "design_signoff", "dst_kind": "task", "dst_id": "frontend_pilot", "dep_type": "approval", "metadata": {}},
-      {"id": "dep_security_pilot", "src_kind": "task", "src_id": "security_review", "dst_kind": "milestone", "dst_id": "pilot_ready", "dep_type": "approval", "metadata": {}}
-    ],
-    "facts": [
-      {
-        "id": "maya_oncall_until_mon_1500",
-        "label": "Maya is on a Sev-1 until Monday 15:00",
-        "description": "Maya is overloaded until Monday afternoon.",
-        "state": {"surfaced_at": null, "surfaced_by": null, "surface_event_ref": null},
-        "metadata": {
-          "surface_predicate": {"event_occurred": {"event_type": "fact_signal", "where": {"fact_id": "maya_oncall_until_mon_1500", "observer_id": "tpm"}}}
-        }
-      },
-      {
-        "id": "backend_infeasible_for_friday",
-        "label": "Full backend scope is not credible for Friday",
-        "description": "The visible tracker is too optimistic.",
-        "state": {"surfaced_at": null, "surfaced_by": null, "surface_event_ref": null},
-        "metadata": {
-          "surface_predicate": {"event_occurred": {"event_type": "fact_signal", "where": {"fact_id": "backend_infeasible_for_friday", "observer_id": "tpm"}}}
-        }
-      },
-      {
-        "id": "security_review_required",
-        "label": "Security review is required",
-        "description": "The OAuth scope needs security review.",
-        "state": {"surfaced_at": null, "surfaced_by": null, "surface_event_ref": null},
-        "metadata": {
-          "surface_predicate": {"event_occurred": {"event_type": "fact_signal", "where": {"fact_id": "security_review_required", "observer_id": "tpm"}}}
-        }
-      },
-      {
-        "id": "rohit_accepts_descoping_if_early",
-        "label": "Rohit will accept descoping if engaged early",
-        "description": "The sponsor is more flexible than the team assumes.",
-        "state": {"surfaced_at": null, "surfaced_by": null, "surface_event_ref": null},
-        "metadata": {
-          "surface_predicate": {"event_occurred": {"event_type": "fact_signal", "where": {"fact_id": "rohit_accepts_descoping_if_early", "observer_id": "tpm"}}}
-        }
-      },
-      {
-        "id": "rahul_needs_support_context",
-        "label": "Rahul needs support context",
-        "description": "Design approval depends on actual customer pain points.",
-        "state": {"surfaced_at": null, "surfaced_by": null, "surface_event_ref": null},
-        "metadata": {
-          "surface_predicate": {"event_occurred": {"event_type": "fact_signal", "where": {"fact_id": "rahul_needs_support_context", "observer_id": "tpm"}}}
-        }
-      },
-      {
-        "id": "support_context_available",
-        "label": "Support context exists in docs",
-        "description": "Support pain points are already documented.",
-        "state": {"surfaced_at": null, "surfaced_by": null, "surface_event_ref": null},
-        "metadata": {
-          "surface_predicate": {"event_occurred": {"event_type": "fact_signal", "where": {"fact_id": "support_context_available", "observer_id": "tpm"}}}
-        }
-      },
-      {
-        "id": "sara_needs_plan_by_wed_noon",
-        "label": "Sara needs a stable plan by Wednesday noon",
-        "description": "Customer confidence becomes fragile if messaging stays vague.",
-        "state": {"surfaced_at": null, "surfaced_by": null, "surface_event_ref": null},
-        "metadata": {
-          "surface_predicate": {"event_occurred": {"event_type": "fact_signal", "where": {"fact_id": "sara_needs_plan_by_wed_noon", "observer_id": "tpm"}}}
-        }
-      }
-    ],
-    "beliefs": [],
-    "commitments": [],
-    "meetings": [],
-    "messages": [],
-    "pending_events": [
-      {
-        "due_at": "2026-05-04T15:00:00",
-        "phase_priority": 1,
-        "type": "state.patch",
-        "actor_id": "system",
-        "payload": {
-          "target": {
-            "kind": "actor_state",
-            "actor_id": "maya",
-            "patch": {
-              "priority_pressure": 0.85,
-              "available_after": "2026-05-04T15:00:00"
-            }
-          }
-        }
-      },
-      {
-        "due_at": "2026-05-05T09:30:00",
-        "phase_priority": 2,
-        "type": "guarded_message",
-        "actor_id": "rohit",
-        "payload": {
-          "surface": "chat",
-          "thread_id": "rohit",
-          "sender_id": "rohit",
-          "act_id": "request.clarification",
-          "slots": {"topic": "launch_plan"},
-          "body": "I need the real plan, not a green tracker. What is actually launchable this week?",
-          "metadata": {
-            "surface_facts": ["rohit_accepts_descoping_if_early"],
-            "belief_signals": [
-              {"belief_key": "project.sponsor_needs_clarity", "belief_value": true, "confidence": 1.0, "freshness_window_min": 240}
-            ]
-          },
-          "guard": {
-            "not": {
-              "before": {
-                "time": "2026-05-05T09:30:00",
-                "predicate": {
-                  "action_occurred": {
-                    "actor_id": "tpm",
-                    "surface": "chat",
-                    "act_id": "inform.risk",
-                    "slots": {"target_actor_id": "rohit"}
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      {
-        "due_at": "2026-05-06T10:30:00",
-        "phase_priority": 2,
-        "type": "guarded_message",
-        "actor_id": "sara",
-        "payload": {
-          "surface": "chat",
-          "thread_id": "sara",
-          "sender_id": "sara",
-          "act_id": "request.clarification",
-          "slots": {"topic": "customer_plan"},
-          "body": "Northstar is asking what story I should tell them by lunch. I need a stable plan now.",
-          "metadata": {
-            "surface_facts": ["sara_needs_plan_by_wed_noon"],
-            "belief_signals": [
-              {"belief_key": "project.customer_update_urgency", "belief_value": "high", "confidence": 1.0, "freshness_window_min": 240}
-            ]
-          },
-          "guard": {
-            "not": {
-              "milestone_state": {
-                "milestone_id": "customer_plan_locked",
-                "field": "status",
-                "equals": "done"
-              }
-            }
-          }
-        }
-      }
-    ]
-  },
-  "policy": {
-    "action_costs": {
-      "read_thread": 2,
-      "read_doc": 5,
-      "read_task_board": 1,
-      "read_calendar": 1,
-      "send_chat": 1,
-      "schedule_meeting": 2,
-      "meeting_act": 1,
-      "write_doc": 15,
-      "write_note": 1,
-      "task_note": 3,
-      "task_edit": 3
-    },
-    "meeting_defaults": {
-      "tpm_max_acts": 2
-    },
-    "timing_bands": [
-      {
-        "band": "early",
-        "window_id": "security_cutoff"
-      },
-      {
-        "band": "mid",
-        "window_id": "customer_plan_cutoff"
-      }
-    ],
-    "default_timing_band": "late",
-    "external_commitment_requirements": [
-      "scope_aligned",
-      "security_slot_secured"
-    ],
-    "project_state_rules": [
-      {
-        "field": "customer_confidence",
-        "cases": [
-          {
+        "failure_class": "timing",
+        "failure_meaning": "The TPM failed to get the core scope decision made in time, undermining the rest of the launch week.",
+        "failure_predicates": [],
+        "id": "scope_aligned_on_time",
+        "label": "Scope aligned on time",
+        "measurement_rationale": "Measures whether the TPM forced the organization onto the descoped feasible path before the opportunity to do so expired.",
+        "partial_credit_predicates": [],
+        "scoring_type": "binary",
+        "success_meaning": "The TPM aligned leadership and execution on the feasible descoped path while it was still actionable.",
+        "success_predicate": {
+          "before": {
             "predicate": {
               "milestone_state": {
-                "milestone_id": "customer_plan_locked",
+                "equals": "done",
                 "field": "status",
-                "equals": "done"
+                "milestone_id": "scope_aligned"
               }
             },
-            "value": "stable"
+            "time": "2026-05-05T16:00:00"
+          }
+        },
+        "weight": 15
+      },
+      {
+        "competency_tags": [
+          "outcome_attainment",
+          "timing_optionality_preservation",
+          "commitment_dependency_management",
+          "critical_path_prioritization"
+        ],
+        "deadline_or_window": "security_cutoff",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "timing",
+        "failure_meaning": "The TPM missed or mishandled the dependency, allowing the security path to become materially worse.",
+        "failure_predicates": [],
+        "id": "security_slot_on_time",
+        "label": "Security slot secured before cutoff",
+        "measurement_rationale": "Measures whether the TPM treated security as a real dependency and engaged it before the useful slot disappeared.",
+        "partial_credit_predicates": [],
+        "scoring_type": "binary",
+        "success_meaning": "The TPM preserved the security path by acting before the cutoff.",
+        "success_predicate": {
+          "before": {
+            "predicate": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "security_slot_secured"
+              }
+            },
+            "time": "2026-05-05T12:00:00"
+          }
+        },
+        "weight": 10
+      },
+      {
+        "competency_tags": [
+          "outcome_attainment",
+          "timing_optionality_preservation",
+          "stakeholder_alignment_communication",
+          "commitment_dependency_management"
+        ],
+        "deadline_or_window": "customer_plan_cutoff",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "alignment",
+        "failure_meaning": "The TPM did not lock a credible customer-facing plan in time, leaving external messaging unstable.",
+        "failure_predicates": [],
+        "id": "customer_plan_on_time",
+        "label": "Customer plan locked on time",
+        "measurement_rationale": "Measures whether the TPM got the customer-facing plan locked early enough that external messaging stayed stable and credible.",
+        "partial_credit_predicates": [],
+        "scoring_type": "binary",
+        "success_meaning": "The TPM synchronized the customer-facing plan with internal reality before external trust degraded.",
+        "success_predicate": {
+          "before": {
+            "predicate": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "customer_plan_locked"
+              }
+            },
+            "time": "2026-05-06T12:00:00"
+          }
+        },
+        "weight": 10
+      },
+      {
+        "competency_tags": [
+          "outcome_attainment",
+          "timing_optionality_preservation",
+          "critical_path_prioritization",
+          "commitment_dependency_management"
+        ],
+        "deadline_or_window": "pilot_ready",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "timing",
+        "failure_meaning": "The TPM did not move the critical work far enough for the pilot to be truly ready.",
+        "failure_predicates": [],
+        "id": "pilot_ready_on_time",
+        "label": "Pilot ready by Friday afternoon",
+        "measurement_rationale": "Measures whether the TPM\u2019s coordination actually resulted in the pilot being ready on the authored critical path by Friday.",
+        "partial_credit_predicates": [],
+        "scoring_type": "binary",
+        "success_meaning": "The TPM turned the week\u2019s decisions and dependencies into a real ready state.",
+        "success_predicate": {
+          "before": {
+            "predicate": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "pilot_ready"
+              }
+            },
+            "time": "2026-05-08T15:00:00"
+          }
+        },
+        "weight": 5
+      },
+      {
+        "competency_tags": [
+          "discovery_situation_awareness"
+        ],
+        "deadline_or_window": "critical_fact_windows",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "discovery",
+        "failure_meaning": "The TPM either missed or surfaced hard project reality too late to steer effectively.",
+        "failure_predicates": [],
+        "id": "project_constraint_discovery",
+        "label": "Project constraints surfaced in time",
+        "measurement_rationale": "Measures whether the TPM surfaced the hard project constraints and dependencies early enough to still change the week.",
+        "partial_credit_predicates": [
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "backend_infeasible_for_friday"
+              },
+              "time": "2026-05-05T16:00:00"
+            }
           },
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "security_review_required"
+              },
+              "time": "2026-05-05T12:00:00"
+            }
+          },
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "support_context_available"
+              },
+              "time": "2026-05-05T17:00:00"
+            }
+          }
+        ],
+        "scoring_type": "count_fraction",
+        "success_meaning": "The TPM found the objective blockers and dependency facts while they were still actionable.",
+        "success_predicate": {},
+        "weight": 10
+      },
+      {
+        "competency_tags": [
+          "discovery_situation_awareness",
+          "stakeholder_alignment_communication"
+        ],
+        "deadline_or_window": "stakeholder_driver_windows",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "discovery",
+        "failure_meaning": "The TPM treated stakeholder behavior as generic status noise and missed the cues that should have changed how they coordinated.",
+        "failure_predicates": [],
+        "id": "stakeholder_driver_discovery",
+        "label": "Stakeholder drivers surfaced in time",
+        "measurement_rationale": "Measures whether the TPM picked up the hidden stakeholder incentives and sensitivities soon enough to adapt coordination around them.",
+        "partial_credit_predicates": [
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "rohit_accepts_descoping_if_early"
+              },
+              "time": "2026-05-05T16:00:00"
+            }
+          },
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "maya_rejects_fake_dates_under_pressure"
+              },
+              "time": "2026-05-05T16:00:00"
+            }
+          },
+          {
+            "before": {
+              "predicate": {
+                "surfaced": "sara_needs_plan_by_wed_noon"
+              },
+              "time": "2026-05-06T12:00:00"
+            }
+          }
+        ],
+        "scoring_type": "count_fraction",
+        "success_meaning": "The TPM recognized the key private drivers behind stakeholder behavior while they were still useful for coordination.",
+        "success_predicate": {},
+        "weight": 10
+      },
+      {
+        "competency_tags": [
+          "commitment_dependency_management",
+          "decision_tradeoff_management"
+        ],
+        "deadline_or_window": "commitments",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "commitment",
+        "failure_meaning": "The TPM failed to secure enough credible commitment quality, or allowed invalid commitments to stand.",
+        "failure_predicates": [],
+        "id": "commitment_quality",
+        "label": "Credible commitments secured",
+        "measurement_rationale": "Measures whether the TPM secured credible internal and external commitments without creating invalid promises.",
+        "partial_credit_predicates": [
           {
             "predicate": {
               "all_of": [
                 {
-                  "after": {
-                    "time": "2026-05-07T12:00:00",
-                    "predicate": {}
+                  "commitment_state": {
+                    "commitment_id": "backend_descoped_eta",
+                    "field": "status",
+                    "in": [
+                      "tentative",
+                      "committed",
+                      "fulfilled"
+                    ]
                   }
                 },
                 {
-                  "not": {
-                    "milestone_state": {
-                      "milestone_id": "customer_plan_locked",
-                      "field": "status",
-                      "equals": "done"
-                    }
+                  "commitment_state": {
+                    "commitment_id": "customer_plan",
+                    "field": "status",
+                    "in": [
+                      "tentative",
+                      "committed",
+                      "fulfilled"
+                    ]
+                  }
+                },
+                {
+                  "project_state": {
+                    "equals": 0,
+                    "field": "invalid_external_commitments"
                   }
                 }
               ]
             },
-            "value": "at_risk"
+            "score": 15
           },
           {
             "predicate": {
-              "after": {
-                "time": "2026-05-07T09:00:00",
-                "predicate": {}
-              }
+              "all_of": [
+                {
+                  "commitment_state": {
+                    "commitment_id": "backend_descoped_eta",
+                    "field": "status",
+                    "in": [
+                      "tentative",
+                      "committed",
+                      "fulfilled"
+                    ]
+                  }
+                },
+                {
+                  "project_state": {
+                    "equals": 0,
+                    "field": "invalid_external_commitments"
+                  }
+                }
+              ]
             },
-            "value": "fragile"
+            "score": 8
           }
-        ]
-      }
-    ],
-    "task_transitions": [
-      {
-        "id": "design_start_review",
-        "task_id": "design_signoff",
-        "from_checkpoint": "blocked",
-        "to_checkpoint": "in_review",
-        "guard": {
-          "all_of": [
-            {"surfaced": "support_context_available"},
-            {"project_state": {"field": "launch_scope", "equals": "descoped_pilot"}},
-            {
-              "action_occurred": {
-                "actor_id": "tpm",
-                "surface": "chat",
-                "act_id": "request.approval",
-                "slots": {"task_id": "design_signoff", "target_actor_id": "rahul"}
-              }
-            }
-          ]
-        },
-        "delay_minutes": [45, 75],
-        "tracker_patch": {
-          "status": "in_review",
-          "blocker": "Rahul is reviewing the descoped path."
-        },
-        "effects": []
-      },
-      {
-        "id": "design_finish",
-        "task_id": "design_signoff",
-        "from_checkpoint": "in_review",
-        "to_checkpoint": "done",
-        "guard": {
-          "any_of": [
-            {
-              "action_occurred": {
-                "actor_id": "tpm",
-                "surface": "meeting",
-                "act_id": "negotiate.scope",
-                "slots": {"meeting_id": "launch_tradeoff_huddle"}
-              }
-            },
-            {
-              "event_occurred": {
-                "event_type": "npc.message_sent",
-                "where": {"thread_id": "rahul"}
-              }
-            }
-          ]
-        },
-        "delay_minutes": [60, 90],
-        "tracker_patch": {
-          "status": "done",
-          "blocker": ""
-        },
-        "effects": []
-      },
-      {
-        "id": "frontend_start",
-        "task_id": "frontend_pilot",
-        "from_checkpoint": "blocked",
-        "to_checkpoint": "in_progress",
-        "guard": {
-          "all_of": [
-            {"milestone_state": {"milestone_id": "scope_aligned", "field": "status", "equals": "done"}},
-            {"task_true_state": {"task_id": "design_signoff", "field": "checkpoint", "equals": "done"}}
-          ]
-        },
-        "delay_minutes": [60, 90],
-        "tracker_patch": {
-          "status": "in_progress",
-          "blocker": "Andrew is building the descoped path."
-        },
-        "effects": []
-      },
-      {
-        "id": "frontend_finish",
-        "task_id": "frontend_pilot",
-        "from_checkpoint": "in_progress",
-        "to_checkpoint": "done",
-        "guard": {
-          "task_true_state": {"task_id": "backend_api", "field": "checkpoint", "in": ["descoped_contract_ready", "done"]}
-        },
-        "delay_minutes": [180, 240],
-        "tracker_patch": {
-          "status": "done",
-          "blocker": ""
-        },
-        "effects": []
-      },
-      {
-        "id": "backend_contract_ready",
-        "task_id": "backend_api",
-        "from_checkpoint": "working",
-        "to_checkpoint": "descoped_contract_ready",
-        "guard": {
-          "all_of": [
-            {"milestone_state": {"milestone_id": "scope_aligned", "field": "status", "equals": "done"}},
-            {"milestone_state": {"milestone_id": "security_slot_secured", "field": "status", "equals": "done"}},
-            {
-              "commitment_state": {
-                "commitment_id": "backend_descoped_eta",
-                "field": "status",
-                "in": ["tentative", "committed", "fulfilled"]
-              }
-            }
-          ]
-        },
-        "delay_minutes": [120, 180],
-        "tracker_patch": {
-          "status": "in_progress",
-          "blocker": "Descoped backend path is in flight."
-        },
-        "effects": []
-      },
-      {
-        "id": "backend_finish",
-        "task_id": "backend_api",
-        "from_checkpoint": "descoped_contract_ready",
-        "to_checkpoint": "done",
-        "guard": {
-          "task_true_state": {"task_id": "security_review", "field": "checkpoint", "equals": "done"}
-        },
-        "delay_minutes": [240, 330],
-        "tracker_patch": {
-          "status": "done",
-          "blocker": ""
-        },
-        "effects": []
-      },
-      {
-        "id": "security_requested",
-        "task_id": "security_review",
-        "from_checkpoint": "not_requested",
-        "to_checkpoint": "scheduled",
-        "guard": {
-          "action_occurred": {
-            "actor_id": "tpm",
-            "surface": "chat",
-            "act_id": "request.review",
-            "slots": {"task_id": "security_review", "target_actor_id": "nina"}
-          }
-        },
-        "delay_minutes": [20, 35],
-        "tracker_patch": {
-          "status": "scheduled",
-          "blocker": "Security review is queued with Nina."
-        },
-        "effects": []
-      },
-      {
-        "id": "security_finish",
-        "task_id": "security_review",
-        "from_checkpoint": "scheduled",
-        "to_checkpoint": "done",
-        "guard": {
-          "all_of": [
-            {
-              "commitment_state": {
-                "commitment_id": "security_review_slot",
-                "field": "status",
-                "in": ["tentative", "committed", "fulfilled"]
-              }
-            },
-            {
-              "task_true_state": {
-                "task_id": "backend_api",
-                "field": "checkpoint",
-                "in": ["descoped_contract_ready", "done"]
-              }
-            }
-          ]
-        },
-        "delay_minutes": [90, 120],
-        "tracker_patch": {
-          "status": "done",
-          "blocker": ""
-        },
-        "effects": []
-      }
-    ],
-    "meeting_outcomes": [
-      {
-        "id": "descope_aligned",
-        "meeting_id": "launch_tradeoff_huddle",
-        "required_attendees": ["rohit", "maya", "andrew"],
-        "required_tpm_acts": ["negotiate.scope", "request.ownership"],
-        "guard": {
-          "all_of": [
-            {"surfaced": "backend_infeasible_for_friday"},
-            {"surfaced": "security_review_required"}
-          ]
-        },
-        "effects": [
-          {"type": "project_state_patch", "patch": {"launch_scope": "descoped_pilot"}},
-          {"type": "belief_signal", "actor_id": "rohit", "belief_key": "project.launch_scope", "belief_value": "descoped_pilot", "confidence": 0.9, "freshness_window_min": 480},
-          {"type": "belief_signal", "actor_id": "maya", "belief_key": "project.launch_scope", "belief_value": "descoped_pilot", "confidence": 0.9, "freshness_window_min": 480},
-          {"type": "belief_signal", "actor_id": "andrew", "belief_key": "project.launch_scope", "belief_value": "descoped_pilot", "confidence": 0.9, "freshness_window_min": 480},
-          {"type": "create_or_update_commitment", "id": "pilot_scope", "owner_id": "rohit", "audience_ids": ["tpm", "maya", "andrew"], "subject": "pilot_scope", "scope": {"launch_scope": "descoped_pilot"}, "status": "committed", "confidence": 0.9, "metadata": {"milestone_ids": ["scope_aligned"]}}
-        ]
-      }
-    ]
-  },
-  "evaluation": {
-    "official_seeds": [11, 29, 47],
-    "rubric_lines": [
-      {
-        "id": "scope_aligned_on_time",
-        "label": "Scope aligned on time",
-        "weight": 15,
-        "failure_class": "timing",
-        "scoring_type": "binary",
-        "success_predicate": {
-          "before": {
-            "time": "2026-05-05T16:00:00",
-            "predicate": {"milestone_state": {"milestone_id": "scope_aligned", "field": "status", "equals": "done"}}
-          }
-        },
-        "partial_credit_predicates": [],
-        "failure_predicates": [],
-        "deadline_or_window": "scope_alignment_cutoff",
-        "evidence_requirements": {"min_refs": 1, "require_event_ref": true}
-      },
-      {
-        "id": "security_slot_on_time",
-        "label": "Security slot secured before cutoff",
-        "weight": 10,
-        "failure_class": "timing",
-        "scoring_type": "binary",
-        "success_predicate": {
-          "before": {
-            "time": "2026-05-05T12:00:00",
-            "predicate": {"milestone_state": {"milestone_id": "security_slot_secured", "field": "status", "equals": "done"}}
-          }
-        },
-        "partial_credit_predicates": [],
-        "failure_predicates": [],
-        "deadline_or_window": "security_cutoff",
-        "evidence_requirements": {"min_refs": 1}
-      },
-      {
-        "id": "customer_plan_on_time",
-        "label": "Customer plan locked on time",
-        "weight": 10,
-        "failure_class": "alignment",
-        "scoring_type": "binary",
-        "success_predicate": {
-          "before": {
-            "time": "2026-05-06T12:00:00",
-            "predicate": {"milestone_state": {"milestone_id": "customer_plan_locked", "field": "status", "equals": "done"}}
-          }
-        },
-        "partial_credit_predicates": [],
-        "failure_predicates": [],
-        "deadline_or_window": "customer_plan_cutoff",
-        "evidence_requirements": {"min_refs": 1}
-      },
-      {
-        "id": "pilot_ready_on_time",
-        "label": "Pilot ready by Friday afternoon",
-        "weight": 5,
-        "failure_class": "timing",
-        "scoring_type": "binary",
-        "success_predicate": {
-          "before": {
-            "time": "2026-05-08T15:00:00",
-            "predicate": {"milestone_state": {"milestone_id": "pilot_ready", "field": "status", "equals": "done"}}
-          }
-        },
-        "partial_credit_predicates": [],
-        "failure_predicates": [],
-        "deadline_or_window": "pilot_ready",
-        "evidence_requirements": {"min_refs": 1}
-      },
-      {
-        "id": "critical_discovery",
-        "label": "Critical facts surfaced in time",
-        "weight": 20,
-        "failure_class": "discovery",
-        "scoring_type": "count_fraction",
-        "success_predicate": {},
-        "partial_credit_predicates": [
-          {"before": {"time": "2026-05-05T16:00:00", "predicate": {"surfaced": "backend_infeasible_for_friday"}}},
-          {"before": {"time": "2026-05-05T12:00:00", "predicate": {"surfaced": "security_review_required"}}},
-          {"before": {"time": "2026-05-05T17:00:00", "predicate": {"surfaced": "support_context_available"}}},
-          {"before": {"time": "2026-05-06T12:00:00", "predicate": {"surfaced": "sara_needs_plan_by_wed_noon"}}}
         ],
-        "failure_predicates": [],
-        "deadline_or_window": "critical_fact_windows",
-        "evidence_requirements": {"min_refs": 1}
-      },
-      {
-        "id": "commitment_quality",
-        "label": "Credible commitments secured",
-        "weight": 15,
-        "failure_class": "commitment",
         "scoring_type": "thresholded",
+        "success_meaning": "The TPM built a plan that people had actually committed to and that was still feasible.",
         "success_predicate": {},
-        "partial_credit_predicates": [
-          {
-            "score": 15,
-            "predicate": {
-              "all_of": [
-                {"commitment_state": {"commitment_id": "backend_descoped_eta", "field": "status", "in": ["tentative", "committed", "fulfilled"]}},
-                {"commitment_state": {"commitment_id": "customer_plan", "field": "status", "in": ["tentative", "committed", "fulfilled"]}},
-                {"project_state": {"field": "invalid_external_commitments", "equals": 0}}
-              ]
-            }
-          },
-          {
-            "score": 8,
-            "predicate": {
-              "all_of": [
-                {"commitment_state": {"commitment_id": "backend_descoped_eta", "field": "status", "in": ["tentative", "committed", "fulfilled"]}},
-                {"project_state": {"field": "invalid_external_commitments", "equals": 0}}
-              ]
-            }
-          }
-        ],
-        "failure_predicates": [],
-        "deadline_or_window": "commitments",
-        "evidence_requirements": {"min_refs": 1}
+        "weight": 15
       },
       {
+        "competency_tags": [
+          "stakeholder_alignment_communication",
+          "decision_tradeoff_management"
+        ],
+        "deadline_or_window": "alignment",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "alignment",
+        "failure_meaning": "The TPM left key stakeholders on divergent or stale stories, making the launch fragile.",
+        "failure_predicates": [],
         "id": "stakeholder_alignment",
         "label": "Rohit and Sara had the right story",
-        "weight": 10,
-        "failure_class": "alignment",
-        "scoring_type": "thresholded",
-        "success_predicate": {},
+        "measurement_rationale": "Measures whether the TPM got the key sponsor and customer-facing bridge onto the right shared story.",
         "partial_credit_predicates": [
           {
-            "score": 10,
             "predicate": {
               "all_of": [
-                {"belief_known": {"actor_id": "rohit", "belief_key": "project.launch_scope", "equals": "descoped_pilot", "min_confidence": 0.6}},
-                {"belief_known": {"actor_id": "sara", "belief_key": "project.launch_scope", "equals": "descoped_pilot", "min_confidence": 0.6}}
+                {
+                  "belief_known": {
+                    "actor_id": "rohit",
+                    "belief_key": "project.launch_scope",
+                    "equals": "descoped_pilot",
+                    "min_confidence": 0.6
+                  }
+                },
+                {
+                  "belief_known": {
+                    "actor_id": "sara",
+                    "belief_key": "project.launch_scope",
+                    "equals": "descoped_pilot",
+                    "min_confidence": 0.6
+                  }
+                }
               ]
-            }
+            },
+            "score": 10
           },
           {
-            "score": 5,
             "predicate": {
               "any_of": [
-                {"belief_known": {"actor_id": "rohit", "belief_key": "project.launch_scope", "equals": "descoped_pilot", "min_confidence": 0.6}},
-                {"belief_known": {"actor_id": "sara", "belief_key": "project.launch_scope", "equals": "descoped_pilot", "min_confidence": 0.6}}
+                {
+                  "belief_known": {
+                    "actor_id": "rohit",
+                    "belief_key": "project.launch_scope",
+                    "equals": "descoped_pilot",
+                    "min_confidence": 0.6
+                  }
+                },
+                {
+                  "belief_known": {
+                    "actor_id": "sara",
+                    "belief_key": "project.launch_scope",
+                    "equals": "descoped_pilot",
+                    "min_confidence": 0.6
+                  }
+                }
               ]
-            }
+            },
+            "score": 5
           }
         ],
-        "failure_predicates": [],
-        "deadline_or_window": "alignment",
-        "evidence_requirements": {"min_refs": 1}
+        "scoring_type": "thresholded",
+        "success_meaning": "The TPM aligned the people who shape external and leadership understanding.",
+        "success_predicate": {},
+        "weight": 10
       },
       {
+        "competency_tags": [
+          "stakeholder_alignment_communication"
+        ],
+        "deadline_or_window": "team_health",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
+        "failure_class": "relationship",
+        "failure_meaning": "The TPM burned enough trust that influence would degrade even if some work moved.",
+        "failure_predicates": [],
         "id": "relationship_health",
         "label": "Key relationships remained workable",
-        "weight": 5,
-        "failure_class": "relationship",
-        "scoring_type": "thresholded",
-        "success_predicate": {},
+        "measurement_rationale": "Measures whether the TPM preserved enough trust and influence to keep the org willing to move with them.",
         "partial_credit_predicates": [
           {
-            "score": 5,
             "predicate": {
               "all_of": [
-                {"relationship_state": {"actor_id": "maya", "target_actor_id": "tpm", "field": "trust", "gte": 0.30}},
-                {"relationship_state": {"actor_id": "rahul", "target_actor_id": "tpm", "field": "trust", "gte": 0.55}}
+                {
+                  "relationship_state": {
+                    "actor_id": "maya",
+                    "field": "trust",
+                    "gte": 0.3,
+                    "target_actor_id": "tpm"
+                  }
+                },
+                {
+                  "relationship_state": {
+                    "actor_id": "rahul",
+                    "field": "trust",
+                    "gte": 0.55,
+                    "target_actor_id": "tpm"
+                  }
+                }
               ]
-            }
+            },
+            "score": 5
           },
           {
-            "score": 2,
             "predicate": {
               "any_of": [
-                {"relationship_state": {"actor_id": "maya", "target_actor_id": "tpm", "field": "trust", "gte": 0.30}},
-                {"relationship_state": {"actor_id": "rahul", "target_actor_id": "tpm", "field": "trust", "gte": 0.55}}
+                {
+                  "relationship_state": {
+                    "actor_id": "maya",
+                    "field": "trust",
+                    "gte": 0.3,
+                    "target_actor_id": "tpm"
+                  }
+                },
+                {
+                  "relationship_state": {
+                    "actor_id": "rahul",
+                    "field": "trust",
+                    "gte": 0.55,
+                    "target_actor_id": "tpm"
+                  }
+                }
               ]
-            }
+            },
+            "score": 2
           }
         ],
-        "failure_predicates": [],
-        "deadline_or_window": "team_health",
-        "evidence_requirements": {"min_refs": 1}
+        "scoring_type": "thresholded",
+        "success_meaning": "The TPM maintained usable trust while pushing on hard constraints.",
+        "success_predicate": {},
+        "weight": 5
       },
       {
-        "id": "prioritization_efficiency",
-        "label": "Time was spent on the real bottleneck",
-        "weight": 10,
+        "competency_tags": [
+          "critical_path_prioritization",
+          "timing_optionality_preservation"
+        ],
+        "deadline_or_window": "critical_path",
+        "evidence_requirements": {
+          "min_refs": 1
+        },
         "failure_class": "prioritization",
-        "scoring_type": "bounded_penalty",
-        "success_predicate": {},
-        "partial_credit_predicates": [],
+        "failure_meaning": "The TPM spent too much effort on low-leverage work and lost time against the true critical path.",
         "failure_predicates": [
           {
             "penalty": 4,
             "predicate": {
               "not": {
                 "before": {
-                  "time": "2026-05-05T12:00:00",
                   "predicate": {
                     "action_occurred": {
-                      "actor_id": "tpm",
-                      "surface": "chat",
                       "act_id": "request.review",
-                      "slots": {"target_actor_id": "nina", "task_id": "security_review"}
+                      "actor_id": "tpm",
+                      "slots": {
+                        "target_actor_id": "nina",
+                        "task_id": "security_review"
+                      },
+                      "surface": "chat"
                     }
-                  }
+                  },
+                  "time": "2026-05-05T12:00:00"
                 }
               }
             }
@@ -1254,10 +495,43 @@
               "count_at_least": {
                 "count": 4,
                 "predicates": [
-                  {"action_occurred": {"actor_id": "tpm", "surface": "calendar", "act_id": "meeting.propose"}},
-                  {"action_occurred": {"actor_id": "tpm", "surface": "calendar", "act_id": "meeting.propose", "slots": {"goal": "alignment"}}},
-                  {"action_occurred": {"actor_id": "tpm", "surface": "calendar", "act_id": "meeting.propose", "slots": {"goal": "alignment"}}},
-                  {"action_occurred": {"actor_id": "tpm", "surface": "calendar", "act_id": "meeting.propose", "slots": {"goal": "alignment"}}}
+                  {
+                    "action_occurred": {
+                      "act_id": "meeting.propose",
+                      "actor_id": "tpm",
+                      "surface": "calendar"
+                    }
+                  },
+                  {
+                    "action_occurred": {
+                      "act_id": "meeting.propose",
+                      "actor_id": "tpm",
+                      "slots": {
+                        "goal": "alignment"
+                      },
+                      "surface": "calendar"
+                    }
+                  },
+                  {
+                    "action_occurred": {
+                      "act_id": "meeting.propose",
+                      "actor_id": "tpm",
+                      "slots": {
+                        "goal": "alignment"
+                      },
+                      "surface": "calendar"
+                    }
+                  },
+                  {
+                    "action_occurred": {
+                      "act_id": "meeting.propose",
+                      "actor_id": "tpm",
+                      "slots": {
+                        "goal": "alignment"
+                      },
+                      "surface": "calendar"
+                    }
+                  }
                 ]
               }
             }
@@ -1266,13 +540,19 @@
             "penalty": 1,
             "predicate": {
               "all_of": [
-                {"task_true_state": {"task_id": "runbook_readiness", "field": "checkpoint", "equals": "done"}},
+                {
+                  "task_true_state": {
+                    "equals": "done",
+                    "field": "checkpoint",
+                    "task_id": "runbook_readiness"
+                  }
+                },
                 {
                   "not": {
                     "milestone_state": {
-                      "milestone_id": "security_slot_secured",
+                      "equals": "done",
                       "field": "status",
-                      "equals": "done"
+                      "milestone_id": "security_slot_secured"
                     }
                   }
                 }
@@ -1280,8 +560,1699 @@
             }
           }
         ],
-        "deadline_or_window": "critical_path",
-        "evidence_requirements": {"min_refs": 1}
+        "id": "prioritization_efficiency",
+        "label": "Time was spent on the real bottleneck",
+        "measurement_rationale": "Measures whether the TPM spent the week\u2019s limited turns on leverage instead of busywork, noisy updates, or the wrong path.",
+        "partial_credit_predicates": [],
+        "scoring_type": "bounded_penalty",
+        "success_meaning": "The TPM focused time on actions that preserved optionality and moved the real bottlenecks.",
+        "success_predicate": {},
+        "weight": 10
+      }
+    ]
+  },
+  "id": "northstar_launch_week",
+  "name": "Northstar Pilot Week",
+  "policy": {
+    "action_costs": {
+      "meeting_act": 1,
+      "read_calendar": 1,
+      "read_doc": 5,
+      "read_task_board": 1,
+      "read_thread": 2,
+      "schedule_meeting": 2,
+      "send_chat": 1,
+      "task_edit": 3,
+      "task_note": 3,
+      "write_doc": 15,
+      "write_note": 1
+    },
+    "default_timing_band": "late",
+    "external_commitment_requirements": [
+      "scope_aligned",
+      "security_slot_secured"
+    ],
+    "meeting_defaults": {
+      "tpm_max_acts": 2
+    },
+    "meeting_outcomes": [
+      {
+        "effects": [
+          {
+            "patch": {
+              "launch_scope": "descoped_pilot"
+            },
+            "type": "project_state_patch"
+          },
+          {
+            "actor_id": "rohit",
+            "belief_key": "project.launch_scope",
+            "belief_value": "descoped_pilot",
+            "confidence": 0.9,
+            "freshness_window_min": 480,
+            "type": "belief_signal"
+          },
+          {
+            "actor_id": "maya",
+            "belief_key": "project.launch_scope",
+            "belief_value": "descoped_pilot",
+            "confidence": 0.9,
+            "freshness_window_min": 480,
+            "type": "belief_signal"
+          },
+          {
+            "actor_id": "andrew",
+            "belief_key": "project.launch_scope",
+            "belief_value": "descoped_pilot",
+            "confidence": 0.9,
+            "freshness_window_min": 480,
+            "type": "belief_signal"
+          },
+          {
+            "audience_ids": [
+              "tpm",
+              "maya",
+              "andrew"
+            ],
+            "confidence": 0.9,
+            "id": "pilot_scope",
+            "metadata": {
+              "milestone_ids": [
+                "scope_aligned"
+              ]
+            },
+            "owner_id": "rohit",
+            "scope": {
+              "launch_scope": "descoped_pilot"
+            },
+            "status": "committed",
+            "subject": "pilot_scope",
+            "type": "create_or_update_commitment"
+          }
+        ],
+        "guard": {
+          "all_of": [
+            {
+              "surfaced": "backend_infeasible_for_friday"
+            },
+            {
+              "surfaced": "security_review_required"
+            }
+          ]
+        },
+        "id": "descope_aligned",
+        "meeting_id": "launch_tradeoff_huddle",
+        "required_attendees": [
+          "rohit",
+          "maya",
+          "andrew"
+        ],
+        "required_tpm_acts": [
+          "negotiate.scope",
+          "request.ownership"
+        ]
+      }
+    ],
+    "project_state_rules": [
+      {
+        "cases": [
+          {
+            "predicate": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "customer_plan_locked"
+              }
+            },
+            "value": "stable"
+          },
+          {
+            "predicate": {
+              "all_of": [
+                {
+                  "after": {
+                    "predicate": {},
+                    "time": "2026-05-07T12:00:00"
+                  }
+                },
+                {
+                  "not": {
+                    "milestone_state": {
+                      "equals": "done",
+                      "field": "status",
+                      "milestone_id": "customer_plan_locked"
+                    }
+                  }
+                }
+              ]
+            },
+            "value": "at_risk"
+          },
+          {
+            "predicate": {
+              "after": {
+                "predicate": {},
+                "time": "2026-05-07T09:00:00"
+              }
+            },
+            "value": "fragile"
+          }
+        ],
+        "field": "customer_confidence"
+      }
+    ],
+    "task_transitions": [
+      {
+        "delay_minutes": [
+          45,
+          75
+        ],
+        "effects": [],
+        "from_checkpoint": "blocked",
+        "guard": {
+          "all_of": [
+            {
+              "surfaced": "support_context_available"
+            },
+            {
+              "project_state": {
+                "equals": "descoped_pilot",
+                "field": "launch_scope"
+              }
+            },
+            {
+              "action_occurred": {
+                "act_id": "request.approval",
+                "actor_id": "tpm",
+                "slots": {
+                  "target_actor_id": "rahul",
+                  "task_id": "design_signoff"
+                },
+                "surface": "chat"
+              }
+            }
+          ]
+        },
+        "id": "design_start_review",
+        "task_id": "design_signoff",
+        "to_checkpoint": "in_review",
+        "tracker_patch": {
+          "blocker": "Rahul is reviewing the descoped path.",
+          "status": "in_review"
+        }
+      },
+      {
+        "delay_minutes": [
+          60,
+          90
+        ],
+        "effects": [],
+        "from_checkpoint": "in_review",
+        "guard": {
+          "any_of": [
+            {
+              "action_occurred": {
+                "act_id": "negotiate.scope",
+                "actor_id": "tpm",
+                "slots": {
+                  "meeting_id": "launch_tradeoff_huddle"
+                },
+                "surface": "meeting"
+              }
+            },
+            {
+              "event_occurred": {
+                "event_type": "npc.message_sent",
+                "where": {
+                  "thread_id": "rahul"
+                }
+              }
+            }
+          ]
+        },
+        "id": "design_finish",
+        "task_id": "design_signoff",
+        "to_checkpoint": "done",
+        "tracker_patch": {
+          "blocker": "",
+          "status": "done"
+        }
+      },
+      {
+        "delay_minutes": [
+          60,
+          90
+        ],
+        "effects": [],
+        "from_checkpoint": "blocked",
+        "guard": {
+          "all_of": [
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "scope_aligned"
+              }
+            },
+            {
+              "task_true_state": {
+                "equals": "done",
+                "field": "checkpoint",
+                "task_id": "design_signoff"
+              }
+            }
+          ]
+        },
+        "id": "frontend_start",
+        "task_id": "frontend_pilot",
+        "to_checkpoint": "in_progress",
+        "tracker_patch": {
+          "blocker": "Andrew is building the descoped path.",
+          "status": "in_progress"
+        }
+      },
+      {
+        "delay_minutes": [
+          180,
+          240
+        ],
+        "effects": [],
+        "from_checkpoint": "in_progress",
+        "guard": {
+          "task_true_state": {
+            "field": "checkpoint",
+            "in": [
+              "descoped_contract_ready",
+              "done"
+            ],
+            "task_id": "backend_api"
+          }
+        },
+        "id": "frontend_finish",
+        "task_id": "frontend_pilot",
+        "to_checkpoint": "done",
+        "tracker_patch": {
+          "blocker": "",
+          "status": "done"
+        }
+      },
+      {
+        "delay_minutes": [
+          120,
+          180
+        ],
+        "effects": [],
+        "from_checkpoint": "working",
+        "guard": {
+          "all_of": [
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "scope_aligned"
+              }
+            },
+            {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "security_slot_secured"
+              }
+            },
+            {
+              "commitment_state": {
+                "commitment_id": "backend_descoped_eta",
+                "field": "status",
+                "in": [
+                  "tentative",
+                  "committed",
+                  "fulfilled"
+                ]
+              }
+            }
+          ]
+        },
+        "id": "backend_contract_ready",
+        "task_id": "backend_api",
+        "to_checkpoint": "descoped_contract_ready",
+        "tracker_patch": {
+          "blocker": "Descoped backend path is in flight.",
+          "status": "in_progress"
+        }
+      },
+      {
+        "delay_minutes": [
+          240,
+          330
+        ],
+        "effects": [],
+        "from_checkpoint": "descoped_contract_ready",
+        "guard": {
+          "task_true_state": {
+            "equals": "done",
+            "field": "checkpoint",
+            "task_id": "security_review"
+          }
+        },
+        "id": "backend_finish",
+        "task_id": "backend_api",
+        "to_checkpoint": "done",
+        "tracker_patch": {
+          "blocker": "",
+          "status": "done"
+        }
+      },
+      {
+        "delay_minutes": [
+          20,
+          35
+        ],
+        "effects": [],
+        "from_checkpoint": "not_requested",
+        "guard": {
+          "action_occurred": {
+            "act_id": "request.review",
+            "actor_id": "tpm",
+            "slots": {
+              "target_actor_id": "nina",
+              "task_id": "security_review"
+            },
+            "surface": "chat"
+          }
+        },
+        "id": "security_requested",
+        "task_id": "security_review",
+        "to_checkpoint": "scheduled",
+        "tracker_patch": {
+          "blocker": "Security review is queued with Nina.",
+          "status": "scheduled"
+        }
+      },
+      {
+        "delay_minutes": [
+          90,
+          120
+        ],
+        "effects": [],
+        "from_checkpoint": "scheduled",
+        "guard": {
+          "all_of": [
+            {
+              "commitment_state": {
+                "commitment_id": "security_review_slot",
+                "field": "status",
+                "in": [
+                  "tentative",
+                  "committed",
+                  "fulfilled"
+                ]
+              }
+            },
+            {
+              "task_true_state": {
+                "field": "checkpoint",
+                "in": [
+                  "descoped_contract_ready",
+                  "done"
+                ],
+                "task_id": "backend_api"
+              }
+            }
+          ]
+        },
+        "id": "security_finish",
+        "task_id": "security_review",
+        "to_checkpoint": "done",
+        "tracker_patch": {
+          "blocker": "",
+          "status": "done"
+        }
+      }
+    ],
+    "timing_bands": [
+      {
+        "band": "early",
+        "window_id": "security_cutoff"
+      },
+      {
+        "band": "mid",
+        "window_id": "customer_plan_cutoff"
+      }
+    ]
+  },
+  "start_at": "2026-05-04T09:00:00",
+  "timezone": "America/Los_Angeles",
+  "world": {
+    "actors": [
+      {
+        "authority_profile": {
+          "can_commit_external_dates": false,
+          "can_schedule_meeting": true,
+          "can_update_tracker": true
+        },
+        "coordination_template": "external_agent",
+        "id": "tpm",
+        "metadata": {},
+        "name": "You",
+        "org_role": "technical_program_manager",
+        "policy_type": "external_agent",
+        "state": {
+          "goal_alignment": 1.0,
+          "priority_pressure": 0.7,
+          "trust_in_tpm": 1.0
+        },
+        "traits": {
+          "calendar_reply_delay_max": 0,
+          "calendar_reply_delay_min": 0,
+          "chat_reply_delay_max": 0,
+          "chat_reply_delay_min": 0,
+          "workday_end": "17:00",
+          "workday_start": "09:00"
+        }
+      },
+      {
+        "authority_profile": {
+          "can_approve_scope": true,
+          "can_commit_external_dates": false,
+          "can_reassign_people": false
+        },
+        "coordination_template": "sponsor",
+        "id": "rohit",
+        "metadata": {},
+        "name": "Rohit Kapoor",
+        "org_role": "director_product",
+        "state": {
+          "goal_alignment": 0.9,
+          "priority_pressure": 0.75,
+          "trust_in_tpm": 0.68
+        },
+        "traits": {
+          "calendar_reply_delay_max": 20,
+          "calendar_reply_delay_min": 5,
+          "chat_reply_delay_max": 25,
+          "chat_reply_delay_min": 10,
+          "workday_end": "18:00",
+          "workday_start": "08:30"
+        }
+      },
+      {
+        "authority_profile": {
+          "can_block_launch": true,
+          "can_commit_eta": true,
+          "can_re_scope_product": false
+        },
+        "coordination_template": "critical_path_owner",
+        "id": "maya",
+        "metadata": {},
+        "name": "Maya Chen",
+        "org_role": "backend_engineer",
+        "state": {
+          "available_after": "2026-05-04T15:00:00",
+          "goal_alignment": 0.78,
+          "priority_pressure": 0.95,
+          "trust_in_tpm": 0.34
+        },
+        "traits": {
+          "calendar_reply_delay_max": 30,
+          "calendar_reply_delay_min": 15,
+          "chat_reply_delay_max": 75,
+          "chat_reply_delay_min": 35,
+          "workday_end": "18:00",
+          "workday_start": "09:30"
+        }
+      },
+      {
+        "authority_profile": {
+          "can_block_launch": false,
+          "can_commit_eta": true,
+          "can_re_scope_product": false
+        },
+        "coordination_template": "ally",
+        "id": "andrew",
+        "metadata": {},
+        "name": "Andrew Ortiz",
+        "org_role": "frontend_engineer",
+        "state": {
+          "goal_alignment": 0.92,
+          "priority_pressure": 0.55,
+          "trust_in_tpm": 0.82
+        },
+        "traits": {
+          "calendar_reply_delay_max": 15,
+          "calendar_reply_delay_min": 5,
+          "chat_reply_delay_max": 15,
+          "chat_reply_delay_min": 5,
+          "workday_end": "17:00",
+          "workday_start": "09:00"
+        }
+      },
+      {
+        "authority_profile": {
+          "can_approve_design": true,
+          "can_block_launch": true,
+          "can_commit_eta": false
+        },
+        "coordination_template": "cross_functional_dependency_owner",
+        "id": "rahul",
+        "metadata": {},
+        "name": "Rahul Iyer",
+        "org_role": "product_designer",
+        "state": {
+          "goal_alignment": 0.7,
+          "priority_pressure": 0.7,
+          "trust_in_tpm": 0.61
+        },
+        "traits": {
+          "calendar_reply_delay_max": 20,
+          "calendar_reply_delay_min": 10,
+          "chat_reply_delay_max": 45,
+          "chat_reply_delay_min": 25,
+          "workday_end": "18:00",
+          "workday_start": "10:00"
+        }
+      },
+      {
+        "authority_profile": {
+          "can_approve_review_slot": true,
+          "can_veto_launch": true
+        },
+        "coordination_template": "cross_functional_dependency_owner",
+        "id": "nina",
+        "metadata": {},
+        "name": "Nina Patel",
+        "org_role": "security_engineer",
+        "state": {
+          "goal_alignment": 0.58,
+          "priority_pressure": 0.82,
+          "trust_in_tpm": 0.55
+        },
+        "traits": {
+          "calendar_reply_delay_max": 40,
+          "calendar_reply_delay_min": 20,
+          "chat_reply_delay_max": 180,
+          "chat_reply_delay_min": 90,
+          "workday_end": "17:30",
+          "workday_start": "09:30"
+        }
+      },
+      {
+        "authority_profile": {
+          "can_commit_dry_run": false,
+          "can_update_customer_context": true
+        },
+        "coordination_template": "customer_facing_bridge",
+        "id": "sara",
+        "metadata": {},
+        "name": "Sara Feldman",
+        "org_role": "solutions_engineer",
+        "state": {
+          "goal_alignment": 0.9,
+          "priority_pressure": 0.72,
+          "trust_in_tpm": 0.66
+        },
+        "traits": {
+          "calendar_reply_delay_max": 20,
+          "calendar_reply_delay_min": 10,
+          "chat_reply_delay_max": 35,
+          "chat_reply_delay_min": 15,
+          "workday_end": "17:30",
+          "workday_start": "08:30"
+        }
+      }
+    ],
+    "beliefs": [],
+    "commitments": [],
+    "dependencies": [
+      {
+        "dep_type": "decision",
+        "dst_id": "frontend_pilot",
+        "dst_kind": "task",
+        "id": "dep_scope_frontend",
+        "metadata": {},
+        "src_id": "scope_aligned",
+        "src_kind": "milestone"
+      },
+      {
+        "dep_type": "approval",
+        "dst_id": "frontend_pilot",
+        "dst_kind": "task",
+        "id": "dep_design_frontend",
+        "metadata": {},
+        "src_id": "design_signoff",
+        "src_kind": "task"
+      },
+      {
+        "dep_type": "approval",
+        "dst_id": "pilot_ready",
+        "dst_kind": "milestone",
+        "id": "dep_security_pilot",
+        "metadata": {},
+        "src_id": "security_review",
+        "src_kind": "task"
+      }
+    ],
+    "documents": [
+      {
+        "author_id": "rohit",
+        "content": "Northstar wants a credible Friday pilot. Rohit wants honest status early, not fake green. Sara needs a stable customer story by Wednesday lunch if we are going to hold confidence. They expect a dry run on Thursday afternoon if we have a stable descoped plan.",
+        "created_at": "2026-05-04T08:50:00",
+        "id": "DOC-BRIEF-001",
+        "metadata": {
+          "belief_signals": [
+            {
+              "belief_key": "project.goal",
+              "belief_value": "credible_friday_pilot",
+              "confidence": 0.9,
+              "freshness_window_min": 1440
+            },
+            {
+              "belief_key": "project.external_dry_run_target",
+              "belief_value": "2026-05-07T15:00:00",
+              "confidence": 0.9,
+              "freshness_window_min": 1440
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+              "belief_value": true,
+              "confidence": 0.45,
+              "freshness_window_min": 1440,
+              "metadata": {
+                "private_driver_fact_id": "rohit_accepts_descoping_if_early"
+              }
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.sara.private_driver.needs_stable_plan_early",
+              "belief_value": true,
+              "confidence": 0.8,
+              "freshness_window_min": 1440,
+              "metadata": {
+                "private_driver_fact_id": "sara_needs_plan_by_wed_noon"
+              }
+            }
+          ],
+          "read_cost_minutes": 5,
+          "surface_facts": []
+        },
+        "title": "Northstar pilot kickoff brief",
+        "type": "brief",
+        "updated_at": "2026-05-04T08:50:00",
+        "visibility": "company"
+      },
+      {
+        "author_id": "system",
+        "content": "Platform note: Maya is handling the checkout Sev-1 until mid-afternoon Monday. She will not put a date on work she does not believe while she is underwater. Full-scope delivery risk is high.",
+        "created_at": "2026-05-04T08:55:00",
+        "id": "DOC-MAYA-LOAD-001",
+        "metadata": {
+          "belief_signals": [
+            {
+              "belief_key": "actor.maya.available_after",
+              "belief_value": "2026-05-04T15:00:00",
+              "confidence": 0.8,
+              "freshness_window_min": 240
+            },
+            {
+              "belief_key": "task.backend_api.true_risk",
+              "belief_value": "high",
+              "confidence": 0.8,
+              "freshness_window_min": 240
+            },
+            {
+              "accumulate": true,
+              "belief_key": "actor.maya.private_driver.rejects_fake_dates_under_pressure",
+              "belief_value": true,
+              "confidence": 0.45,
+              "freshness_window_min": 240,
+              "metadata": {
+                "private_driver_fact_id": "maya_rejects_fake_dates_under_pressure"
+              }
+            }
+          ],
+          "read_cost_minutes": 5,
+          "surface_facts": [
+            "maya_oncall_until_mon_1500",
+            "backend_infeasible_for_friday"
+          ]
+        },
+        "title": "Backend load note",
+        "type": "internal_note",
+        "updated_at": "2026-05-04T08:55:00",
+        "visibility": "company"
+      },
+      {
+        "author_id": "system",
+        "content": "Northstar mostly cares about permission clarity and getting the empty state right for initial admins.",
+        "created_at": "2026-05-04T08:55:00",
+        "id": "DOC-SUPPORT-001",
+        "metadata": {
+          "belief_signals": [
+            {
+              "belief_key": "customer.pain_points",
+              "belief_value": "permission_clarity",
+              "confidence": 0.9,
+              "freshness_window_min": 1440
+            }
+          ],
+          "read_cost_minutes": 5,
+          "surface_facts": [
+            "support_context_available"
+          ]
+        },
+        "title": "Northstar support pain points",
+        "type": "support_notes",
+        "updated_at": "2026-05-04T08:55:00",
+        "visibility": "company"
+      },
+      {
+        "author_id": "system",
+        "content": "Checklist placeholder for launch-day runbook and on-call handoff.",
+        "created_at": "2026-05-04T08:55:00",
+        "id": "DOC-RUNBOOK-TEMPLATE",
+        "metadata": {
+          "read_cost_minutes": 3
+        },
+        "title": "Pilot runbook template",
+        "type": "runbook_template",
+        "updated_at": "2026-05-04T08:55:00",
+        "visibility": "company"
+      }
+    ],
+    "facts": [
+      {
+        "description": "Maya is overloaded until Monday afternoon.",
+        "id": "maya_oncall_until_mon_1500",
+        "label": "Maya is on a Sev-1 until Monday 15:00",
+        "metadata": {
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "maya_oncall_until_mon_1500",
+                "observer_id": "tpm"
+              }
+            }
+          }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "The visible tracker is too optimistic.",
+        "id": "backend_infeasible_for_friday",
+        "label": "Full backend scope is not credible for Friday",
+        "metadata": {
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "backend_infeasible_for_friday",
+                "observer_id": "tpm"
+              }
+            }
+          }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "The OAuth scope needs security review.",
+        "id": "security_review_required",
+        "label": "Security review is required",
+        "metadata": {
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "security_review_required",
+                "observer_id": "tpm"
+              }
+            }
+          }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "The sponsor wants fast clarity and is more flexible than the team assumes when the tradeoff is brought early.",
+        "id": "rohit_accepts_descoping_if_early",
+        "label": "Rohit backs descoping if engaged early and honestly",
+        "metadata": {
+          "coordination_implication": "Bring Rohit the real blocker and the narrower credible plan early; do not ask for approval on vibes.",
+          "driver_type": "supports_descoping_if_engaged_early",
+          "fact_kind": "actor_private_driver",
+          "owner_actor_id": "rohit"
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "The engineer will push back if the TPM asks for delivery theater before the scope is grounded.",
+        "id": "maya_rejects_fake_dates_under_pressure",
+        "label": "Maya reacts badly to pressure for fake dates",
+        "metadata": {
+          "coordination_implication": "Ask Maya for honest feasibility and blockers first; do not pressure her into a fake ETA while she is overloaded.",
+          "driver_type": "rejects_fake_dates_under_pressure",
+          "fact_kind": "actor_private_driver",
+          "owner_actor_id": "maya"
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "Design approval depends on actual customer pain points.",
+        "id": "rahul_needs_support_context",
+        "label": "Rahul needs support context",
+        "metadata": {
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "rahul_needs_support_context",
+                "observer_id": "tpm"
+              }
+            }
+          }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "Support pain points are already documented.",
+        "id": "support_context_available",
+        "label": "Support context exists in docs",
+        "metadata": {
+          "surface_predicate": {
+            "event_occurred": {
+              "event_type": "fact_signal",
+              "where": {
+                "fact_id": "support_context_available",
+                "observer_id": "tpm"
+              }
+            }
+          }
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      },
+      {
+        "description": "The customer-facing bridge will burn credibility if the story is still moving by Wednesday lunch.",
+        "id": "sara_needs_plan_by_wed_noon",
+        "label": "Sara needs a stable customer plan early",
+        "metadata": {
+          "coordination_implication": "Give Sara a stable external story before Wednesday noon so customer confidence stays usable.",
+          "driver_type": "needs_stable_plan_early",
+          "fact_kind": "actor_private_driver",
+          "owner_actor_id": "sara"
+        },
+        "state": {
+          "surface_event_ref": null,
+          "surfaced_at": null,
+          "surfaced_by": null
+        }
+      }
+    ],
+    "meetings": [],
+    "messages": [],
+    "milestones": [
+      {
+        "description": "A descoped pilot plan has been aligned with leadership and engineering.",
+        "due_at": "2026-05-05T16:00:00",
+        "id": "scope_aligned",
+        "metadata": {
+          "achieved_predicate": {
+            "all_of": [
+              {
+                "project_state": {
+                  "equals": "descoped_pilot",
+                  "field": "launch_scope"
+                }
+              },
+              {
+                "belief_known": {
+                  "actor_id": "rohit",
+                  "belief_key": "project.launch_scope",
+                  "equals": "descoped_pilot",
+                  "min_confidence": 0.6
+                }
+              },
+              {
+                "belief_known": {
+                  "actor_id": "andrew",
+                  "belief_key": "project.launch_scope",
+                  "equals": "descoped_pilot",
+                  "min_confidence": 0.6
+                }
+              }
+            ]
+          },
+          "recoverability_rules": [
+            {
+              "predicate": {
+                "all_of": [
+                  {
+                    "after": {
+                      "predicate": {
+                        "project_state": {
+                          "equals": "undecided",
+                          "field": "launch_scope"
+                        }
+                      },
+                      "time": "2026-05-05T16:00:00"
+                    }
+                  }
+                ]
+              },
+              "recoverability": "none"
+            },
+            {
+              "predicate": {
+                "all_of": [
+                  {
+                    "after": {
+                      "predicate": {
+                        "project_state": {
+                          "equals": "undecided",
+                          "field": "launch_scope"
+                        }
+                      },
+                      "time": "2026-05-05T13:00:00"
+                    }
+                  }
+                ]
+              },
+              "recoverability": "low"
+            },
+            {
+              "predicate": {},
+              "recoverability": "high"
+            }
+          ]
+        },
+        "state": {
+          "achieved_at": null,
+          "last_transition_ref": null,
+          "recoverability": "high",
+          "status": "pending"
+        },
+        "title": "Scope aligned"
+      },
+      {
+        "description": "A useful security review slot has been secured before cutoff.",
+        "due_at": "2026-05-05T12:00:00",
+        "id": "security_slot_secured",
+        "metadata": {
+          "achieved_predicate": {
+            "commitment_state": {
+              "commitment_id": "security_review_slot",
+              "field": "status",
+              "in": [
+                "tentative",
+                "committed",
+                "fulfilled"
+              ]
+            }
+          },
+          "recoverability_rules": [
+            {
+              "predicate": {
+                "all_of": [
+                  {
+                    "after": {
+                      "predicate": {
+                        "task_true_state": {
+                          "equals": "not_requested",
+                          "field": "checkpoint",
+                          "task_id": "security_review"
+                        }
+                      },
+                      "time": "2026-05-05T12:00:00"
+                    }
+                  }
+                ]
+              },
+              "recoverability": "none"
+            },
+            {
+              "predicate": {},
+              "recoverability": "high"
+            }
+          ]
+        },
+        "state": {
+          "achieved_at": null,
+          "last_transition_ref": null,
+          "recoverability": "high",
+          "status": "pending"
+        },
+        "title": "Security slot secured"
+      },
+      {
+        "description": "Sara has a stable external plan to communicate.",
+        "due_at": "2026-05-06T12:00:00",
+        "id": "customer_plan_locked",
+        "metadata": {
+          "achieved_predicate": {
+            "all_of": [
+              {
+                "belief_known": {
+                  "actor_id": "sara",
+                  "belief_key": "project.launch_scope",
+                  "equals": "descoped_pilot",
+                  "min_confidence": 0.6
+                }
+              },
+              {
+                "commitment_state": {
+                  "commitment_id": "customer_plan",
+                  "field": "status",
+                  "in": [
+                    "tentative",
+                    "committed",
+                    "fulfilled"
+                  ]
+                }
+              }
+            ]
+          },
+          "recoverability_rules": [
+            {
+              "predicate": {
+                "after": {
+                  "predicate": {
+                    "project_state": {
+                      "equals": "at_risk",
+                      "field": "customer_confidence"
+                    }
+                  },
+                  "time": "2026-05-06T12:00:00"
+                }
+              },
+              "recoverability": "none"
+            },
+            {
+              "predicate": {
+                "after": {
+                  "predicate": {
+                    "commitment_state": {
+                      "commitment_id": "customer_plan",
+                      "equals": "missing",
+                      "field": "status"
+                    }
+                  },
+                  "time": "2026-05-06T10:00:00"
+                }
+              },
+              "recoverability": "low"
+            },
+            {
+              "predicate": {},
+              "recoverability": "high"
+            }
+          ]
+        },
+        "state": {
+          "achieved_at": null,
+          "last_transition_ref": null,
+          "recoverability": "high",
+          "status": "pending"
+        },
+        "title": "Customer plan locked"
+      },
+      {
+        "description": "Critical path tasks are done in time for the pilot.",
+        "due_at": "2026-05-08T15:00:00",
+        "id": "pilot_ready",
+        "metadata": {
+          "achieved_predicate": {
+            "all_of": [
+              {
+                "task_true_state": {
+                  "equals": "done",
+                  "field": "checkpoint",
+                  "task_id": "backend_api"
+                }
+              },
+              {
+                "task_true_state": {
+                  "equals": "done",
+                  "field": "checkpoint",
+                  "task_id": "frontend_pilot"
+                }
+              },
+              {
+                "task_true_state": {
+                  "equals": "done",
+                  "field": "checkpoint",
+                  "task_id": "design_signoff"
+                }
+              },
+              {
+                "task_true_state": {
+                  "equals": "done",
+                  "field": "checkpoint",
+                  "task_id": "security_review"
+                }
+              }
+            ]
+          },
+          "recoverability_rules": [
+            {
+              "predicate": {
+                "after": {
+                  "predicate": {
+                    "task_true_state": {
+                      "field": "checkpoint",
+                      "in": [
+                        "working",
+                        "blocked",
+                        "descoped_contract_ready"
+                      ],
+                      "task_id": "backend_api"
+                    }
+                  },
+                  "time": "2026-05-08T15:00:00"
+                }
+              },
+              "recoverability": "none"
+            },
+            {
+              "predicate": {
+                "after": {
+                  "predicate": {
+                    "task_true_state": {
+                      "equals": "working",
+                      "field": "checkpoint",
+                      "task_id": "backend_api"
+                    }
+                  },
+                  "time": "2026-05-07T17:00:00"
+                }
+              },
+              "recoverability": "low"
+            },
+            {
+              "predicate": {},
+              "recoverability": "high"
+            }
+          ]
+        },
+        "state": {
+          "achieved_at": null,
+          "last_transition_ref": null,
+          "recoverability": "high",
+          "status": "pending"
+        },
+        "title": "Pilot ready"
+      }
+    ],
+    "pending_events": [
+      {
+        "actor_id": "system",
+        "due_at": "2026-05-04T15:00:00",
+        "payload": {
+          "target": {
+            "actor_id": "maya",
+            "kind": "actor_state",
+            "patch": {
+              "available_after": "2026-05-04T15:00:00",
+              "priority_pressure": 0.85
+            }
+          }
+        },
+        "phase_priority": 1,
+        "type": "state.patch"
+      },
+      {
+        "actor_id": "rohit",
+        "due_at": "2026-05-05T09:30:00",
+        "payload": {
+          "act_id": "request.clarification",
+          "body": "I need the real plan, not a green tracker. What is actually launchable this week?",
+          "guard": {
+            "not": {
+              "before": {
+                "predicate": {
+                  "action_occurred": {
+                    "act_id": "inform.risk",
+                    "actor_id": "tpm",
+                    "slots": {
+                      "target_actor_id": "rohit"
+                    },
+                    "surface": "chat"
+                  }
+                },
+                "time": "2026-05-05T09:30:00"
+              }
+            }
+          },
+          "metadata": {
+            "belief_signals": [
+              {
+                "belief_key": "project.sponsor_needs_clarity",
+                "belief_value": true,
+                "confidence": 1.0,
+                "freshness_window_min": 240
+              },
+              {
+                "accumulate": true,
+                "belief_key": "actor.rohit.private_driver.supports_descoping_if_engaged_early",
+                "belief_value": true,
+                "confidence": 0.55,
+                "freshness_window_min": 240,
+                "metadata": {
+                  "private_driver_fact_id": "rohit_accepts_descoping_if_early"
+                }
+              }
+            ],
+            "surface_facts": []
+          },
+          "sender_id": "rohit",
+          "slots": {
+            "topic": "launch_plan"
+          },
+          "surface": "chat",
+          "thread_id": "rohit"
+        },
+        "phase_priority": 2,
+        "type": "guarded_message"
+      },
+      {
+        "actor_id": "sara",
+        "due_at": "2026-05-06T10:30:00",
+        "payload": {
+          "act_id": "request.clarification",
+          "body": "Northstar is asking what story I should tell them by lunch. I need a stable plan now.",
+          "guard": {
+            "not": {
+              "milestone_state": {
+                "equals": "done",
+                "field": "status",
+                "milestone_id": "customer_plan_locked"
+              }
+            }
+          },
+          "metadata": {
+            "belief_signals": [
+              {
+                "belief_key": "project.customer_update_urgency",
+                "belief_value": "high",
+                "confidence": 1.0,
+                "freshness_window_min": 240
+              },
+              {
+                "accumulate": true,
+                "belief_key": "actor.sara.private_driver.needs_stable_plan_early",
+                "belief_value": true,
+                "confidence": 0.55,
+                "freshness_window_min": 240,
+                "metadata": {
+                  "private_driver_fact_id": "sara_needs_plan_by_wed_noon"
+                }
+              }
+            ],
+            "surface_facts": []
+          },
+          "sender_id": "sara",
+          "slots": {
+            "topic": "customer_plan"
+          },
+          "surface": "chat",
+          "thread_id": "sara"
+        },
+        "phase_priority": 2,
+        "type": "guarded_message"
+      }
+    ],
+    "project": {
+      "description": "A first-week TPM benchmark around rescuing a credible Friday pilot for Northstar.",
+      "metadata": {
+        "benchmark_positioning": "single_scenario_harness_demo"
+      },
+      "name": "Northstar Admin Hub Pilot",
+      "state": {
+        "coverage_miss": false,
+        "customer_confidence": "fragile",
+        "invalid_external_commitments": 0,
+        "launch_scope": "undecided"
+      }
+    },
+    "relationships": [
+      {
+        "actor_id": "rohit",
+        "state": {
+          "trust": 0.68
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "maya",
+        "state": {
+          "trust": 0.34
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "andrew",
+        "state": {
+          "trust": 0.82
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "rahul",
+        "state": {
+          "trust": 0.61
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "nina",
+        "state": {
+          "trust": 0.55
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "sara",
+        "state": {
+          "trust": 0.66
+        },
+        "target_actor_id": "tpm"
+      },
+      {
+        "actor_id": "tpm",
+        "state": {
+          "trust": 0.75
+        },
+        "target_actor_id": "rohit"
+      },
+      {
+        "actor_id": "tpm",
+        "state": {
+          "trust": 0.4
+        },
+        "target_actor_id": "maya"
+      },
+      {
+        "actor_id": "tpm",
+        "state": {
+          "trust": 0.85
+        },
+        "target_actor_id": "andrew"
+      },
+      {
+        "actor_id": "tpm",
+        "state": {
+          "trust": 0.65
+        },
+        "target_actor_id": "rahul"
+      },
+      {
+        "actor_id": "tpm",
+        "state": {
+          "trust": 0.6
+        },
+        "target_actor_id": "nina"
+      },
+      {
+        "actor_id": "tpm",
+        "state": {
+          "trust": 0.72
+        },
+        "target_actor_id": "sara"
+      }
+    ],
+    "tasks": [
+      {
+        "description": "Backend path for the descoped pilot.",
+        "due_at": "2026-05-07T12:00:00",
+        "id": "backend_api",
+        "metadata": {
+          "critical": true,
+          "remaining_work_by_checkpoint": {
+            "descoped_contract_ready": 4,
+            "done": 0,
+            "working": 8
+          }
+        },
+        "owner_id": "maya",
+        "priority": "P0",
+        "title": "Descoped backend entitlement path",
+        "tracker_state": {
+          "blocker": "No credible ETA yet.",
+          "last_updated_at": "2026-05-04T09:00:00",
+          "notes": "",
+          "owner_id": "maya",
+          "status": "in_progress",
+          "target_at": "2026-05-07T12:00:00"
+        },
+        "true_state": {
+          "checkpoint": "working",
+          "last_transition_ref": null,
+          "remaining_work": 8
+        }
+      },
+      {
+        "description": "Frontend path for the descoped pilot.",
+        "due_at": "2026-05-07T16:00:00",
+        "id": "frontend_pilot",
+        "metadata": {
+          "critical": true,
+          "remaining_work_by_checkpoint": {
+            "blocked": 6,
+            "done": 0,
+            "in_progress": 3
+          }
+        },
+        "owner_id": "andrew",
+        "priority": "P0",
+        "title": "Pilot frontend path",
+        "tracker_state": {
+          "blocker": "Needs scope and design alignment.",
+          "last_updated_at": "2026-05-04T09:00:00",
+          "notes": "",
+          "owner_id": "andrew",
+          "status": "blocked",
+          "target_at": "2026-05-07T16:00:00"
+        },
+        "true_state": {
+          "checkpoint": "blocked",
+          "last_transition_ref": null,
+          "remaining_work": 6
+        }
+      },
+      {
+        "description": "Approval for the simplified empty state and admin flow.",
+        "due_at": "2026-05-05T17:00:00",
+        "id": "design_signoff",
+        "metadata": {
+          "critical": true,
+          "remaining_work_by_checkpoint": {
+            "blocked": 4,
+            "done": 0,
+            "in_review": 2
+          }
+        },
+        "owner_id": "rahul",
+        "priority": "P1",
+        "title": "Design signoff for descoped flow",
+        "tracker_state": {
+          "blocker": "Needs support context before simplification.",
+          "last_updated_at": "2026-05-04T09:00:00",
+          "notes": "",
+          "owner_id": "rahul",
+          "status": "blocked",
+          "target_at": "2026-05-05T17:00:00"
+        },
+        "true_state": {
+          "checkpoint": "blocked",
+          "last_transition_ref": null,
+          "remaining_work": 4
+        }
+      },
+      {
+        "description": "Security review for the new OAuth scope.",
+        "due_at": "2026-05-06T11:00:00",
+        "id": "security_review",
+        "metadata": {
+          "critical": true,
+          "remaining_work_by_checkpoint": {
+            "done": 0,
+            "not_requested": 3,
+            "scheduled": 1
+          }
+        },
+        "owner_id": "nina",
+        "priority": "P0",
+        "title": "Security review for OAuth scope",
+        "tracker_state": {
+          "blocker": "Review not yet requested.",
+          "last_updated_at": "2026-05-04T09:00:00",
+          "notes": "",
+          "owner_id": "nina",
+          "status": "blocked",
+          "target_at": "2026-05-06T11:00:00"
+        },
+        "true_state": {
+          "checkpoint": "not_requested",
+          "last_transition_ref": null,
+          "remaining_work": 3
+        }
+      },
+      {
+        "description": "Minor readiness artifact that helps but does not gate launch.",
+        "due_at": "2026-05-07T16:00:00",
+        "id": "runbook_readiness",
+        "metadata": {
+          "critical": false,
+          "remaining_work_by_checkpoint": {
+            "done": 0,
+            "todo": 2
+          }
+        },
+        "owner_id": "tpm",
+        "priority": "P2",
+        "title": "Pilot runbook and launch notes",
+        "tracker_state": {
+          "blocker": "",
+          "last_updated_at": "2026-05-04T09:00:00",
+          "notes": "",
+          "owner_id": "tpm",
+          "status": "todo",
+          "target_at": "2026-05-07T16:00:00"
+        },
+        "true_state": {
+          "checkpoint": "todo",
+          "last_transition_ref": null,
+          "remaining_work": 2
+        }
+      }
+    ],
+    "threads": [
+      {
+        "id": "rohit",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "rohit"
+        ],
+        "surface": "chat",
+        "title": "Rohit Kapoor"
+      },
+      {
+        "id": "maya",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "maya"
+        ],
+        "surface": "chat",
+        "title": "Maya Chen"
+      },
+      {
+        "id": "andrew",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "andrew"
+        ],
+        "surface": "chat",
+        "title": "Andrew Ortiz"
+      },
+      {
+        "id": "rahul",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "rahul"
+        ],
+        "surface": "chat",
+        "title": "Rahul Iyer"
+      },
+      {
+        "id": "nina",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "nina"
+        ],
+        "surface": "chat",
+        "title": "Nina Patel"
+      },
+      {
+        "id": "sara",
+        "kind": "dm",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "sara"
+        ],
+        "surface": "chat",
+        "title": "Sara Feldman"
+      },
+      {
+        "id": "launch_room",
+        "kind": "group",
+        "metadata": {},
+        "participants": [
+          "tpm",
+          "rohit",
+          "andrew",
+          "sara"
+        ],
+        "surface": "chat",
+        "title": "Northstar launch room"
+      }
+    ],
+    "windows": [
+      {
+        "end_at": "2026-05-05T12:00:00",
+        "id": "security_cutoff",
+        "metadata": {},
+        "start_at": "2026-05-04T09:00:00",
+        "title": "Security review safe slot window"
+      },
+      {
+        "end_at": "2026-05-05T16:00:00",
+        "id": "scope_alignment_cutoff",
+        "metadata": {},
+        "start_at": "2026-05-04T09:00:00",
+        "title": "Scope alignment window"
+      },
+      {
+        "end_at": "2026-05-06T12:00:00",
+        "id": "customer_plan_cutoff",
+        "metadata": {},
+        "start_at": "2026-05-04T09:00:00",
+        "title": "Customer plan lock window"
       }
     ]
   }

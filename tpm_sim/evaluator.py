@@ -25,6 +25,8 @@ class Evaluator:
         return {
             "scenario_id": self.scenario["id"],
             "scenario_digest": self.engine.scenario_digest(),
+            "compiled_coverage_digest": self.store.get_meta("compiled_coverage_digest", self.engine.scenario_digest()),
+            "closure_status": self.engine.deserialize(self.store.get_meta("closure_status_json"), {"status": "unknown", "passed": False}),
             "time": self.store.get_meta("current_time"),
             "total_score": total_score,
             "rubric": rubric_results,
@@ -136,6 +138,10 @@ class Evaluator:
             "weight": float(line["weight"]),
             "awarded": awarded,
             "failure_class": line["failure_class"],
+            "competency_tags": line.get("competency_tags", []),
+            "measurement_rationale": line.get("measurement_rationale", ""),
+            "success_meaning": line.get("success_meaning", ""),
+            "failure_meaning": line.get("failure_meaning", ""),
             "evidence_refs": sorted(set(evidence_refs)),
             "matched_predicates": matched_predicates,
             "deadline_or_window": line.get("deadline_or_window"),
@@ -165,6 +171,7 @@ class Evaluator:
         rows = []
         for row in self.store.event_log():
             if row["event_type"] in {
+                "agenda_signal.observed",
                 "coverage.miss",
                 "milestone.updated",
                 "commitment.updated",
@@ -174,6 +181,7 @@ class Evaluator:
             }:
                 rows.append(
                     {
+                        "id": row["id"],
                         "at": row["at"],
                         "event_type": row["event_type"],
                         "summary": row["summary"],

@@ -297,7 +297,7 @@ class EnvironmentSession:
         facts = []
         for row in self.engine.store.facts():
             state = self.engine.deserialize(row["state_json"], {})
-            if state.get("surfaced") and state.get("surfaced_by") == "tpm":
+            if state.get("surfaced_at") and state.get("surfaced_by") == "tpm":
                 facts.append(
                     {
                         "id": row["id"],
@@ -374,8 +374,10 @@ class EnvironmentSession:
             )
 
         milestones = []
+        precondition_summary = []
         for row in self.engine.store.milestones():
             state = self.engine.deserialize(row["state_json"], {})
+            metadata = self.engine.deserialize(row["metadata_json"], {})
             milestones.append(
                 {
                     "id": row["id"],
@@ -384,16 +386,159 @@ class EnvironmentSession:
                     "due_at": row["due_at"],
                 }
             )
+            precondition_summary.append(
+                {
+                    "milestone_id": row["id"],
+                    "title": row["title"],
+                    "status": state.get("status", "pending"),
+                    "due_at": row["due_at"],
+                    "visible_conditions": self._predicate_fragments(metadata.get("achieved_predicate")),
+                }
+            )
+
+        actor_directory = []
+        dm_thread_by_actor = {}
+        for thread in self.engine.store.threads(surface="chat"):
+            participants = self.engine.deserialize(thread["participant_ids_json"], [])
+            recipients = [actor_id for actor_id in participants if actor_id != "tpm"]
+            if thread["kind"] == "dm" and len(recipients) == 1:
+                dm_thread_by_actor[recipients[0]] = thread["id"]
+        for row in self.engine.store.actors():
+            if row["id"] == "tpm":
+                continue
+            actor_directory.append(
+                {
+                    "actor_id": row["id"],
+                    "name": row["name"],
+                    "org_role": row["org_role"],
+                    "coordination_template": row["coordination_template"],
+                    "chat_thread_id": dm_thread_by_actor.get(row["id"], row["id"]),
+                }
+            )
+
+        pending_replies = []
+        for row in self.engine.store.pending_events():
+            if row["type"] != "npc.respond_message":
+                continue
+            payload = self.engine.deserialize(row["payload_json"], {})
+            thread_id = payload.get("thread_id")
+            thread = self.engine.store.get_thread(thread_id)
+            participants = self.engine.deserialize(thread["participant_ids_json"], [])
+            recipients = [actor_id for actor_id in participants if actor_id != "tpm"]
+            if len(recipients) != 1:
+                continue
+            pending_replies.append(
+                {
+                    "thread_id": thread_id,
+                    "actor_id": recipients[0],
+                    "actor_name": self.engine.actor_name(recipients[0]),
+                    "due_at": row["due_at"],
+                    "incoming_act_id": payload.get("incoming_act_id"),
+                }
+            )
+
+        last_responses = []
+        for actor_id, thread_id in sorted(dm_thread_by_actor.items()):
+            messages = self.engine.store.messages(thread_id=thread_id, limit=10)
+            latest = next((message for message in messages if message["sender_id"] != "tpm"), None)
+            if not latest:
+                continue
+            last_responses.append(
+                {
+                    "actor_id": actor_id,
+                    "actor_name": self.engine.actor_name(actor_id),
+                    "thread_id": thread_id,
+                    "at": latest["created_at"],
+                    "act_id": latest["act_id"],
+                    "body": latest["body"][:180],
+                }
+            )
+
+        open_needs = []
+        for milestone in precondition_summary:
+            lower = f"{milestone['milestone_id']} {milestone['title']}".lower()
+            if milestone["status"] == "done":
+                continue
+            if "approval" in lower or "security" in lower:
+                open_needs.append(
+                    {
+                        "kind": "approval",
+                        "id": milestone["milestone_id"],
+                        "summary": f"{milestone['title']} remains unresolved.",
+                    }
+                )
+            elif "scope" in lower or "align" in lower or "decision" in lower:
+                open_needs.append(
+                    {
+                        "kind": "decision",
+                        "id": milestone["milestone_id"],
+                        "summary": f"{milestone['title']} still needs alignment.",
+                    }
+                )
+        for row in self.engine.store.tasks():
+            tracker = self.engine.deserialize(row["tracker_state_json"], {})
+            owner = tracker.get("owner_id", row["owner_id"])
+            if not owner:
+                open_needs.append(
+                    {
+                        "kind": "ownership",
+                        "id": row["id"],
+                        "summary": f"{row['title']} has no visible owner.",
+                    }
+                )
 
         return {
             "surfaced_facts": facts,
+            "actor_directory": actor_directory,
+            "canonical_targets": {
+                "actor_chat_targets": {item["actor_id"]: item["chat_thread_id"] for item in actor_directory},
+            },
             "open_commitments": commitments,
             "unresolved_blockers": blockers,
             "visible_windows": windows,
             "pending_meetings": meetings,
+            "pending_replies": pending_replies,
+            "open_needs": open_needs,
+            "last_stakeholder_responses": last_responses,
+            "visible_precondition_summary": precondition_summary,
             "milestones": milestones,
             "task_summaries": task_summaries,
         }
+
+    def _predicate_fragments(self, predicate: dict[str, Any] | None) -> list[str]:
+        if not predicate:
+            return []
+        if "all_of" in predicate:
+            output = []
+            for child in predicate["all_of"]:
+                output.extend(self._predicate_fragments(child))
+            return output
+        if "any_of" in predicate:
+            output = []
+            for child in predicate["any_of"]:
+                output.extend(self._predicate_fragments(child))
+            return output
+        if "project_state" in predicate:
+            item = predicate["project_state"]
+            return [f"project.{item['field']} == {item.get('equals', item.get('in'))}"]
+        if "belief_known" in predicate:
+            item = predicate["belief_known"]
+            return [f"{item['actor_id']} knows {item['belief_key']} = {item.get('equals', item.get('in'))}"]
+        if "commitment_state" in predicate:
+            item = predicate["commitment_state"]
+            return [f"commitment {item['commitment_id']} {item['field']} -> {item.get('equals', item.get('in'))}"]
+        if "task_true_state" in predicate:
+            item = predicate["task_true_state"]
+            return [f"task {item['task_id']} {item['field']} -> {item.get('equals', item.get('in'))}"]
+        if "milestone_state" in predicate:
+            item = predicate["milestone_state"]
+            return [f"milestone {item['milestone_id']} {item['field']} -> {item.get('equals', item.get('in'))}"]
+        if "surfaced" in predicate:
+            return [f"fact surfaced: {predicate['surfaced']}"]
+        if "not" in predicate:
+            nested = self._predicate_fragments(predicate["not"])
+            return [f"not ({item})" for item in nested] if nested else []
+        return []
 
 
 def coerce_action(action: StructuredAction | dict[str, Any]) -> StructuredAction:

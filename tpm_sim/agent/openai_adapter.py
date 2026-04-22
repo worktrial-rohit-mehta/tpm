@@ -12,9 +12,11 @@ class OpenAIResponsesAgentAdapter:
     name = "openai"
     prompt_pack_version = PROMPT_PACK_VERSION
 
-    def __init__(self, model_client: ModelClient, model: str):
+    def __init__(self, model_client: ModelClient, model: str, *, temperature: float = 0.0, top_p: float = 1.0):
         self.model_client = model_client
         self.model = model
+        self.temperature = temperature
+        self.top_p = top_p
 
     def start(self, run_context: dict[str, Any]) -> dict[str, Any]:
         return {"run_context": run_context}
@@ -31,7 +33,7 @@ class OpenAIResponsesAgentAdapter:
             schema_name="tpm_next_action",
             schema=ACTION_DECISION_SCHEMA,
             prompt_spec=prompt_spec,
-            config={"model": self.model},
+            config={"model": self.model, "temperature": self.temperature, "top_p": self.top_p},
         )
         parsed = json.loads(response.text)
         return AgentDecision(

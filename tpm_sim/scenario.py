@@ -5,7 +5,8 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from tpm_sim.common import as_json, stable_digest
+from tpm_sim.common import stable_digest
+from tpm_sim.coverage_artifacts import build_source_digest, compile_coverage
 from tpm_sim.specs import (
     ACT_TAXONOMY_VERSION,
     CONTEXT_FAMILY_SCHEMA_VERSION,
@@ -39,24 +40,83 @@ def _scenario_dir(scenario_id: str):
 
 def load_scenario_bundle(scenario_id: str) -> dict[str, Any]:
     root = _scenario_dir(scenario_id)
-    return load_bundle_from_paths(root.joinpath("scenario.json"), root.joinpath("npc_coverage.json"))
+    return load_bundle_from_paths(
+        root.joinpath("scenario.json"),
+        root.joinpath("npc_coverage.json"),
+        contract_path=root.joinpath("coverage_contract.json"),
+        semantics_path=root.joinpath("coverage_semantics.json"),
+        closure_report_path=root.joinpath("closure_report.json"),
+    )
 
 
-def load_bundle_from_paths(scenario_path: str | Path, coverage_path: str | Path) -> dict[str, Any]:
+def load_bundle_from_paths(
+    scenario_path: str | Path,
+    coverage_path: str | Path | None = None,
+    *,
+    contract_path: str | Path | None = None,
+    semantics_path: str | Path | None = None,
+    closure_report_path: str | Path | None = None,
+) -> dict[str, Any]:
     scenario_bytes = Path(scenario_path).read_bytes()
-    coverage_bytes = Path(coverage_path).read_bytes()
     scenario = json.loads(scenario_bytes)
+    contract_file = Path(contract_path) if contract_path else Path(scenario_path).with_name("coverage_contract.json")
+    semantics_file = Path(semantics_path) if semantics_path else Path(scenario_path).with_name("coverage_semantics.json")
+    spec_parts = [path.read_bytes() for path in SPEC_FILES]
+
+    if contract_file.exists() and semantics_file.exists():
+        contract_bytes = contract_file.read_bytes()
+        semantics_bytes = semantics_file.read_bytes()
+        contract = json.loads(contract_bytes)
+        semantics = json.loads(semantics_bytes)
+        digest = build_source_digest(
+            scenario_bytes,
+            contract_bytes,
+            semantics_bytes,
+            spec_parts=spec_parts,
+            renderer_version=RENDERER_VERSION,
+        )
+        if coverage_path:
+            coverage_bytes = Path(coverage_path).read_bytes()
+            coverage = json.loads(coverage_bytes)
+        else:
+            coverage, _ = compile_coverage(contract, semantics, compiled_from_digest=digest)
+            coverage_bytes = json.dumps(coverage, sort_keys=True).encode("utf-8")
+        compiled_from = coverage.get("compiled_from_digest")
+        if compiled_from != digest:
+            raise RuntimeError(
+                f"Compiled coverage is stale for {scenario_path}. "
+                f"Expected compiled_from_digest={digest}, found {compiled_from!r}."
+            )
+        return {
+            "scenario": scenario,
+            "coverage": coverage,
+            "coverage_contract": contract,
+            "coverage_semantics": semantics,
+            "scenario_digest": digest,
+            "compiled_coverage_digest": compiled_from,
+            "closure_status": _load_closure_status(closure_report_path or Path(scenario_path).with_name("closure_report.json")),
+            "scenario_bytes": scenario_bytes,
+            "contract_bytes": contract_bytes,
+            "semantics_bytes": semantics_bytes,
+            "coverage_bytes": coverage_bytes,
+        }
+
+    if coverage_path is None:
+        raise FileNotFoundError(f"{scenario_path} is missing coverage_contract.json / coverage_semantics.json and no npc_coverage.json was provided.")
+    coverage_bytes = Path(coverage_path).read_bytes()
     coverage = json.loads(coverage_bytes)
     digest = stable_digest(
         scenario_bytes,
         coverage_bytes,
-        *(path.read_bytes() for path in SPEC_FILES),
+        *spec_parts,
         RENDERER_VERSION,
     )
     return {
         "scenario": scenario,
         "coverage": coverage,
         "scenario_digest": digest,
+        "compiled_coverage_digest": coverage.get("compiled_from_digest", digest),
+        "closure_status": {"status": "legacy_untracked", "passed": False},
         "scenario_bytes": scenario_bytes,
         "coverage_bytes": coverage_bytes,
     }
@@ -67,16 +127,26 @@ def load_bundle_from_store(store: StateStore) -> dict[str, Any]:
     coverage_json = store.get_meta("npc_coverage_json")
     if scenario_json is None or coverage_json is None:
         raise RuntimeError("Run database does not contain a frozen scenario snapshot.")
+    contract_json = store.get_meta("coverage_contract_json")
+    semantics_json = store.get_meta("coverage_semantics_json")
+    closure_status_json = store.get_meta("closure_status_json")
     return {
         "scenario": json.loads(scenario_json),
         "coverage": json.loads(coverage_json),
         "scenario_digest": store.get_meta("scenario_digest", ""),
+        "compiled_coverage_digest": store.get_meta("compiled_coverage_digest", store.get_meta("scenario_digest", "")),
+        "coverage_contract": json.loads(contract_json) if contract_json else None,
+        "coverage_semantics": json.loads(semantics_json) if semantics_json else None,
+        "closure_status": json.loads(closure_status_json) if closure_status_json else {"status": "unknown", "passed": False},
     }
 
 
 def seed_store(store: StateStore, bundle: dict[str, Any], seed: int, coverage_enforcement: str = "strict") -> None:
     scenario = bundle["scenario"]
     coverage = bundle["coverage"]
+    contract = bundle.get("coverage_contract")
+    semantics = bundle.get("coverage_semantics")
+    closure_status = bundle.get("closure_status", {"status": "unknown", "passed": False})
     world = scenario["world"]
 
     store.reset()
@@ -84,8 +154,14 @@ def seed_store(store: StateStore, bundle: dict[str, Any], seed: int, coverage_en
         store.set_meta("scenario_id", scenario["id"])
         store.set_meta("scenario_name", scenario["name"])
         store.set_meta("scenario_digest", bundle["scenario_digest"])
+        store.set_meta("compiled_coverage_digest", bundle.get("compiled_coverage_digest", bundle["scenario_digest"]))
         store.set_meta("scenario_json", json.dumps(scenario, sort_keys=True))
+        if contract is not None:
+            store.set_meta("coverage_contract_json", json.dumps(contract, sort_keys=True))
+        if semantics is not None:
+            store.set_meta("coverage_semantics_json", json.dumps(semantics, sort_keys=True))
         store.set_meta("npc_coverage_json", json.dumps(coverage, sort_keys=True))
+        store.set_meta("closure_status_json", json.dumps(closure_status, sort_keys=True))
         store.set_meta("timezone", scenario.get("timezone", "America/Los_Angeles"))
         store.set_meta("seed", str(seed))
         store.set_meta("coverage_enforcement", coverage_enforcement)
@@ -161,7 +237,21 @@ def seed_store(store: StateStore, bundle: dict[str, Any], seed: int, coverage_en
             payload={
                 "scenario_id": scenario["id"],
                 "scenario_digest": bundle["scenario_digest"],
+                "compiled_coverage_digest": bundle.get("compiled_coverage_digest", bundle["scenario_digest"]),
                 "seed": seed,
                 "coverage_enforcement": coverage_enforcement,
+                "closure_status": closure_status,
             },
         )
+
+
+def _load_closure_status(path: str | Path) -> dict[str, Any]:
+    closure_path = Path(path)
+    if not closure_path.exists():
+        return {"status": "not_certified", "passed": False}
+    payload = json.loads(closure_path.read_text())
+    return {
+        "status": payload.get("status", "unknown"),
+        "passed": bool(payload.get("passed", False)),
+        "path": str(closure_path),
+    }

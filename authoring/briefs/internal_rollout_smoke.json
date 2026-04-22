@@ -4,25 +4,51 @@
       "coordination_template": "sponsor",
       "name": "Dana Brooks",
       "notes": "Wants a stable internal rollout plan and will support staged rollout if told early.",
-      "org_role": "director_product"
+      "org_role": "director_product",
+      "private_drivers": [
+        {
+          "coordination_implication": "Surface the real feasibility gap early and frame the staged plan clearly before the scope window closes.",
+          "cue_examples": [
+            "Dana asks for the real rollout story, not a green tracker.",
+            "Dana explicitly says to bring the staged tradeoff if full rollout is not real."
+          ],
+          "driver_type": "supports_staged_if_engaged_early",
+          "id": "dana_accepts_staged_if_early",
+          "summary": "Dana will back the staged rollout if the TPM brings the real tradeoff early instead of defending fake full scope."
+        }
+      ]
     },
     {
       "coordination_template": "critical_path_owner",
       "name": "Leo Park",
       "notes": "Overloaded engineer who knows full rollout is not credible.",
-      "org_role": "engineer"
+      "org_role": "engineer",
+      "private_drivers": [
+        {
+          "coordination_implication": "Ask Leo for honest feasibility before asking for ETA, and do not pressure him into delivery theater while he is overloaded.",
+          "cue_examples": [
+            "Leo says he will not give a real ETA while underwater.",
+            "Leo keeps tying ETA confidence back to staged scope plus approval."
+          ],
+          "driver_type": "rejects_fake_rollout_dates",
+          "id": "leo_rejects_fake_rollout_dates",
+          "summary": "Leo is skeptical of rollout-date pressure until scope and approval are real."
+        }
+      ]
     },
     {
       "coordination_template": "cross_functional_dependency_owner",
       "name": "Ivy Shah",
       "notes": "Approval owner with a hard queue cutoff.",
-      "org_role": "security_engineer"
+      "org_role": "security_engineer",
+      "private_drivers": []
     },
     {
       "coordination_template": "ally",
       "name": "Mia Torres",
       "notes": "Operations ally who can help tidy the runbook quickly.",
-      "org_role": "operations"
+      "org_role": "operations",
+      "private_drivers": []
     }
   ],
   "critical_path": [
@@ -46,7 +72,11 @@
     },
     {
       "id": "dana_accepts_staged_if_early",
-      "summary": "Dana will back a staged rollout if engaged before the scope window closes."
+      "summary": "Dana will support staged rollout if the TPM brings the tradeoff early."
+    },
+    {
+      "id": "leo_rejects_fake_rollout_dates",
+      "summary": "Leo rejects fake rollout dates until scope and approval are grounded."
     }
   ],
   "milestones": [
