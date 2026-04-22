@@ -24,7 +24,16 @@ from tpm_sim.authoring import (
     validate_proposal,
 )
 from tpm_sim.cli import _resolve_authoring_model, _run_agent_replay, execute_command, execute_script
-from tpm_sim.cli import run_agent, run_agent_replay
+from tpm_sim.cli import (
+    init_db,
+    run_agent,
+    run_agent_replay,
+    run_author_compile_contract,
+    run_author_init,
+    run_author_synthesize,
+    run_author_validate,
+)
+from tpm_sim.coverage_artifacts import build_starter_contract
 from tpm_sim.engine import CoverageMissError, SimulationEngine
 from tpm_sim.environment import ActionValidationError, EnvironmentSession, StructuredAction, validate_structured_action
 from tpm_sim.evaluator import Evaluator
@@ -643,10 +652,54 @@ class AgentAndAuthoringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_brief({"scenario_id": "broken"})
 
-    def test_fixture_authoring_workflow_round_trips_and_accepts(self) -> None:
+    def test_authoring_brief_validation_rejects_cast_id_mismatch_for_existing_scenario(self) -> None:
+        from tpm_sim.authoring.briefs import validate_brief
+
+        payload = json.loads((AUTHORING_BRIEFS / "internal_rollout_smoke.json").read_text())
+        payload["cast"][0]["id"] = "wrong_actor"
+        with self.assertRaises(ValueError):
+            validate_brief(payload)
+
+    def test_run_author_init_renders_full_intent_briefing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                exit_code = run_author_init(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir, False)
+            self.assertEqual(exit_code, 0)
+            output = stdout.getvalue()
+            self.assertIn("Scenario Briefing: Internal Rollout Smoke", output)
+            self.assertIn("Dana Brooks (dana)", output)
+            self.assertIn("Hidden Landscape:", output)
+            self.assertIn("approval_secured by", output)
+
+    def test_run_author_synthesize_world_renders_candidate_briefing(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             proposal_dir = str(Path(tmpdir) / "proposal")
             init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                exit_code = run_author_synthesize(
+                    "world",
+                    proposal_dir,
+                    "fixture",
+                    "fixture",
+                    str(AUTHORING_FIXTURES),
+                    False,
+                )
+            self.assertEqual(exit_code, 0)
+            output = stdout.getvalue()
+            self.assertIn("Synthesized candidate world.", output)
+            self.assertIn("Project: Internal Rollout Project", output)
+            self.assertIn("Decision rights: approve scope", output)
+            self.assertIn("Proposal Status:", output)
+
+    def test_fixture_authoring_workflow_round_trips_and_accepts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            manifest = init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
+            self.assertTrue(Path(manifest["operator_briefing_json_path"]).exists())
+            self.assertTrue(Path(manifest["operator_briefing_markdown_path"]).exists())
             synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
             compile_contract(proposal_dir)
             synthesize_semantics(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
@@ -673,7 +726,53 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertTrue((scenario_dir / "coverage_semantics.json").exists())
             self.assertTrue((scenario_dir / "npc_coverage.json").exists())
             self.assertTrue((scenario_dir / "closure_report.json").exists())
+            self.assertTrue((scenario_dir / "operator_briefing.json").exists())
+            self.assertTrue((scenario_dir / "operator_briefing.md").exists())
             self.assertTrue((examples_root / "internal_rollout_smoke" / "smoke.tpm").exists())
+
+    def test_author_command_json_output_keeps_stdout_clean_and_writes_summary_to_stderr(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            stdout = StringIO()
+            stderr = StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                exit_code = run_author_compile_contract(proposal_dir, True)
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertIn("coverage_contract_path", payload)
+            self.assertIn("Compiled coverage contract.", stderr.getvalue())
+            self.assertIn("operator briefing:", stderr.getvalue())
+
+    def test_run_author_validate_non_json_is_human_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proposal_dir = str(Path(tmpdir) / "proposal")
+            init_proposal(str(AUTHORING_BRIEFS / "internal_rollout_smoke.json"), proposal_dir)
+            synthesize_world(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_contract(proposal_dir)
+            synthesize_semantics(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            compile_coverage_artifact(proposal_dir)
+            synthesize_trajectories(proposal_dir, adapter="fixture", model="fixture", fixtures_root=str(AUTHORING_FIXTURES))
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                exit_code = run_author_validate(proposal_dir, False)
+            self.assertEqual(exit_code, 0)
+            output = stdout.getvalue()
+            self.assertIn("Validated proposal for internal_rollout_smoke.", output)
+            self.assertIn("coverage:", output)
+            self.assertNotIn('{\n  "', output)
+
+    def test_init_db_emits_human_readable_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                exit_code = init_db(str(Path(tmpdir) / "demo.sqlite"), "internal_rollout_smoke", 11, "strict", True)
+            self.assertEqual(exit_code, 0)
+            output = stdout.getvalue()
+            self.assertIn("Run Preflight: Internal Rollout Smoke", output)
+            self.assertIn("command: init", output)
+            self.assertIn("Initialized", output)
 
     def test_closure_suite_fails_when_official_seeds_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -697,6 +796,24 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertFalse(closure["passed"])
             self.assertEqual(closure["status"], "failed_no_seeds")
             self.assertEqual(closure["live_agent_suite"]["status"], "skipped_no_seeds")
+
+    def test_build_starter_contract_uses_top_level_coordination_template_affordances(self) -> None:
+        scenario = {
+            "world": {
+                "actors": [
+                    {"id": "dana", "coordination_template": "sponsor"},
+                    {"id": "mia", "coordination_template": "ally"},
+                ]
+            }
+        }
+        contract = build_starter_contract(scenario)
+        selectors = {
+            (cell["selector"].get("actor_id"), cell["selector"].get("incoming_act_id"))
+            for cell in contract["cells"]
+            if cell["selector"].get("surface") == "chat"
+        }
+        self.assertIn(("dana", "request.approval"), selectors)
+        self.assertIn(("mia", "request.feasibility"), selectors)
 
     def test_project_env_autoload_reads_repo_root_dotenv_without_overriding_process_env(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -937,6 +1054,29 @@ class AgentAndAuthoringTests(unittest.TestCase):
                 session.close()
             self.assertIn("need the concrete tradeoff", thread_view.message.lower())
 
+    def test_internal_rollout_request_approval_to_dana_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "dana_request_approval.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "dana",
+                            "act_id": "request.approval",
+                            "slots": {"task_id": "approval_review"},
+                            "body": "Can you approve this path now so I can keep the launch moving?",
+                        },
+                    )
+                )
+                for _ in range(3):
+                    session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                thread_view = session.step(StructuredAction("read.thread", {"target": "dana"}))
+            finally:
+                session.close()
+            self.assertIn("not approving a vague plan", thread_view.message.lower())
+
     def test_internal_rollout_inform_decision_to_ivy_is_covered_in_strict_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = str(Path(tmpdir) / "ivy_decision.sqlite")
@@ -1101,6 +1241,34 @@ class AgentAndAuthoringTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertIn("Any remaining scope tradeoff concerns from your side now that the staged path is set?", thread_view.message)
+
+    def test_internal_rollout_request_feasibility_to_mia_is_covered_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "mia_feasibility.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True, coverage_enforcement="strict")
+            try:
+                session.step(
+                    StructuredAction(
+                        "chat.send",
+                        {
+                            "target": "mia",
+                            "act_id": "request.feasibility",
+                            "slots": {"task_id": "runbook_readiness"},
+                            "body": "If we go staged, is ops support feasible from your side?",
+                        },
+                    )
+                )
+                notices = []
+                for _ in range(3):
+                    result = session.step(StructuredAction("wait.until_next_event", {"max_minutes": 60}))
+                    notices.append(result.message)
+                    if "Mia Torres" in result.message:
+                        break
+                thread_view = session.step(StructuredAction("read.thread", {"target": "mia"}))
+            finally:
+                session.close()
+            self.assertTrue(any("Mia Torres" in message for message in notices))
+            self.assertIn("staged rollout is feasible", thread_view.message.lower())
 
     def test_agent_replay_prints_timestamps_actor_and_trace_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
