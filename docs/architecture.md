@@ -15,7 +15,7 @@ This is deliberately **not** a free-form roleplay simulator and **not** an open-
 
 ## System Layers
 
-V1 now has four layers:
+V1 now has five layers:
 
 ### 1. Deterministic runtime kernel
 
@@ -41,7 +41,17 @@ This is the fixed interface used to compare models:
 
 This layer is part of the benchmark definition, not per-model customization.
 
-### 3. Offline authoring workflow
+### 3. Canonical performance summary and judge layer
+
+This is the reporting layer that turns raw deterministic scoring into a TPM-native answer:
+- canonical `TPMPerformanceSummary`
+- canonical `BundlePerformanceSummary`
+- deterministic behavior diagnostics
+- explanatory-only LLM judge narrative
+
+Deterministic scoring remains authoritative. The judge layer is allowed to explain and synthesize, but never to change benchmark truth.
+
+### 4. Offline authoring workflow
 
 This is not runtime. It exists to generate and curate benchmark truth:
 - structured authoring briefs
@@ -51,7 +61,7 @@ This is not runtime. It exists to generate and curate benchmark truth:
 
 Runtime uses only the accepted frozen artifacts.
 
-### 4. Scenario assets
+### 5. Scenario assets
 
 V1 ships:
 - one deep official scenario: `northstar_launch_week`
@@ -91,6 +101,7 @@ Runtime coworker behavior is frozen through authored context families and respon
 
 LLM use is reserved for:
 - live TPM model evaluation
+- explanatory-only run and bundle narratives
 - offline authoring synthesis
 
 LLMs are **not** used for:
@@ -126,6 +137,7 @@ Hidden truth and authored constraints:
 - approvals required
 - leverage windows
 - competing priorities
+- actor private drivers such as stakeholder incentives, sensitivities, and relationship-biased coordination preferences
 
 ### 2. Belief state
 
@@ -138,6 +150,8 @@ Per-actor structured beliefs:
 - `source_ref`
 
 Belief is the official answer to “who knew what, and when?”
+
+Some hidden truths are authored as `actor_private_driver` facts. Those do not surface directly from actor metadata. Instead, visible doc/thread/meeting cues emit low-confidence belief signals that can accumulate until the TPM has enough evidence to treat the private driver as surfaced benchmark truth.
 
 ### 3. Commitments
 
@@ -261,6 +275,10 @@ The working-memory view is intentionally **extractive only**. It can summarize:
 - visible deadlines/windows
 - pending meetings
 - milestone/task summaries
+- actor directory and canonical target ids
+- visible precondition fragments for milestone lines
+- pending replies and open coordination needs
+- last meaningful stakeholder responses
 
 It does **not** contain:
 - prioritization
@@ -290,6 +308,24 @@ The runner contract is strict:
 
 The benchmark result is still computed from the environment state, not from model self-report.
 
+## Stable TPM Competency Model
+
+The user-facing evaluation surface is intentionally stable across scenarios.
+
+Competency dimensions:
+- Discovery & Situation Awareness
+- Critical Path Prioritization
+- Decision & Tradeoff Management
+- Commitment & Dependency Management
+- Stakeholder Alignment & Communication
+- Escalation & Influence
+
+Outcome dimensions:
+- Outcome Attainment
+- Timing / Optionality Preservation
+
+Scenario-local rubric lines still exist, but only as the evidence substrate that rolls up into these stable dimensions.
+
 ## Predicate DSL
 
 The predicate DSL in `docs/specs/PREDICATE_DSL_v1.md` is shared by:
@@ -303,11 +339,30 @@ This is the main defense against keyword heuristics and prompt spaghetti.
 
 ## Context Families and NPC Coverage
 
-Each scenario has:
+Each accepted scenario now has three source-of-truth artifacts:
 - `scenario.json`
+- `coverage_contract.json`
+- `coverage_semantics.json`
+
+plus one explanatory artifact:
+- `operator_briefing.json`
+
+and one compiled runtime artifact:
 - `npc_coverage.json`
 
-`npc_coverage.json` defines frozen NPC context families. A family matches on:
+The split is deliberate:
+- `scenario.json` defines world, policy, and evaluation
+- `coverage_contract.json` deterministically enumerates reachable NPC interaction situations
+- `coverage_semantics.json` contains the LLM-authored semantic realization for those situations
+- `operator_briefing.json` is a deterministic human/operator briefing used by CLI overviews and pre-run preflights
+- `npc_coverage.json` is compiled deterministically for the runtime engine
+
+For hidden agendas, the authoring pattern is:
+- store the latent motive as an `actor_private_driver` fact in `scenario.json`
+- leak it through cue-shaped `belief_signals` in `coverage_semantics.json`
+- let the runtime accumulate those cues into surfaced truth only after the confidence threshold is crossed
+
+At runtime, `npc_coverage.json` defines frozen NPC context families. A family matches on:
 - actor
 - surface
 - incoming act
@@ -361,9 +416,45 @@ They enable:
 Each run exports:
 - `agent_trace`
 - `omniscient_trace`
-- `report.json`
+- deterministic `report.json`
+- canonical `tpm_performance_summary.json`
+- canonical `tpm_performance_summary.md`
 
-The report is evidence-backed at the rubric-line level. This is what makes “did the TPM have enough information?” auditable rather than rhetorical.
+Bundle evaluation additionally exports:
+- `bundle_performance_summary.json`
+- `bundle_performance_summary.md`
+
+The deterministic report is evidence-backed at the rubric-line level. The canonical run summary currently uses `schema_version = tpm_performance_summary_v3`, and the canonical bundle summary uses `schema_version = tpm_bundle_performance_summary_v2`.
+
+The run summary is the user-facing answer to “how did this model do as a TPM?” and is derived from the deterministic report plus optional explanatory judge output. The current report contracts are documented in:
+- `docs/specs/TPM_PERFORMANCE_SUMMARY_v3.md`
+- `docs/specs/TPM_BUNDLE_PERFORMANCE_SUMMARY_v2.md`
+
+The bundle-level summary stays deterministic and cross-seed focused. It answers:
+- how the model compares against itself across seeds
+- which TPM dimensions are consistently weak versus seed-sensitive
+- which stakeholder and signal failures recur often enough to treat as structural
+- whether bundle conclusions are cleanly attributable to the model versus harness noise
+
+## Deterministic Diagnostics
+
+Every run summary includes deterministic behavior diagnostics that separate:
+- model behavior issues
+- harness interface issues
+- scenario authoring issues
+
+Current diagnostics include:
+- repeated same-target same-act loops
+- artifact churn
+- tracker churn
+- escalation repetition
+- approval-before-preconditions
+- unresolved reply loops
+- alias normalization corrections
+- protocol repair count
+- coverage miss count
+
+This is what lets the harness say “the model behaved poorly” versus “the scenario still has an authoring closure issue.”
 
 ## Offline Authoring Workflow
 
@@ -371,21 +462,30 @@ Authoring is deliberately proposal-based.
 
 The human-maintained intent source is a **structured authoring brief**.
 
+Each cast member can now declare `private_drivers[]` so authoring intent captures not just public role and notes, but also the hidden stakeholder incentives or sensitivities the TPM is expected to infer from visible cues.
+
 The authoring pipeline stages are:
 - `author init`
 - `author synthesize-world`
-- `author synthesize-coverage`
+- `author compile-contract`
+- `author synthesize-semantics`
+- `author compile-coverage`
 - `author synthesize-trajectories`
 - `author validate`
+- `author closure-suite`
 - `author gap-fill`
 - `author diff`
 - `author accept`
 
 Each proposal lives in its own directory and contains:
 - candidate scenario bundle
-- candidate coverage bundle
+- candidate coverage contract
+- candidate coverage semantics
+- compiled runtime coverage
 - candidate trajectories
+- operator briefing artifacts
 - validation report
+- closure report
 - diff summary
 - review summary
 - manifest

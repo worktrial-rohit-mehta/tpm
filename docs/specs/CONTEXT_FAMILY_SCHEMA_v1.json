@@ -32,6 +32,19 @@
     }
   },
   "$defs": {
+    "beliefSignal": {
+      "type": "object",
+      "properties": {
+        "belief_key": { "type": "string" },
+        "belief_value": {},
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "freshness_window_min": { "type": "integer", "minimum": 0 },
+        "accumulate": { "type": "boolean" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["belief_key"],
+      "additionalProperties": true
+    },
     "selector": {
       "type": "object",
       "properties": {
@@ -85,7 +98,7 @@
         },
         "belief_signals": {
           "type": "array",
-          "items": { "type": "object" }
+          "items": { "$ref": "#/$defs/beliefSignal" }
         },
         "effects": {
           "type": "array",

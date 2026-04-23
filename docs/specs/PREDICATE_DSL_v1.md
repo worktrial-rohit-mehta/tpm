@@ -223,6 +223,8 @@ Matches against fields inside the fact state JSON or top-level fact columns.
 
 Matches if the latest belief record for the actor/key satisfies the value, confidence, and freshness constraints.
 
+When the matched belief row has an underlying `source_ref`, evaluator evidence should prefer that source first. This is especially important for accumulated actor-private-driver cues, where the evidence is typically an `agenda_signal.observed` event rather than the belief row id alone.
+
 ### critical_window_open
 
 ```json

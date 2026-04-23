@@ -62,17 +62,94 @@ Important runtime constraints:
 - scoring is evidence-backed and deterministic
 - the LLM judge layer is **explanatory only** and never changes official scores
 
-## Install
+## Reviewer Start Here
+
+If you want the fastest reviewer path, do this first:
+
+1. install the deterministic harness
+2. run the smoke benchmark and the calibration checks
+3. read the architecture and grading docs
+4. optionally run one live-model episode
+
+Deterministic install:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e .
+```
+
+Fast reviewer commands:
+
+```bash
+python3 -m tpm_sim list-scenarios
+python3 -m tpm_sim benchmark \
+  --scenario internal_rollout_smoke \
+  --script examples/internal_rollout_smoke/smoke.tpm
+python3 -m tpm_sim coverage-report --scenario northstar_launch_week
+python3 -m tpm_sim readiness --scenario northstar_launch_week
+```
+
+What to look for:
+- `internal_rollout_smoke` should run quickly and produce a high scripted score, proving the basic harness flow works end to end
+- `coverage-report` should show that authored reachable cells are covered
+- `readiness` should separate `golden`, `competent_but_imperfect`, `false_green`, `busywork`, and `spray_and_pray` for the intended reasons
+
+Reviewer-facing docs:
+- `docs/architecture.md`
+- `docs/grading.md`
+- `docs/specs/TPM_PERFORMANCE_SUMMARY_v3.md`
+- `docs/specs/TPM_BUNDLE_PERFORMANCE_SUMMARY_v2.md`
+
+If you also want to inspect a live-model run, copy `.env.example` to `.env`, set `OPENAI_API_KEY` and `TPM_AGENT_MODEL`, install the OpenAI extra, and run:
+
+```bash
+python3 -m tpm_sim agent run \
+  --scenario northstar_launch_week \
+  --seed 11
+```
+
+## Quickstart
 
 Requirements:
 - Python `>=3.9`
 
 For the deterministic harness only, no external services are required.
 
-For live TPM-agent runs or live authoring synthesis against OpenAI, install the OpenAI extra:
+Deterministic harness install:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e .
+```
+
+Live TPM-agent runs and OpenAI-backed authoring synthesis need the OpenAI extra plus a repo-root `.env` file:
+
+```bash
+cp .env.example .env
 pip install -e '.[openai]'
+```
+
+Populate `.env` with at least:
+- `OPENAI_API_KEY`
+- `TPM_AGENT_MODEL`
+
+Optional:
+- `TPM_AUTHORING_MODEL`
+- `OPENAI_BASE_URL`
+- `TPM_ARTIFACT_DIR`
+
+The CLI auto-loads `.env` on startup without overriding variables you already exported in your shell.
+
+Run a quick deterministic smoke check:
+
+```bash
+python3 -m tpm_sim benchmark \
+  --scenario internal_rollout_smoke \
+  --script examples/internal_rollout_smoke/smoke.tpm
 ```
 
 Run the full test suite:
@@ -172,24 +249,40 @@ The harness auto-loads a repo-root `.env` file on startup without overriding var
 Every live TPM-agent run now emits:
 - `tpm_performance_summary.json`
 - `tpm_performance_summary.md`
+- `judge_input_bundle.json`
 
-Those canonical V2 outputs answer the TPM question directly by summarizing:
+The canonical run summary currently uses `schema_version = tpm_performance_summary_v3`.
+It answers the TPM question with explicit deterministic sections for:
+- `score_breakdown`
+- `capability_assessment`
 - outcome verdict
 - critical-path result
-- top deterministic failure dossiers
-- TPM competency profile
-- decisive successes and failures
+- `root_cause_findings`
+- `failure_dossiers`
+- `stakeholder_engagement`
+- `signal_coverage`
+- `window_scorecards`
+- `missed_opportunities`
+- `reference_path_diff`
+- TPM competency and outcome profiles
 - explicit overall/model/harness health flags
-- evidence-backed appendix fields
+- evidence-backed appendices and judge inputs
 
-The new `failure_dossiers[]` section is the primary lab-facing diagnostic surface. It deterministically explains:
+`failure_dossiers[]` remains the primary short-form lab-facing diagnostic surface. It deterministically explains:
 - what high-value outcome or window was missed
 - what agent-visible signals existed before the miss
 - what the model did instead
 - which recurring behavior patterns contributed
 - which fixed remediation hint best fits the miss
 
-The optional LLM judge remains explanatory only. It summarizes the deterministic dossier layer and cannot change score or outcome verdict.
+V3 adds richer deterministic scaffolding around that surface so a reviewer can inspect:
+- the exact score components
+- the strongest root-cause hypotheses
+- which critical signals were surfaced but not converted
+- which stakeholders were contacted too late or not at all
+- which deadline windows were missed and why
+
+The optional LLM judge remains explanatory only. It summarizes the deterministic findings and cannot change score or outcome verdict.
 
 Then run:
 
@@ -210,6 +303,20 @@ python3 -m tpm_sim agent bundle-eval \
   --scenario northstar_launch_week
 ```
 
+`agent bundle-eval` writes:
+- `bundle_performance_summary.json`
+- `bundle_performance_summary.md`
+
+The canonical bundle summary currently uses `schema_version = tpm_bundle_performance_summary_v2`.
+It aggregates the per-seed run summaries into:
+- mean / best / worst score and variance
+- aggregate capability and competency profile
+- recurring root-cause patterns
+- stakeholder and signal consistency summaries
+- deadline-window recurrence
+- harness-health rollups
+- per-seed comparison rows
+
 Replay a previous live-agent run:
 
 ```bash
@@ -219,7 +326,9 @@ python3 -m tpm_sim agent replay \
 
 Agent run artifacts are persisted under `.artifacts/agent_runs/...` and include:
 - the canonical TPM performance summary
+- the canonical judge input bundle
 - the final deterministic run report
+- traces
 - raw prompt/response log
 - structured decisions
 - protocol-failure metadata
@@ -366,7 +475,7 @@ quit
 
 ## Calibration Hygiene
 
-The README does not freeze benchmark numbers, because they should be regenerated from the current harness state rather than copied forward by hand.
+The README does not treat copied numbers as the source of truth. Reviewers should regenerate the current outputs from the checked-in accepted assets.
 
 Use these commands as the source of truth:
 
@@ -378,7 +487,9 @@ python3 -m tpm_sim benchmark --scenario internal_rollout_smoke --script examples
 
 Accepted scenarios also ship `validation.json` and `closure_report.json` alongside the runtime bundle.
 Both files include the scenario bundle digest and compiled coverage digest, and the loader freshness-checks them at runtime.
-If the scenario, authored coverage, or frozen grading specs change without regenerating those reports, the runtime marks them `stale` instead of silently treating them as authoritative.
+If the scenario, authored coverage, or runtime-fingerprinted spec artifacts change without regenerating those reports, the runtime marks them `stale` instead of silently treating them as authoritative.
+
+For current command-derived example outcomes and a reviewer audit path, see `docs/grading.md`.
 
 ## Repository Layout
 
@@ -409,15 +520,20 @@ tpm_sim/
     internal_rollout_smoke/
 ```
 
-## Frozen Spec Artifacts
+## Runtime-Fingerprinted Spec Artifacts
 
-These files are part of the benchmark definition and scenario digest:
+These files are part of the runtime benchmark definition and scenario digest:
 - `docs/specs/ACT_TAXONOMY_v1.md`
 - `docs/specs/PREDICATE_DSL_v1.md`
 - `docs/specs/CONTEXT_FAMILY_SCHEMA_v1.json`
 - `docs/specs/EVAL_DSL_v1.md`
+
+## Reporting And Reviewer Contracts
+
+These files are reviewer-facing contracts and explanations for the emitted reports:
 - `docs/specs/TPM_COMPETENCY_MODEL_v1.md`
-- `docs/specs/TPM_PERFORMANCE_SUMMARY_v1.md`
+- `docs/specs/TPM_PERFORMANCE_SUMMARY_v3.md`
+- `docs/specs/TPM_BUNDLE_PERFORMANCE_SUMMARY_v2.md`
 - `docs/specs/TPM_JUDGE_IO_v1.md`
 
 ## Non-Claims
