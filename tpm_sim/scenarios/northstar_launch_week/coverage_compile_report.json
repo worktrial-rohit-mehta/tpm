@@ -1,0 +1,11 @@
+{
+  "compiled_family_count": 43,
+  "compiled_from_digest": "e57bf939e95f56994672b170fdc8fa7c3a8ee98374a7ee522f888d62a7be096d",
+  "contract_cell_count": 43,
+  "duplicate_selector_guard_collisions": [],
+  "errors": [],
+  "missing_semantic_cells": [],
+  "orphan_semantic_cells": [],
+  "renderer_count": 43,
+  "semantic_entry_count": 43
+}

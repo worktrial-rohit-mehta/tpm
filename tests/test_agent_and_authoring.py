@@ -968,6 +968,28 @@ class AgentAndAuthoringTests(unittest.TestCase):
             self.assertEqual(record.turns_taken, 2)
             self.assertRegex(record.simulated_end_time, r"^2026-05-05T09:10:00$")
 
+    def test_agent_runner_records_success_criteria_met_termination(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = load_bundle_from_current_sources("internal_rollout_smoke")
+            db_path = str(Path(tmpdir) / "success_criteria.sqlite")
+            session = EnvironmentSession.create_from_bundle(db_path, bundle, 11, force=True)
+            try:
+                with mock.patch.object(session, "success_criteria_met", side_effect=[False, True]):
+                    record = AgentRunner(
+                        ScriptedAdapter([{"action_type": "wait.duration", "arguments": {"minutes": 5}, "reason": "advance a little"}]),
+                        max_turns=3,
+                    ).run(
+                        session,
+                        seed=11,
+                        output_dir=str(Path(tmpdir) / "success_criteria_run"),
+                        model_name="mock-model",
+                    )
+            finally:
+                session.close()
+            self.assertFalse(record.protocol_failure)
+            self.assertEqual(record.termination_reason, "success_criteria_met")
+            self.assertEqual(record.turns_taken, 1)
+
     def test_render_run_summary_exposes_turn_budget_termination(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             report, payload, scenario_bundle = build_failure_summary_fixture(tmpdir)
@@ -1966,6 +1988,21 @@ class AgentAndAuthoringTests(unittest.TestCase):
             fact_ids = {item["id"] for item in observation["working_memory"]["surfaced_facts"]}
             self.assertIn("maya_oncall_until_mon_1500", fact_ids)
             self.assertIn("backend_infeasible_for_friday", fact_ids)
+
+    def test_session_observe_exposes_scenario_horizon_and_remaining_minutes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = str(Path(tmpdir) / "time_context.sqlite")
+            session = EnvironmentSession.create(db_path, "internal_rollout_smoke", 11, force=True)
+            try:
+                before = session.observe()
+                session.step(StructuredAction("wait.duration", {"minutes": 5}))
+                after = session.observe()
+            finally:
+                session.close()
+            self.assertEqual(before["scenario_end_at"], "2026-05-06T17:00:00")
+            self.assertEqual(after["scenario_end_at"], "2026-05-06T17:00:00")
+            self.assertIsInstance(before["minutes_remaining"], int)
+            self.assertEqual(after["minutes_remaining"], before["minutes_remaining"] - 5)
 
     def test_northstar_andrew_clarification_path_has_authored_coverage(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

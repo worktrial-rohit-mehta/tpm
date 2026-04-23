@@ -136,6 +136,9 @@ Run the authored readiness gate:
 python3 -m tpm_sim readiness --scenario northstar_launch_week
 ```
 
+`readiness` only applies to scenarios that ship the full five-trajectory calibration bundle.
+In V1 that means `northstar_launch_week`. Smoke-only scenarios fail fast with a clear message and should be exercised with `benchmark` against their authored smoke script instead.
+
 Inspect authored NPC coverage:
 
 ```bash
@@ -361,24 +364,21 @@ fork LABEL | OUT_DB_PATH | [SEED]
 quit
 ```
 
-## Current Calibration Snapshot
+## Calibration Hygiene
 
-Official benchmark scenario:
-- `northstar_launch_week`
+The README does not freeze benchmark numbers, because they should be regenerated from the current harness state rather than copied forward by hand.
 
-Official seed bundle:
-- `11, 29, 47`
+Use these commands as the source of truth:
 
-Current readiness bands:
-- `golden`: mean `85.0`, worst `85.0`
-- `competent_but_imperfect`: mean `61.0`, worst `61.0`
-- `busywork`: mean `15.0`
-- `false_green`: mean `26.0`
-- `spray_and_pray`: mean `9.0`
+```bash
+python3 -m tpm_sim readiness --scenario northstar_launch_week
+python3 -m tpm_sim coverage-report --scenario northstar_launch_week
+python3 -m tpm_sim benchmark --scenario internal_rollout_smoke --script examples/internal_rollout_smoke/smoke.tpm
+```
 
-20-seed variance characterization:
-- `golden`: mean `85.0`, stdev `0.0`
-- `competent_but_imperfect`: mean `59.5`, stdev `4.5`
+Accepted scenarios also ship `validation.json` and `closure_report.json` alongside the runtime bundle.
+Both files include the scenario bundle digest and compiled coverage digest, and the loader freshness-checks them at runtime.
+If the scenario, authored coverage, or frozen grading specs change without regenerating those reports, the runtime marks them `stale` instead of silently treating them as authoritative.
 
 ## Repository Layout
 

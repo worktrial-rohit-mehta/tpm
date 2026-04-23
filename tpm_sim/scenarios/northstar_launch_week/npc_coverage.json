@@ -1,5 +1,5 @@
 {
-  "compiled_from_digest": "27256b8385557721e5967b03678cdb7b4caecac87b7b47a993b8ba62e18d6660",
+  "compiled_from_digest": "e57bf939e95f56994672b170fdc8fa7c3a8ee98374a7ee522f888d62a7be096d",
   "families": [
     {
       "criticality": "important",
@@ -1259,6 +1259,45 @@
       }
     },
     {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rahul.generic.descoped",
+      "priority": 11,
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "project.launch_scope",
+              "belief_value": "descoped_pilot",
+              "confidence": 0.8,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "rahul.generic_status_descoped",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_final_descoped_flow_for_signoff",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.generic_status_descoped",
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ],
+      "selector": {
+        "actor_id": "rahul",
+        "surface": "chat"
+      }
+    },
+    {
       "criticality": "critical",
       "guard": {
         "not": {
@@ -2242,6 +2281,21 @@
       }
     },
     {
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rahul_chat_fallback_descoped",
+      "reachable": true,
+      "selector": {
+        "actor_id": "rahul",
+        "surface": "chat"
+      }
+    },
+    {
       "criticality": "critical",
       "guard": {
         "not": {
@@ -2585,6 +2639,10 @@
     "rahul.denies_without_context": [
       "I\u2019m not approving a simplified design without the actual support context.",
       "I need the customer pain points before I sign off on a simpler flow."
+    ],
+    "rahul.generic_status_descoped": [
+      "If the descoped pilot is the plan, tie the customer context to the final narrowed flow and I can close design signoff.",
+      "That keeps us close, but I still need the exact descoped flow anchored in the support context before design is fully signed off."
     ],
     "rahul.generic_status_undecided": [
       "I still need the customer context tied to a concrete narrowed flow before design can really move.",

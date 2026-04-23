@@ -1,32 +1,34 @@
 {
-  "bundle_digest": "9d9562373666e43b383355cecc407b072294d7484216712d370757c0d9c010bd",
+  "bundle_digest": "27256b8385557721e5967b03678cdb7b4caecac87b7b47a993b8ba62e18d6660",
   "compile_report": {
-    "compiled_family_count": 17,
-    "compiled_from_digest": "9d9562373666e43b383355cecc407b072294d7484216712d370757c0d9c010bd",
-    "contract_cell_count": 17,
+    "compiled_family_count": 42,
+    "compiled_from_digest": "27256b8385557721e5967b03678cdb7b4caecac87b7b47a993b8ba62e18d6660",
+    "contract_cell_count": 42,
     "duplicate_selector_guard_collisions": [],
     "errors": [],
     "missing_semantic_cells": [],
     "orphan_semantic_cells": [],
-    "renderer_count": 17,
-    "semantic_entry_count": 17
+    "renderer_count": 42,
+    "semantic_entry_count": 42
   },
-  "compiled_coverage_digest": "9d9562373666e43b383355cecc407b072294d7484216712d370757c0d9c010bd",
+  "compiled_coverage_digest": "27256b8385557721e5967b03678cdb7b4caecac87b7b47a993b8ba62e18d6660",
   "coverage_report": {
     "coverage": 1.0,
-    "covered_reachable_cells": 17,
+    "covered_reachable_cells": 42,
     "critical_uncovered": 0,
-    "total_reachable_cells": 17,
+    "total_reachable_cells": 42,
     "uncovered": []
   },
   "errors": [],
   "scenario_id": "northstar_launch_week",
+  "scenario_validation_errors": [],
   "smoke_results": [
     {
       "error": null,
-      "score": 85.0,
+      "score": 81.67,
       "script": "golden.tpm"
     }
   ],
+  "trajectory_syntax_errors": [],
   "valid": true
 }

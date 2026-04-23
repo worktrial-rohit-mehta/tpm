@@ -26,7 +26,14 @@ class Evaluator:
             "scenario_id": self.scenario["id"],
             "scenario_digest": self.engine.scenario_digest(),
             "compiled_coverage_digest": self.store.get_meta("compiled_coverage_digest", self.engine.scenario_digest()),
-            "closure_status": self.engine.deserialize(self.store.get_meta("closure_status_json"), {"status": "unknown", "passed": False}),
+            "validation_status": self.engine.deserialize(
+                self.store.get_meta("validation_status_json"),
+                {"status": "unknown", "passed": False, "fresh": False},
+            ),
+            "closure_status": self.engine.deserialize(
+                self.store.get_meta("closure_status_json"),
+                {"status": "unknown", "passed": False, "fresh": False},
+            ),
             "time": self.store.get_meta("current_time"),
             "total_score": total_score,
             "rubric": rubric_results,

@@ -58,7 +58,8 @@ class AgentRunner:
         turns = 0
         end_at = session.engine.store.get_meta("simulation_end")
         end_dt = datetime.strptime(end_at, "%Y-%m-%dT%H:%M:%S")
-        while turns < self.max_turns and session.engine.now() < end_dt:
+        success_criteria_met = session.success_criteria_met()
+        while turns < self.max_turns and session.engine.now() < end_dt and not success_criteria_met:
             observation = session.observe()
             repair_feedback = None
             decision_payload = None
@@ -138,10 +139,13 @@ class AgentRunner:
                 }
             )
             turns += 1
+            success_criteria_met = session.success_criteria_met()
 
         termination_reason = "completed"
         if protocol_failure:
             termination_reason = "protocol_failure"
+        elif success_criteria_met:
+            termination_reason = "success_criteria_met"
         elif turns >= self.max_turns and session.engine.now() < end_dt:
             termination_reason = "max_turns_reached"
         elif session.engine.now() >= end_dt:

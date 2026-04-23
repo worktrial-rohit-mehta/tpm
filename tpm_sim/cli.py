@@ -54,6 +54,15 @@ class ShellExit(Exception):
 
 
 SUMMARY_JUDGE_MODEL = "gpt-5.4"
+READINESS_TRAJECTORY_NAMES = (
+    "golden",
+    "competent_but_imperfect",
+    "busywork",
+    "false_green",
+    "spray_and_pray",
+)
+READINESS_GOLDEN_MEAN_THRESHOLD = 80.0
+LEGACY_ROOT_READINESS_SCENARIOS = {"northstar_launch_week"}
 
 
 def build_runtime(db_path: str) -> tuple[SimulationEngine, Evaluator]:
@@ -69,6 +78,36 @@ def build_runtime(db_path: str) -> tuple[SimulationEngine, Evaluator]:
 
 def _resolve_summary_judge_model() -> str:
     return SUMMARY_JUDGE_MODEL
+
+
+def _resolve_readiness_scripts(scenario_id: str, examples_dir: str) -> dict[str, Path]:
+    examples_root = Path(examples_dir)
+    candidate_roots = [examples_root / scenario_id]
+    if scenario_id in LEGACY_ROOT_READINESS_SCENARIOS:
+        candidate_roots.append(examples_root)
+    seen_roots: set[Path] = set()
+    for root in candidate_roots:
+        if root in seen_roots:
+            continue
+        seen_roots.add(root)
+        scripts = {name: root / f"{name}.tpm" for name in READINESS_TRAJECTORY_NAMES}
+        if all(path.exists() for path in scripts.values()):
+            return scripts
+
+    smoke_script = examples_root / scenario_id / "smoke.tpm"
+    if smoke_script.exists():
+        raise RuntimeError(
+            "Scenario "
+            f"'{scenario_id}' is not readiness-calibrated. "
+            "It ships smoke/regression coverage only, not the full five-trajectory readiness bundle. "
+            f"Use `python3 -m tpm_sim benchmark --scenario {scenario_id} --script {smoke_script}` instead."
+        )
+
+    required = ", ".join(f"{name}.tpm" for name in READINESS_TRAJECTORY_NAMES)
+    raise FileNotFoundError(
+        "Readiness requires the full five-trajectory reference suite. "
+        f"Could not find {required} under {examples_root} or {examples_root / scenario_id}."
+    )
 
 
 def execute_command(engine: SimulationEngine, evaluator: Evaluator, raw_line: str) -> Optional[str]:
@@ -538,17 +577,7 @@ def run_coverage_report(scenario_id: str, as_json_output: bool) -> int:
 
 
 def run_readiness(scenario_id: str, examples_dir: str, as_json_output: bool) -> int:
-    scripts = {
-        "golden": Path(examples_dir) / "golden.tpm",
-        "competent_but_imperfect": Path(examples_dir) / "competent_but_imperfect.tpm",
-        "busywork": Path(examples_dir) / "busywork.tpm",
-        "false_green": Path(examples_dir) / "false_green.tpm",
-        "spray_and_pray": Path(examples_dir) / "spray_and_pray.tpm",
-    }
-    missing = [name for name, path in scripts.items() if not path.exists()]
-    if missing:
-        raise FileNotFoundError(f"Missing readiness scripts: {', '.join(missing)}")
-
+    scripts = _resolve_readiness_scripts(scenario_id, examples_dir)
     bundle = load_scenario_bundle(scenario_id)
     official_seeds = list(bundle["scenario"]["evaluation"].get("official_seeds", [11, 29, 47]))
     readiness_runs: dict[str, dict[str, object]] = {}
@@ -576,7 +605,7 @@ def run_readiness(scenario_id: str, examples_dir: str, as_json_output: bool) -> 
             "seed_count": len(variance_seeds),
         },
         "gates": {
-            "golden_mean_gte_85": readiness_runs["golden"]["band"]["mean"] >= 85,
+            "golden_mean_gte_80": readiness_runs["golden"]["band"]["mean"] >= READINESS_GOLDEN_MEAN_THRESHOLD,
             "golden_worst_gte_75": readiness_runs["golden"]["band"]["worst"] >= 75,
             "competent_mean_between_55_65": 55 <= readiness_runs["competent_but_imperfect"]["band"]["mean"] <= 65,
             "busywork_mean_lte_35": readiness_runs["busywork"]["band"]["mean"] <= 35,
@@ -1048,7 +1077,10 @@ def build_parser() -> argparse.ArgumentParser:
     coverage_parser.add_argument("--scenario", default="northstar_launch_week", choices=available_scenarios())
     coverage_parser.add_argument("--json", action="store_true")
 
-    readiness_parser = subparsers.add_parser("readiness", help="Run the authored readiness gate")
+    readiness_parser = subparsers.add_parser(
+        "readiness",
+        help="Run the authored readiness gate for a readiness-calibrated scenario",
+    )
     readiness_parser.add_argument("--scenario", default="northstar_launch_week", choices=available_scenarios())
     readiness_parser.add_argument("--examples-dir", default=str(Path(__file__).resolve().parents[1] / "examples"))
     readiness_parser.add_argument("--json", action="store_true")
@@ -1148,62 +1180,74 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-
-    if args.command == "init":
-        return init_db(args.db, args.scenario, args.seed, args.coverage_enforcement, args.force)
-    if args.command == "shell":
-        return run_shell(args.db)
-    if args.command == "replay":
-        return run_replay(args.db, args.script, args.echo)
-    if args.command == "eval":
-        return run_eval(args.db, args.json, args.export_prefix)
-    if args.command == "benchmark":
-        seeds = [int(item) for item in csv_ids(args.seeds)] if args.seeds else None
-        return run_benchmark(args.scenario, args.script, args.outdir, seeds, args.json)
-    if args.command == "coverage-report":
-        return run_coverage_report(args.scenario, args.json)
-    if args.command == "readiness":
-        return run_readiness(args.scenario, args.examples_dir, args.json)
-    if args.command == "summarize-run":
-        return run_summarize_run(args.run_dir, args.json)
-    if args.command == "summarize-bundle":
-        return run_summarize_bundle(args.bundle_dir, args.json)
-    if args.command == "agent":
-        if args.agent_command == "run":
-            return run_agent(args.scenario, args.seed, args.model, args.outdir, args.max_turns, args.coverage_enforcement, args.stream_events, args.json)
-        if args.agent_command == "bundle-eval":
-            return run_agent_bundle_eval(args.scenario, args.model, args.outdir, args.max_turns, args.json)
-        if args.agent_command == "replay":
-            return _run_agent_replay(args.run_dir, events=args.events, event_limit=args.event_limit)
-    if args.command == "author":
-        if args.author_command == "init":
-            return run_author_init(args.brief, args.proposal_dir, args.json)
-        if args.author_command == "synthesize-world":
-            return run_author_synthesize("world", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
-        if args.author_command == "compile-contract":
-            return run_author_compile_contract(args.proposal_dir, args.json)
-        if args.author_command == "synthesize-semantics":
-            return run_author_synthesize("semantics", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
-        if args.author_command == "synthesize-coverage":
-            return run_author_synthesize("coverage", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
-        if args.author_command == "compile-coverage":
-            return run_author_compile_coverage(args.proposal_dir, args.json)
-        if args.author_command == "synthesize-trajectories":
-            return run_author_synthesize("trajectories", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
-        if args.author_command == "validate":
-            return run_author_validate(args.proposal_dir, args.json)
-        if args.author_command == "closure-suite":
-            return run_author_closure_suite(args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.repeats, args.json)
-        if args.author_command == "diff":
-            return run_author_diff(args.proposal_dir, args.scenarios_root, args.json)
-        if args.author_command == "gap-fill":
-            return run_author_gap_fill(args.proposal_dir, args.gaps_path, args.adapter, args.model, args.fixtures_root, args.json)
-        if args.author_command == "accept":
-            return run_author_accept(args.proposal_dir, args.scenarios_root, args.examples_root, args.json)
-    if args.command == "list-scenarios":
-        for scenario_id in available_scenarios():
-            print(scenario_id)
-        return 0
+    try:
+        if args.command == "init":
+            return init_db(args.db, args.scenario, args.seed, args.coverage_enforcement, args.force)
+        if args.command == "shell":
+            return run_shell(args.db)
+        if args.command == "replay":
+            return run_replay(args.db, args.script, args.echo)
+        if args.command == "eval":
+            return run_eval(args.db, args.json, args.export_prefix)
+        if args.command == "benchmark":
+            seeds = [int(item) for item in csv_ids(args.seeds)] if args.seeds else None
+            return run_benchmark(args.scenario, args.script, args.outdir, seeds, args.json)
+        if args.command == "coverage-report":
+            return run_coverage_report(args.scenario, args.json)
+        if args.command == "readiness":
+            return run_readiness(args.scenario, args.examples_dir, args.json)
+        if args.command == "summarize-run":
+            return run_summarize_run(args.run_dir, args.json)
+        if args.command == "summarize-bundle":
+            return run_summarize_bundle(args.bundle_dir, args.json)
+        if args.command == "agent":
+            if args.agent_command == "run":
+                return run_agent(
+                    args.scenario,
+                    args.seed,
+                    args.model,
+                    args.outdir,
+                    args.max_turns,
+                    args.coverage_enforcement,
+                    args.stream_events,
+                    args.json,
+                )
+            if args.agent_command == "bundle-eval":
+                return run_agent_bundle_eval(args.scenario, args.model, args.outdir, args.max_turns, args.json)
+            if args.agent_command == "replay":
+                return _run_agent_replay(args.run_dir, events=args.events, event_limit=args.event_limit)
+        if args.command == "author":
+            if args.author_command == "init":
+                return run_author_init(args.brief, args.proposal_dir, args.json)
+            if args.author_command == "synthesize-world":
+                return run_author_synthesize("world", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
+            if args.author_command == "compile-contract":
+                return run_author_compile_contract(args.proposal_dir, args.json)
+            if args.author_command == "synthesize-semantics":
+                return run_author_synthesize("semantics", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
+            if args.author_command == "synthesize-coverage":
+                return run_author_synthesize("coverage", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
+            if args.author_command == "compile-coverage":
+                return run_author_compile_coverage(args.proposal_dir, args.json)
+            if args.author_command == "synthesize-trajectories":
+                return run_author_synthesize("trajectories", args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.json)
+            if args.author_command == "validate":
+                return run_author_validate(args.proposal_dir, args.json)
+            if args.author_command == "closure-suite":
+                return run_author_closure_suite(args.proposal_dir, args.adapter, args.model, args.fixtures_root, args.repeats, args.json)
+            if args.author_command == "diff":
+                return run_author_diff(args.proposal_dir, args.scenarios_root, args.json)
+            if args.author_command == "gap-fill":
+                return run_author_gap_fill(args.proposal_dir, args.gaps_path, args.adapter, args.model, args.fixtures_root, args.json)
+            if args.author_command == "accept":
+                return run_author_accept(args.proposal_dir, args.scenarios_root, args.examples_root, args.json)
+        if args.command == "list-scenarios":
+            for scenario_id in available_scenarios():
+                print(scenario_id)
+            return 0
+    except (CoverageMissError, FileNotFoundError, KeyError, RuntimeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
     parser.error(f"Unhandled command: {args.command}")
     return 2

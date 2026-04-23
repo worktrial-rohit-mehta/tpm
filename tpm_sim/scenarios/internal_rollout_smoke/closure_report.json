@@ -1,51 +1,31 @@
 {
+  "bundle_digest": "c5ae00671565a3be81b2f817305345f6774c4f072e5a498b2f6bf00b9b0069dc",
+  "compiled_coverage_digest": "c5ae00671565a3be81b2f817305345f6774c4f072e5a498b2f6bf00b9b0069dc",
   "deterministic_scripted_suite": [
     {
       "error": null,
-      "score": 25.0,
+      "score": 92.5,
       "script": "smoke.tpm",
       "seed": 11
     },
     {
       "error": null,
-      "score": 19.5,
+      "score": 92.5,
       "script": "smoke.tpm",
       "seed": 29
     },
     {
       "error": null,
-      "score": 19.5,
+      "score": 87.5,
       "script": "smoke.tpm",
       "seed": 47
     }
   ],
   "live_agent_suite": {
-    "model": "gpt-5.4",
+    "model": "fixture",
     "repeats": 1,
-    "runs": [
-      {
-        "protocol_failure": false,
-        "protocol_failure_reason": null,
-        "repeat": 1,
-        "score": 22.0,
-        "seed": 11
-      },
-      {
-        "protocol_failure": false,
-        "protocol_failure_reason": null,
-        "repeat": 1,
-        "score": 25.0,
-        "seed": 29
-      },
-      {
-        "protocol_failure": false,
-        "protocol_failure_reason": null,
-        "repeat": 1,
-        "score": 20.0,
-        "seed": 47
-      }
-    ],
-    "status": "executed"
+    "runs": [],
+    "status": "fixture_skipped"
   },
   "pass_criteria": {
     "zero_live_protocol_failures": true,

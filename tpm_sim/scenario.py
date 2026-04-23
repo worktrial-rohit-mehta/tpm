@@ -111,6 +111,7 @@ def load_scenario_bundle(scenario_id: str) -> dict[str, Any]:
         root.joinpath("npc_coverage.json"),
         contract_path=root.joinpath("coverage_contract.json"),
         semantics_path=root.joinpath("coverage_semantics.json"),
+        validation_report_path=root.joinpath("validation.json"),
         closure_report_path=root.joinpath("closure_report.json"),
     )
 
@@ -121,6 +122,7 @@ def load_bundle_from_paths(
     *,
     contract_path: str | Path | None = None,
     semantics_path: str | Path | None = None,
+    validation_report_path: str | Path | None = None,
     closure_report_path: str | Path | None = None,
 ) -> dict[str, Any]:
     scenario_bytes = Path(scenario_path).read_bytes()
@@ -163,7 +165,16 @@ def load_bundle_from_paths(
             "coverage_semantics": semantics,
             "scenario_digest": digest,
             "compiled_coverage_digest": compiled_from,
-            "closure_status": _load_closure_status(closure_report_path or Path(scenario_path).with_name("closure_report.json")),
+            "validation_status": _load_validation_status(
+                validation_report_path or Path(scenario_path).with_name("validation.json"),
+                expected_bundle_digest=digest,
+                expected_compiled_coverage_digest=compiled_from,
+            ),
+            "closure_status": _load_closure_status(
+                closure_report_path or Path(scenario_path).with_name("closure_report.json"),
+                expected_bundle_digest=digest,
+                expected_compiled_coverage_digest=compiled_from,
+            ),
             "scenario_bytes": scenario_bytes,
             "contract_bytes": contract_bytes,
             "semantics_bytes": semantics_bytes,
@@ -185,7 +196,8 @@ def load_bundle_from_paths(
         "coverage": coverage,
         "scenario_digest": digest,
         "compiled_coverage_digest": coverage.get("compiled_from_digest", digest),
-        "closure_status": {"status": "legacy_untracked", "passed": False},
+        "validation_status": {"status": "legacy_untracked", "passed": False, "fresh": False},
+        "closure_status": {"status": "legacy_untracked", "passed": False, "fresh": False},
         "scenario_bytes": scenario_bytes,
         "coverage_bytes": coverage_bytes,
     }
@@ -219,6 +231,7 @@ def load_bundle_from_store(store: StateStore) -> dict[str, Any]:
         raise RuntimeError("Run database does not contain a frozen scenario snapshot.")
     contract_json = store.get_meta("coverage_contract_json")
     semantics_json = store.get_meta("coverage_semantics_json")
+    validation_status_json = store.get_meta("validation_status_json")
     closure_status_json = store.get_meta("closure_status_json")
     return {
         "scenario": json.loads(scenario_json),
@@ -227,7 +240,12 @@ def load_bundle_from_store(store: StateStore) -> dict[str, Any]:
         "compiled_coverage_digest": store.get_meta("compiled_coverage_digest", store.get_meta("scenario_digest", "")),
         "coverage_contract": json.loads(contract_json) if contract_json else None,
         "coverage_semantics": json.loads(semantics_json) if semantics_json else None,
-        "closure_status": json.loads(closure_status_json) if closure_status_json else {"status": "unknown", "passed": False},
+        "validation_status": json.loads(validation_status_json)
+        if validation_status_json
+        else {"status": "unknown", "passed": False, "fresh": False},
+        "closure_status": json.loads(closure_status_json)
+        if closure_status_json
+        else {"status": "unknown", "passed": False, "fresh": False},
     }
 
 
@@ -236,7 +254,8 @@ def seed_store(store: StateStore, bundle: dict[str, Any], seed: int, coverage_en
     coverage = bundle["coverage"]
     contract = bundle.get("coverage_contract")
     semantics = bundle.get("coverage_semantics")
-    closure_status = bundle.get("closure_status", {"status": "unknown", "passed": False})
+    validation_status = bundle.get("validation_status", {"status": "unknown", "passed": False, "fresh": False})
+    closure_status = bundle.get("closure_status", {"status": "unknown", "passed": False, "fresh": False})
     world = scenario["world"]
 
     store.reset()
@@ -251,6 +270,7 @@ def seed_store(store: StateStore, bundle: dict[str, Any], seed: int, coverage_en
         if semantics is not None:
             store.set_meta("coverage_semantics_json", json.dumps(semantics, sort_keys=True))
         store.set_meta("npc_coverage_json", json.dumps(coverage, sort_keys=True))
+        store.set_meta("validation_status_json", json.dumps(validation_status, sort_keys=True))
         store.set_meta("closure_status_json", json.dumps(closure_status, sort_keys=True))
         store.set_meta("timezone", scenario.get("timezone", "America/Los_Angeles"))
         store.set_meta("seed", str(seed))
@@ -330,18 +350,109 @@ def seed_store(store: StateStore, bundle: dict[str, Any], seed: int, coverage_en
                 "compiled_coverage_digest": bundle.get("compiled_coverage_digest", bundle["scenario_digest"]),
                 "seed": seed,
                 "coverage_enforcement": coverage_enforcement,
+                "validation_status": validation_status,
                 "closure_status": closure_status,
             },
         )
 
 
-def _load_closure_status(path: str | Path) -> dict[str, Any]:
-    closure_path = Path(path)
-    if not closure_path.exists():
-        return {"status": "not_certified", "passed": False}
-    payload = json.loads(closure_path.read_text())
+def _load_validation_status(
+    path: str | Path,
+    *,
+    expected_bundle_digest: str,
+    expected_compiled_coverage_digest: str,
+) -> dict[str, Any]:
+    return _load_bundle_artifact_status(
+        path,
+        expected_bundle_digest=expected_bundle_digest,
+        expected_compiled_coverage_digest=expected_compiled_coverage_digest,
+        pass_field="valid",
+        missing_status="not_validated",
+        success_status="validated",
+        failure_status="validation_failed",
+    )
+
+
+def _load_closure_status(
+    path: str | Path,
+    *,
+    expected_bundle_digest: str,
+    expected_compiled_coverage_digest: str,
+) -> dict[str, Any]:
+    return _load_bundle_artifact_status(
+        path,
+        expected_bundle_digest=expected_bundle_digest,
+        expected_compiled_coverage_digest=expected_compiled_coverage_digest,
+        pass_field="passed",
+        missing_status="not_certified",
+        success_status="passed",
+        failure_status="failed",
+    )
+
+
+def _load_bundle_artifact_status(
+    path: str | Path,
+    *,
+    expected_bundle_digest: str,
+    expected_compiled_coverage_digest: str,
+    pass_field: str,
+    missing_status: str,
+    success_status: str,
+    failure_status: str,
+) -> dict[str, Any]:
+    artifact_path = Path(path)
+    if not artifact_path.exists():
+        return {"status": missing_status, "passed": False, "fresh": False}
+
+    payload = json.loads(artifact_path.read_text())
+    reported_bundle_digest = payload.get("bundle_digest")
+    reported_compiled_digest = payload.get("compiled_coverage_digest")
+    if not isinstance(reported_bundle_digest, str) or not isinstance(reported_compiled_digest, str):
+        return {
+            "status": "stale",
+            "passed": False,
+            "fresh": False,
+            "path": str(artifact_path),
+            "reason": "missing_digest",
+            "reported_status": payload.get("status"),
+            "bundle_digest": reported_bundle_digest,
+            "compiled_coverage_digest": reported_compiled_digest,
+        }
+
+    if expected_bundle_digest and reported_bundle_digest != expected_bundle_digest:
+        return {
+            "status": "stale",
+            "passed": False,
+            "fresh": False,
+            "path": str(artifact_path),
+            "reason": "bundle_digest_mismatch",
+            "reported_status": payload.get("status"),
+            "bundle_digest": reported_bundle_digest,
+            "expected_bundle_digest": expected_bundle_digest,
+            "compiled_coverage_digest": reported_compiled_digest,
+            "expected_compiled_coverage_digest": expected_compiled_coverage_digest,
+        }
+
+    if expected_compiled_coverage_digest and reported_compiled_digest != expected_compiled_coverage_digest:
+        return {
+            "status": "stale",
+            "passed": False,
+            "fresh": False,
+            "path": str(artifact_path),
+            "reason": "compiled_coverage_digest_mismatch",
+            "reported_status": payload.get("status"),
+            "bundle_digest": reported_bundle_digest,
+            "expected_bundle_digest": expected_bundle_digest,
+            "compiled_coverage_digest": reported_compiled_digest,
+            "expected_compiled_coverage_digest": expected_compiled_coverage_digest,
+        }
+
+    passed = bool(payload.get(pass_field, False))
     return {
-        "status": payload.get("status", "unknown"),
-        "passed": bool(payload.get("passed", False)),
-        "path": str(closure_path),
+        "status": payload.get("status", success_status if passed else failure_status),
+        "passed": passed,
+        "fresh": True,
+        "path": str(artifact_path),
+        "bundle_digest": reported_bundle_digest,
+        "compiled_coverage_digest": reported_compiled_digest,
     }

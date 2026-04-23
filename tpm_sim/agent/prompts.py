@@ -102,7 +102,7 @@ def build_agent_prompt(observation: dict[str, Any], *, repair_feedback: str | No
         This is a deterministic evaluation environment. Choose exactly one next action. Use only visible information from the observation, working_memory, recent_history, threads, docs, tasks, calendar, and active meetings. Do not invent hidden facts, unseen conversations, or implied approvals.
 
         How to read the state:
-        - observation is the current visible world state: time, project state, unread threads, meetings, tasks, and listed docs
+        - observation is the current visible world state: time, scenario_end_at, minutes_remaining, project state, unread threads, meetings, tasks, and listed docs
         - working_memory is extractive only: surfaced facts, open commitments, blockers, windows, pending meetings, milestones, task summaries, actor directory, thread_state, actor_constraints, pending replies, visible preconditions, approval_readiness, and open coordination needs. It is a recap, not advice
         - recent_history shows what the TPM recently did and what agent-visible events just happened, so you can avoid redundant or low-leverage repeats
 
@@ -118,6 +118,7 @@ def build_agent_prompt(observation: dict[str, Any], *, repair_feedback: str | No
         - use actor_constraints and approval_readiness to understand what the visible blocker actually is before sending another message
         - use the actor directory and canonical chat thread ids from working_memory instead of inventing target names
         - ask for concrete feasibility, risks, approvals, ownership, and decisions when those are the missing ingredients
+        - use scenario_end_at, minutes_remaining, milestone due_at, and visible windows to pace your actions against the real remaining time
         - use docs and tracker updates to support coordination, not replace it
         - escalate when normal coordination is not enough and a real window or dependency is at risk, not as a default move
         - wait only when a concrete upcoming event or reply is more valuable than any proactive move right now

@@ -1,38 +1,40 @@
 {
+  "bundle_digest": "27256b8385557721e5967b03678cdb7b4caecac87b7b47a993b8ba62e18d6660",
+  "compiled_coverage_digest": "27256b8385557721e5967b03678cdb7b4caecac87b7b47a993b8ba62e18d6660",
   "deterministic_scripted_suite": [
     {
       "error": null,
-      "score": 85.0,
+      "score": 81.67,
       "script": "golden.tpm",
       "seed": 11
     },
     {
       "error": null,
-      "score": 85.0,
+      "score": 81.67,
       "script": "golden.tpm",
       "seed": 29
     },
     {
       "error": null,
-      "score": 85.0,
+      "score": 81.67,
       "script": "golden.tpm",
       "seed": 47
     },
     {
       "error": null,
-      "score": 15.0,
+      "score": 13.33,
       "script": "busywork.tpm",
       "seed": 11
     },
     {
       "error": null,
-      "score": 15.0,
+      "score": 13.33,
       "script": "busywork.tpm",
       "seed": 29
     },
     {
       "error": null,
-      "score": 15.0,
+      "score": 13.33,
       "script": "busywork.tpm",
       "seed": 47
     },

@@ -191,11 +191,14 @@ class EnvironmentSession:
         self.evaluator = Evaluator(self.engine)
 
     def observe(self) -> dict[str, Any]:
+        scenario_end_at = self.engine.scenario["end_at"]
         return {
             "schema_version": ACTION_SCHEMA_VERSION,
             "scenario_id": self.engine.scenario["id"],
             "scenario_digest": self.engine.scenario_digest(),
             "time": to_iso(self.engine.now()),
+            "scenario_end_at": scenario_end_at,
+            "minutes_remaining": max(0, int((from_iso(scenario_end_at) - self.engine.now()).total_seconds() // 60)),
             "observation": self.engine.observe(),
             "working_memory": self._working_memory(),
             "recent_history": self._recent_history(),
@@ -232,6 +235,9 @@ class EnvironmentSession:
 
     def coverage_report(self) -> dict[str, Any]:
         return self.engine.coverage_report()
+
+    def success_criteria_met(self) -> bool:
+        return self.engine.success_criteria_met()
 
     def step(self, action: StructuredAction | dict[str, Any]) -> StepResult:
         structured = coerce_action(action)

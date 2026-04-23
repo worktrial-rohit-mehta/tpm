@@ -396,16 +396,6 @@
       "cell_id": "dana.request_ownership.staged_rollout.gap1",
       "response_envelopes": [
         {
-          "id": "dana.request_ownership.staged_rollout",
-          "weight": 1.0,
-          "outgoing_act_id": "inform.decision",
-          "outgoing_slots": {
-            "decision": "ownership_split_confirmed",
-            "owner": "leo",
-            "approval_owner": "ivy",
-            "task_id": "config_rollout"
-          },
-          "surface_facts": [],
           "belief_signals": [
             {
               "actor_id": "tpm",
@@ -437,11 +427,21 @@
             }
           ],
           "effects": [],
+          "id": "dana.request_ownership.staged_rollout",
+          "outgoing_act_id": "inform.decision",
+          "outgoing_slots": {
+            "approval_owner": "ivy",
+            "decision": "ownership_split_confirmed",
+            "owner": "leo",
+            "task_id": "config_rollout"
+          },
           "renderer_id": "dana.request_ownership.staged_rollout.gap1",
           "renderer_variants": [
             "I back the staged path, but Leo owns delivery and Ivy owns approval. Keep me on the decision, not the execution handoff.",
             "Ownership is split here: Leo drives rollout execution, Ivy owns the approval queue, and I sponsor the staged tradeoff."
-          ]
+          ],
+          "surface_facts": [],
+          "weight": 1.0
         }
       ]
     },

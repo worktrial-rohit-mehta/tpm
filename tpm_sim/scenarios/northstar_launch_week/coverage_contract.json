@@ -469,6 +469,24 @@
       "why_reachable": "The TPM may keep Rahul informed with generic status or clarification notes before the pilot scope is narrowed."
     },
     {
+      "compiled_family_id": "rahul.generic.descoped",
+      "criticality": "important",
+      "guard": {
+        "project_state": {
+          "equals": "descoped_pilot",
+          "field": "launch_scope"
+        }
+      },
+      "id": "rahul_chat_fallback_descoped",
+      "priority": 11,
+      "rationale": "After descoping, generic Rahul chat should still steer the TPM toward the final design-signoff path instead of failing coverage.",
+      "selector": {
+        "actor_id": "rahul",
+        "surface": "chat"
+      },
+      "why_reachable": "The TPM may keep Rahul updated with a generic status note after scope narrows without converting it into an explicit approval ask."
+    },
+    {
       "compiled_family_id": "rahul.approval.without_context",
       "criticality": "critical",
       "guard": {

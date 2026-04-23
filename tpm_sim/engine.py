@@ -117,6 +117,12 @@ class SimulationEngine:
     def milestone_metadata(self, milestone_id: str) -> dict[str, Any]:
         return self.deserialize(self.milestone_row(milestone_id)["metadata_json"], {})
 
+    def success_criteria_met(self) -> bool:
+        milestones = self.store.milestones()
+        if not milestones:
+            return False
+        return all(self.deserialize(row["state_json"], {}).get("status") == "done" for row in milestones)
+
     def fact_row(self, fact_id: str):
         return self.store.get_fact(fact_id)
 

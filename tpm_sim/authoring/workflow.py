@@ -495,6 +495,8 @@ def run_closure_suite(
     if not official_seeds:
         report = {
             "scenario_id": scenario_id,
+            "bundle_digest": validation.get("bundle_digest"),
+            "compiled_coverage_digest": validation.get("compiled_coverage_digest"),
             "status": "failed_no_seeds",
             "passed": False,
             "deterministic_scripted_suite": [],
@@ -577,6 +579,8 @@ def run_closure_suite(
 
     report = {
         "scenario_id": scenario["id"],
+        "bundle_digest": bundle["scenario_digest"],
+        "compiled_coverage_digest": bundle.get("compiled_coverage_digest"),
         "status": "passed" if deterministic_ok and live_ok else "failed",
         "passed": deterministic_ok and live_ok,
         "deterministic_scripted_suite": scripted_suite,

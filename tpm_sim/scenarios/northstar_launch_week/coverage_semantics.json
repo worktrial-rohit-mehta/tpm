@@ -1060,6 +1060,37 @@
       ]
     },
     {
+      "cell_id": "rahul_chat_fallback_descoped",
+      "response_envelopes": [
+        {
+          "belief_signals": [
+            {
+              "belief_key": "project.launch_scope",
+              "belief_value": "descoped_pilot",
+              "confidence": 0.8,
+              "freshness_window_min": 480
+            }
+          ],
+          "effects": [],
+          "id": "rahul.generic_status_descoped",
+          "outgoing_act_id": "inform.status_update",
+          "outgoing_slots": {
+            "status": "need_final_descoped_flow_for_signoff",
+            "task_id": "design_signoff"
+          },
+          "renderer_id": "rahul.generic_status_descoped",
+          "renderer_variants": [
+            "If the descoped pilot is the plan, tie the customer context to the final narrowed flow and I can close design signoff.",
+            "That keeps us close, but I still need the exact descoped flow anchored in the support context before design is fully signed off."
+          ],
+          "surface_facts": [
+            "rahul_needs_support_context"
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
       "cell_id": "rahul_without_context",
       "response_envelopes": [
         {

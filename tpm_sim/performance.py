@@ -378,7 +378,8 @@ def build_run_summary(
             "scenario_id": report["scenario_id"],
             "scenario_digest": report["scenario_digest"],
             "compiled_coverage_digest": report.get("compiled_coverage_digest", report["scenario_digest"]),
-            "closure_status": report.get("closure_status", {"status": "unknown", "passed": False}),
+            "validation_status": report.get("validation_status", {"status": "unknown", "passed": False, "fresh": False}),
+            "closure_status": report.get("closure_status", {"status": "unknown", "passed": False, "fresh": False}),
             "seed": run_record.get("seed"),
             "adapter": run_record.get("adapter"),
             "model": run_record.get("model"),
@@ -4310,6 +4311,7 @@ def _outcome_verdict(critical_path: dict[str, Any], dimension_scores: dict[str, 
 def _render_termination_reason(reason: str | None) -> str:
     labels = {
         "protocol_failure": "protocol failure",
+        "success_criteria_met": "success criteria met",
         "max_turns_reached": "turn budget exhausted",
         "scenario_horizon_reached": "scenario horizon reached",
         "completed": "completed",
